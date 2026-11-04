@@ -1,0 +1,10 @@
+{
+  "name": "vim",
+  "displayName": "Vim",
+  "version": "0.1.0",
+  "description": "Vim keys in every editor tab: normal, insert and visual modes, motions, registers, macros and the : command line.",
+  "icon": "icon.svg",
+  "engines": { "bmeditor": ">=0.1.0" },
+  "frontend": { "script": "frontend/index.js" },
+  "build": { "command": ["make", "dist"], "output": "dist" }
+}

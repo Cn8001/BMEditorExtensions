@@ -1,0 +1,200 @@
+{
+  "name": "web",
+  "displayName": "Web",
+  "version": "0.3.0",
+  "description": "JavaScript, TypeScript, CSS, SCSS, Less, Svelte, Vue, SVG and HTML, with their language servers, and an image viewer.",
+  "icon": "icon.svg",
+  "engines": {
+    "bmeditor": ">=0.1.0"
+  },
+  "languages": [
+    {
+      "id": "javascript",
+      "label": "JavaScript",
+      "extensions": [
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".jsx"
+      ],
+      "lineComment": "//",
+      "blockComment": [
+        "/*",
+        "*/"
+      ],
+      "grammar": "javascript",
+      "server": {
+        "command": [
+          "tsc",
+          "--lsp",
+          "--stdio"
+        ],
+        "install": "npm install -g typescript (7 or newer)"
+      },
+      "icon": "icons/js.svg"
+    },
+    {
+      "id": "typescript",
+      "label": "TypeScript",
+      "extensions": [
+        ".ts",
+        ".mts",
+        ".cts",
+        ".tsx"
+      ],
+      "lineComment": "//",
+      "blockComment": [
+        "/*",
+        "*/"
+      ],
+      "grammar": "typescript",
+      "server": {
+        "command": [
+          "tsc",
+          "--lsp",
+          "--stdio"
+        ],
+        "install": "npm install -g typescript (7 or newer)"
+      },
+      "icon": "icons/ts.svg"
+    },
+    {
+      "id": "css",
+      "label": "CSS",
+      "extensions": [
+        ".css"
+      ],
+      "blockComment": [
+        "/*",
+        "*/"
+      ],
+      "server": {
+        "command": [
+          "vscode-css-language-server",
+          "--stdio"
+        ],
+        "install": "npm install -g vscode-langservers-extracted"
+      },
+      "icon": "icons/css.svg"
+    },
+    {
+      "id": "scss",
+      "label": "SCSS",
+      "extensions": [
+        ".scss"
+      ],
+      "lineComment": "//",
+      "blockComment": [
+        "/*",
+        "*/"
+      ],
+      "server": {
+        "command": [
+          "vscode-css-language-server",
+          "--stdio"
+        ],
+        "install": "npm install -g vscode-langservers-extracted"
+      },
+      "icon": "icons/scss.svg"
+    },
+    {
+      "id": "less",
+      "label": "Less",
+      "extensions": [
+        ".less"
+      ],
+      "lineComment": "//",
+      "blockComment": [
+        "/*",
+        "*/"
+      ],
+      "server": {
+        "command": [
+          "vscode-css-language-server",
+          "--stdio"
+        ],
+        "install": "npm install -g vscode-langservers-extracted"
+      },
+      "icon": "icons/less.svg"
+    },
+    {
+      "id": "html",
+      "label": "HTML",
+      "extensions": [
+        ".html",
+        ".htm"
+      ],
+      "blockComment": [
+        "<!--",
+        "-->"
+      ],
+      "server": {
+        "command": [
+          "vscode-html-language-server",
+          "--stdio"
+        ],
+        "install": "npm install -g vscode-langservers-extracted"
+      }
+    },
+    {
+      "id": "svelte",
+      "label": "Svelte",
+      "extensions": [
+        ".svelte"
+      ],
+      "blockComment": [
+        "<!--",
+        "-->"
+      ],
+      "server": {
+        "command": [
+          "svelteserver",
+          "--stdio"
+        ],
+        "install": "npm install -g svelte-language-server"
+      },
+      "icon": "icons/svelte.svg"
+    },
+    {
+      "id": "vue",
+      "label": "Vue",
+      "extensions": [
+        ".vue"
+      ],
+      "blockComment": [
+        "<!--",
+        "-->"
+      ],
+      "server": {
+        "command": [
+          "./bin/vue-ls"
+        ],
+        "install": "npm install -g @vue/language-server@2 typescript"
+      },
+      "icon": "icons/vue.svg"
+    },
+    {
+      "id": "svg",
+      "label": "SVG",
+      "extensions": [
+        ".svg"
+      ],
+      "blockComment": [
+        "<!--",
+        "-->"
+      ],
+      "icon": "icons/svg.svg"
+    }
+  ],
+  "frontend": {
+    "script": "frontend/index.js",
+    "style": "frontend/style.css"
+  },
+  "build": {
+    "command": [
+      "make",
+      "dist"
+    ],
+    "output": "dist"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "name": "c",
+  "displayName": "C",
+  "version": "0.2.0",
+  "description": "C and its headers: highlighting, comments, clangd for completion, errors and navigation, and gdb for debugging.",
+  "languages": [
+    {
+      "id": "c",
+      "label": "C",
+      "extensions": [
+        ".c",
+        ".h"
+      ],
+      "codicon": "symbol-structure",
+      "color": "#c3cf9b",
+      "lineComment": "//",
+      "blockComment": [
+        "/*",
+        "*/"
+      ],
+      "grammar": "c",
+      "server": {
+        "command": [
+          "clangd",
+          "--background-index"
+        ],
+        "install": "apt install clangd, brew install llvm, or winget install LLVM.LLVM"
+      }
+    }
+  ],
+  "projectKinds": [
+    {
+      "kind": "c",
+      "label": "C",
+      "title": "C program",
+      "text": "A main.c and a Makefile.",
+      "folder": "hello",
+      "detect": [
+        "*.c",
+        "CMakeLists.txt"
+      ],
+      "template": "templates/c",
+      "open": [
+        "main.c"
+      ]
+    }
+  ],
+  "debuggers": [
+    {
+      "id": "gdb",
+      "label": "GDB",
+      "languages": [
+        "c"
+      ],
+      "command": [
+        "gdb",
+        "-i",
+        "dap"
+      ],
+      "install": "gdb 14 or newer: apt install gdb, brew install gdb, or MSYS2's mingw-w64 gdb",
+      "prepare": [
+        "cc",
+        "-g",
+        "-O0",
+        "-o",
+        "${fileDirname}/${fileBasenameNoExtension}",
+        "${file}"
+      ],
+      "cleanup": [
+        "${fileDirname}/${fileBasenameNoExtension}"
+      ],
+      "launch": {
+        "program": "${fileDirname}/${fileBasenameNoExtension}",
+        "cwd": "${fileDirname}",
+        "stopAtBeginningOfMainSubprogram": false
+      }
+    }
+  ]
+}

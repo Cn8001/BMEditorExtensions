@@ -1,0 +1,42 @@
+# Makes an earlier released version the latest of an extension again
+# (scripts/rollback.sh). Run it from the Actions tab when the newest version
+# is broken; users who installed from the latest URL get the chosen version
+# with their next Update.
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      extension:
+        description: Extension
+        type: choice
+        options: [bmeditor-web, bmeditor-vim]
+        required: true
+      version:
+        description: Released version to make the latest, such as 0.1.0
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-refs/heads/master
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Roll back
+        run: sh scripts/rollback.sh "$EXTENSION" "$VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXTENSION: ${{ inputs.extension }}
+          VERSION: ${{ inputs.version }}

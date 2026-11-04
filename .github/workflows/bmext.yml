@@ -1,0 +1,33 @@
+# Checks the bmext module (extension format, package manager, SDKs), which
+# BMEditor builds against. It is not an extension, so publish.yml skips it.
+name: bmext
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'bmext/**'
+      - '.github/workflows/bmext.yml'
+  pull_request:
+    paths:
+      - 'bmext/**'
+      - '.github/workflows/bmext.yml'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bmext
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: bmext/go.mod
+          cache: false
+
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race ./...
