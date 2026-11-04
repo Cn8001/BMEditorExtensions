@@ -1,10 +1,21 @@
 {
   "name": "vim",
   "displayName": "Vim",
-  "version": "0.1.0",
-  "description": "Vim keys in every editor tab: normal, insert and visual modes, motions, registers, macros and the : command line.",
+  "version": "0.2.0",
+  "description": "Vim keys in every editor tab: normal, insert and visual modes, motions, registers, macros, the : command line and the mappings of your vimrc.",
   "icon": "icon.svg",
   "engines": { "bmeditor": ">=0.1.0" },
+  "settings": [
+    {
+      "key": "vimrc",
+      "label": "vimrc",
+      "description": "The vimrc whose mappings and options Vim mode applies. A relative path in Project Settings is in the project. Empty: ~/.vimrc, ~/_vimrc or ~/.vim/vimrc, the first that is there.",
+      "type": "path",
+      "scope": "both",
+      "placeholder": "~/.vimrc"
+    }
+  ],
   "frontend": { "script": "frontend/index.js" },
+  "backend": { "command": "bin/vim-host" },
   "build": { "command": ["make", "dist"], "output": "dist" }
 }
