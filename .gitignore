@@ -1,0 +1,7 @@
+# Build output and dependencies, in any extension
+node_modules/
+dist/
+*.zip
+
+# bmeditor's editor state (open tabs), which is yours alone
+.bmeditor

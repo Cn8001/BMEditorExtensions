@@ -1,0 +1,59 @@
+# Tests and builds every extension. On a push to master, an extension whose
+# version is not released yet is published as GitHub releases
+# (scripts/publish.sh), from which BMEditor installs it without building.
+# A pull request is only tested and built.
+name: Publish
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'bmeditor-*/**'
+      - 'scripts/**'
+      - '.github/workflows/publish.yml'
+  pull_request:
+    paths:
+      - 'bmeditor-*/**'
+      - 'scripts/**'
+      - '.github/workflows/publish.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [bmeditor-web, bmeditor-vim]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: bmeditor-web/go.mod
+          cache: false
+
+      - name: Test
+        if: hashFiles(format('{0}/go.mod', matrix.dir)) != ''
+        working-directory: ${{ matrix.dir }}
+        run: go test ./...
+
+      - name: Build
+        run: make -C ${{ matrix.dir }} zip
+
+      - name: Publish
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        run: sh scripts/publish.sh ${{ matrix.dir }}
+        env:
+          GH_TOKEN: ${{ github.token }}

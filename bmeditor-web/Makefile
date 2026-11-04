@@ -1,0 +1,29 @@
+# Builds the installable extension into dist/: the manifest, the frontend
+# script, and vue-ls for each system. Needs Node and Go. `make zip`
+# packages it; CI publishes the zip as GitHub releases (scripts/publish.sh).
+
+TARGETS := linux/amd64 linux/arm64 windows/amd64 darwin/amd64 darwin/arm64
+VERSION := $(shell sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' bmext.json)
+
+.PHONY: dist zip clean
+
+dist:
+	rm -rf dist
+	npm ci --no-audit --no-fund
+	npm run build
+	@for t in $(TARGETS); do \
+		os=$${t%/*}; arch=$${t#*/}; ext=; [ $$os = windows ] && ext=.exe; \
+		echo "go build vue-ls $$os/$$arch"; \
+		CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -trimpath -ldflags "-s -w" -o dist/bin/vue-ls-$$os-$$arch$$ext ./cmd/vue-ls || exit 1; \
+	done
+	cp -r README.md CHANGELOG.md LICENSE icon.svg icons dist/
+	@# The built extension is installed as it is: its manifest has no build step.
+	node -e "const m = require('./bmext.json'); delete m.build; require('fs').writeFileSync('dist/bmext.json', JSON.stringify(m, null, 2) + '\\n')"
+
+zip: dist
+	rm -f web-$(VERSION).zip
+	cd dist && zip -qr ../web-$(VERSION).zip .
+	@echo "web-$(VERSION).zip"
+
+clean:
+	rm -rf dist node_modules web-*.zip
