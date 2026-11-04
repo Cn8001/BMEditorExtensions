@@ -1,7 +1,8 @@
-# Tests and builds every extension. On a push to master, an extension whose
-# version is not released yet is published as GitHub releases
-# (scripts/publish.sh), from which BMEditor installs it without building.
-# A pull request is only tested and built.
+# Tests and builds the extensions a push or pull request changed
+# (scripts/changed.sh). On a push to master, an extension whose version is
+# not released yet is published as GitHub releases (scripts/publish.sh),
+# from which BMEditor installs it without building. A pull request is only
+# tested and built; a manual run covers every extension.
 name: Publish
 
 on:
@@ -26,12 +27,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.find.outputs.dirs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: find
+        run: sh scripts/changed.sh "$BASE" | tee -a "$GITHUB_OUTPUT"
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+
   publish:
+    needs: changes
+    if: needs.changes.outputs.dirs != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        dir: [bmeditor-web, bmeditor-vim]
+        dir: ${{ fromJSON(needs.changes.outputs.dirs) }}
     steps:
       - uses: actions/checkout@v4
 

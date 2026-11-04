@@ -26,7 +26,12 @@ if ! git ls-remote --exit-code --tags "$remote" "refs/tags/$tag" >/dev/null 2>&1
 	exit 1
 fi
 
+# The commit the version was built from, fetched so it can be pushed as the
+# latest tag from a shallow checkout.
+git fetch -q --depth 1 "$remote" "refs/tags/$tag"
+commit=$(git rev-parse "FETCH_HEAD^{commit}")
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 gh release download "$tag" --pattern "$name-$version.zip" --dir "$work"
-sh "$here/set-latest.sh" "$name" "$title" "$version" "$work/$name-$version.zip"
+sh "$here/set-latest.sh" "$name" "$title" "$version" "$work/$name-$version.zip" "$commit"
