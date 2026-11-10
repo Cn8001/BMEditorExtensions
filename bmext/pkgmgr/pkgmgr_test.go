@@ -55,7 +55,7 @@ func TestInstall_ClonesAGitRepositoryAtARef(t *testing.T) {
 		{"init", "-q", "-b", "main"},
 		{"add", "."},
 		{"-c", "user.email=t@example.com", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "first"},
-		{"-c", "tag.gpgSign=false", "tag", "-a", "v2.0.0", "-m", "v2.0.0"},
+		{"-c", "user.email=t@example.com", "-c", "user.name=t", "-c", "tag.gpgSign=false", "tag", "-a", "v2.0.0", "-m", "v2.0.0"},
 	} {
 		if out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
