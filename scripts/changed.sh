@@ -24,7 +24,10 @@ known() {
 
 if known; then
 	files=$(git diff --name-only "$base" HEAD)
-	if printf '%s\n' "$files" | grep -qE '^(scripts/|bmext/|\.github/workflows/publish\.yml$)'; then
+	# bmext's tests and docs do not change how an extension is built or checked.
+	shared=$(printf '%s\n' "$files" | grep -E '^(scripts/|bmext/|\.github/workflows/publish\.yml$)' |
+		grep -vE '^bmext/.*(_test\.go|\.md)$' || true)
+	if [ -n "$shared" ]; then
 		changed=$all
 	else
 		changed=
