@@ -1,12 +1,11 @@
 # Builds the installable extension into dist/: the manifest, the frontend
-# script, and vim-host, which reads the vimrc, for each system. Needs Node
-# and Go. `make zip` packages it; CI publishes the zip as GitHub releases
-# (scripts/publish.sh).
+# script, and vim-host, which reads the vimrc, for each system in TARGETS.
+# Needs Node and Go. bmx dev builds it for your system only; bmx pack makes
+# the zip, which CI publishes as GitHub releases (scripts/publish.sh).
 
-TARGETS := linux/amd64 linux/arm64 windows/amd64 darwin/amd64 darwin/arm64
-VERSION := $(shell sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' bmext.json)
+TARGETS ?= linux/amd64 linux/arm64 windows/amd64 darwin/amd64 darwin/arm64
 
-.PHONY: dist zip clean
+.PHONY: dist clean
 
 dist:
 	rm -rf dist
@@ -20,11 +19,6 @@ dist:
 	cp README.md CHANGELOG.md LICENSE icon.svg dist/
 	@# The built extension is installed as it is: its manifest has no build step.
 	node -e "const m = require('./bmext.json'); delete m.build; require('fs').writeFileSync('dist/bmext.json', JSON.stringify(m, null, 2) + '\\n')"
-
-zip: dist
-	rm -f vim-$(VERSION).zip
-	cd dist && zip -qr ../vim-$(VERSION).zip .
-	@echo "vim-$(VERSION).zip"
 
 clean:
 	rm -rf dist node_modules vim-*.zip

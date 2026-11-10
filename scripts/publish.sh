@@ -13,7 +13,7 @@
 # version also becomes the latest (set-latest.sh); a prerelease
 # (X.Y.Z-beta.1) does not.
 #
-# Run from the repository root after `make -C <dir> zip`, with gh
+# Run from the repository root after `bmx pack` in <dir>, with gh
 # authenticated (GH_TOKEN in CI):
 #
 #   scripts/publish.sh bmeditor-vim
@@ -23,7 +23,7 @@ dir=${1:?usage: publish.sh <extension dir>}
 remote=${REMOTE:-origin}
 here=$(dirname "$0")
 manifest="$dir/dist/bmext.json"
-[ -f "$manifest" ] || { echo "publish: $manifest missing; run make -C $dir zip" >&2; exit 1; }
+[ -f "$manifest" ] || { echo "publish: $manifest missing; run bmx pack in $dir" >&2; exit 1; }
 
 field() { node -p "const m = require('./$manifest'); String(($1) ?? '')"; }
 name=$(field m.name)
@@ -45,7 +45,7 @@ done
 
 # shellcheck disable=SC2086 # one argument per released version
 node "$here/version.mjs" newer "$version" $released
-[ -f "$zip" ] || { echo "publish: $zip missing; run make -C $dir zip" >&2; exit 1; }
+[ -f "$zip" ] || { echo "publish: $zip missing; run bmx pack in $dir" >&2; exit 1; }
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

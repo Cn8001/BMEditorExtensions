@@ -1,8 +1,9 @@
-# Tests and builds the extensions a push or pull request changed
-# (scripts/changed.sh). On a push to master, an extension whose version is
-# not released yet is published as GitHub releases (scripts/publish.sh),
-# from which BMEditor installs it without building. A pull request is only
-# tested and built; a manual run covers every extension.
+# Tests, checks (bmx check) and builds the extensions a push or pull request
+# changed (scripts/changed.sh). On a push to master, an extension whose
+# version is not released yet is published as GitHub releases
+# (scripts/publish.sh), from which BMEditor installs it without building. A
+# pull request is only tested and built; a manual run covers every
+# extension.
 name: Publish
 
 on:
@@ -10,11 +11,13 @@ on:
     branches: [master]
     paths:
       - 'bmeditor-*/**'
+      - 'bmext/**'
       - 'scripts/**'
       - '.github/workflows/publish.yml'
   pull_request:
     paths:
       - 'bmeditor-*/**'
+      - 'bmext/**'
       - 'scripts/**'
       - '.github/workflows/publish.yml'
   workflow_dispatch:
@@ -66,8 +69,20 @@ jobs:
         working-directory: ${{ matrix.dir }}
         run: go test ./...
 
+      - name: Install bmx
+        run: |
+          go -C bmext build -o "$RUNNER_TEMP/bin/bmx" ./cmd/bmx
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      # As BMEditor installs it from a repository of its own, and with a
+      # copy of the SDK that is up to date.
+      - name: Check
+        working-directory: ${{ matrix.dir }}
+        run: bmx check
+
       - name: Build
-        run: make -C ${{ matrix.dir }} zip
+        working-directory: ${{ matrix.dir }}
+        run: bmx pack
 
       - name: Publish
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'

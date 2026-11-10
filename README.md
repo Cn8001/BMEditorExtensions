@@ -34,15 +34,19 @@ with its own install URL and release notes.
 
 ## Building
 
-Building from source is needed only for development:
+Building from source is needed only for development. Install `bmx`, the
+extension tool in [bmext](bmext), then work in an extension's folder:
 
 ```
+go -C bmext install ./cmd/bmx
 cd bmeditor-vim
-make dist
+bmx dev     # build for this system and install it in BMEditor; reload the window
+bmx check   # install it from a clean clone of its own files, as BMEditor does from git
+bmx pack    # vim-<version>.zip for every system, as published
 ```
 
-Building requires Node.js; bmeditor-web also requires Go. The result in
-`dist/` can be installed with the folder button in the Extensions view.
+Building requires Node.js and Go. Each extension builds on its own, so it
+can also live in a repository of its own; `bmx init` starts a new one.
 
 ## License
 

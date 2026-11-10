@@ -1,0 +1,12 @@
+{
+  "name": "{{.Name}}",
+  "displayName": "{{.Title}}",
+  "version": "0.1.0",
+  "description": "",
+  "engines": { "bmeditor": ">=0.1.0" },
+  "frontend": { "script": "frontend/index.js" },
+{{- if .Backend}}
+  "backend": { "command": "bin/{{.Name}}-host" },
+{{- end}}
+  "build": { "command": ["make", "dist"], "output": "dist" }
+}

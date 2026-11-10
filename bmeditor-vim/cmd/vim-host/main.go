@@ -8,7 +8,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/Cn8001/BMEditorExtensions/bmext/host"
+	"bmeditor-vim/bmext/host"
 )
 
 func main() {

@@ -1,0 +1,22 @@
+// Command {{.Name}}-host is the {{.Title}} extension's backend. The editor
+// starts it, and the frontend calls its methods with api.call.
+package main
+
+import (
+	"context"
+	"encoding/json"
+
+	"{{.Module}}/bmext/host"
+)
+
+func main() {
+	s := host.New()
+	s.Handle("hello", func(ctx context.Context, _ json.RawMessage) (any, error) {
+		folder := s.Context().Folder
+		if folder == "" {
+			folder = "no folder"
+		}
+		return "Hello from {{.Name}}-host, in " + folder, nil
+	})
+	host.Run(s)
+}

@@ -5,8 +5,9 @@
 #   dirs=["bmeditor-vim"]
 #
 # Every extension is listed when <base> is unknown (a manual run, a new
-# branch, a force push) or when files they share changed (scripts/, the
-# workflow). An extension is a directory with a bmext.json at its root.
+# branch, a force push) or when files they share changed (scripts/, bmext/
+# with bmx and the SDK they copy, the workflow). An extension is a
+# directory with a bmext.json at its root.
 #
 #   scripts/changed.sh <base commit>
 set -eu
@@ -23,7 +24,7 @@ known() {
 
 if known; then
 	files=$(git diff --name-only "$base" HEAD)
-	if printf '%s\n' "$files" | grep -qE '^(scripts/|\.github/workflows/publish\.yml$)'; then
+	if printf '%s\n' "$files" | grep -qE '^(scripts/|bmext/|\.github/workflows/publish\.yml$)'; then
 		changed=$all
 	else
 		changed=

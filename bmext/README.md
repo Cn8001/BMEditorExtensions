@@ -19,6 +19,25 @@ This module holds the format (`bmext`), the package manager (`pkgmgr`) that
 installs extensions, the backend SDK (`host`) and the frontend kit
 (`frontend/`). `examples/c` is a whole extension in one manifest.
 
+## Writing one with bmx
+
+`bmx` (`cmd/bmx`) makes and builds an extension. Install it from a clone
+of this repository (`cd bmext && go install ./cmd/bmx`), then, in an empty
+folder:
+
+```
+bmx init [-backend]   # bmext.json, a Makefile, frontend/index.ts (and cmd/<name>-host), a copy of the SDK in bmext/
+npm install
+bmx dev               # build for this system only and install it in the editor; then reload the window
+bmx check             # install it from a clean git clone of its files, as the editor does, and check every file the manifest names is there
+bmx pack              # build for every system: <name>-<version>.zip, to publish
+```
+
+The extension builds on its own, from its own repository: `bmext/` is a
+copy of this module's `frontend/` and `host/`, not a reference to it.
+`bmx init` in an existing extension updates that copy and leaves the
+other files alone; `bmx check` says when the copy is out of date.
+
 ## Installing
 
 In the editor: Extensions (Ctrl+Shift+X), then a source in the box:
