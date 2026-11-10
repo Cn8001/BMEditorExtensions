@@ -1,5 +1,8 @@
-# Checks the bmext module (extension format, package manager, SDKs), which
-# BMEditor builds against. It is not an extension, so publish.yml skips it.
+# Checks the bmext module (extension format, package manager, SDKs, bmx),
+# which BMEditor builds against. It is not an extension, so publish.yml
+# skips it. On a push to master, a version in bmext/VERSION that is not
+# released yet is released, with bmx for each system
+# (scripts/release-bmext.sh).
 name: bmext
 
 on:
@@ -7,10 +10,12 @@ on:
     branches: [master]
     paths:
       - 'bmext/**'
+      - 'scripts/release-bmext.sh'
       - '.github/workflows/bmext.yml'
   pull_request:
     paths:
       - 'bmext/**'
+      - 'scripts/release-bmext.sh'
       - '.github/workflows/bmext.yml'
   workflow_dispatch:
 
@@ -31,3 +36,29 @@ jobs:
       - run: test -z "$(gofmt -l .)"
       - run: go vet ./...
       - run: go test -race ./...
+
+  release:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-bmext
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: bmext/go.mod
+          cache: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Release
+        run: sh scripts/release-bmext.sh
+        env:
+          GH_TOKEN: ${{ github.token }}

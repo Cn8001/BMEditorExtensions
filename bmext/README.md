@@ -21,9 +21,12 @@ installs extensions, the backend SDK (`host`) and the frontend kit
 
 ## Writing one with bmx
 
-`bmx` (`cmd/bmx`) makes and builds an extension. Install it from a clone
-of this repository (`cd bmext && go install ./cmd/bmx`), then, in an empty
-folder:
+`bmx` (`cmd/bmx`) makes and builds an extension. Install it with
+`go install github.com/Cn8001/BMEditorExtensions/bmext/cmd/bmx@latest`,
+download it for your system from the
+[latest release](https://github.com/Cn8001/BMEditorExtensions/releases/latest)
+(`bmx-linux-amd64`, `bmx-windows-amd64.exe`, ...), or build it from a
+clone (`go -C bmext install ./cmd/bmx`). Then, in an empty folder:
 
 ```
 bmx init [-backend]   # bmext.json, a Makefile, frontend/index.ts (and cmd/<name>-host), a copy of the SDK in bmext/

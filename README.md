@@ -35,7 +35,9 @@ with its own install URL and release notes.
 ## Building
 
 Building from source is needed only for development. Install `bmx`, the
-extension tool in [bmext](bmext), then work in an extension's folder:
+extension tool in [bmext](bmext) (or download it from the
+[latest release](https://github.com/Cn8001/BMEditorExtensions/releases/latest)),
+then work in an extension's folder:
 
 ```
 go -C bmext install ./cmd/bmx
