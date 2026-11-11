@@ -1,0 +1,18 @@
+{
+  "name": "com.company.{{name}}",
+  "version": "0.1.0",
+  "displayName": "{{name}}",
+  "description": "",
+  "unity": "2022.3",
+  "author": {
+    "name": ""
+  },
+  "dependencies": {},
+  "samples": [
+    {
+      "displayName": "Example",
+      "description": "Shows how to use {{name}}.",
+      "path": "Samples~/Example"
+    }
+  ]
+}

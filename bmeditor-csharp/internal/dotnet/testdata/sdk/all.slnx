@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="App/App.csproj" />
+  </Folder>
+  <Folder Name="/src/libs/">
+    <Project Path="Lib\Lib.csproj" />
+  </Folder>
+  <Project Path="Missing/Missing.csproj" />
+</Solution>

@@ -1,0 +1,105 @@
+{
+  "name": "csharp",
+  "displayName": "C#",
+  "version": "0.1.0",
+  "description": "C# for Unity and UPM packages: a Solution Explorer, the assembly graph, an Inspector for .asmdef and package.json, Unity's compile errors in Problems, .meta and GUID tools, script templates and Unity message completion, with csharp-ls.",
+  "icon": "icon.svg",
+  "engines": { "bmeditor": ">=0.1.0" },
+  "languages": [
+    {
+      "id": "csharp",
+      "label": "C#",
+      "extensions": [".cs", ".csx"],
+      "icon": "icon.svg",
+      "color": "#a179dc",
+      "lineComment": "//",
+      "blockComment": ["/*", "*/"],
+      "grammar": "csharp",
+      "server": {
+        "command": ["./bin/cs-ls"],
+        "install": "Install the .NET 10 SDK, then dotnet tool install -g csharp-ls, then restart BMEditor"
+      }
+    },
+    {
+      "id": "asmdef",
+      "label": "Assembly Definition",
+      "extensions": [".asmdef", ".asmref"],
+      "codicon": "json",
+      "color": "#d7a14a"
+    },
+    {
+      "id": "msbuild",
+      "label": "MSBuild",
+      "extensions": [".csproj", ".props", ".targets", ".slnx", ".uxml"],
+      "codicon": "code",
+      "color": "#a179dc",
+      "blockComment": ["<!--", "-->"]
+    },
+    {
+      "id": "uss",
+      "label": "USS",
+      "extensions": [".uss", ".tss"],
+      "codicon": "symbol-color",
+      "blockComment": ["/*", "*/"]
+    },
+    {
+      "id": "unity-yaml",
+      "label": "Unity YAML",
+      "extensions": [".meta", ".unity", ".prefab", ".asset", ".mat", ".controller", ".overrideController", ".anim", ".physicMaterial", ".mask", ".playable", ".lighting", ".preset"],
+      "codicon": "symbol-file",
+      "lineComment": "#",
+      "grammar": "yaml"
+    }
+  ],
+  "settings": [
+    {
+      "key": "unityEditorLog",
+      "label": "Unity Editor.log",
+      "description": "Where Unity writes its log, whose compile errors go to Problems. Empty: %LOCALAPPDATA%\\Unity\\Editor\\Editor.log on Windows.",
+      "type": "path",
+      "placeholder": "%LOCALAPPDATA%\\Unity\\Editor\\Editor.log"
+    },
+    {
+      "key": "solution",
+      "label": "Solution",
+      "description": "The .sln, .slnx or .csproj the Solution Explorer and the language server open. Empty: the one in the folder, the one named like the folder first.",
+      "type": "path",
+      "scope": "project",
+      "placeholder": "MyGame.sln"
+    },
+    {
+      "key": "createMeta",
+      "label": "Write .meta files for new scripts",
+      "description": "New Script also writes the script's .meta in a folder Unity imports, so it is right in version control before Unity sees it.",
+      "type": "boolean",
+      "scope": "both",
+      "default": "true"
+    }
+  ],
+  "projectKinds": [
+    {
+      "kind": "csharp",
+      "label": "C#",
+      "title": "C# console app",
+      "text": "A .csproj and a Program.cs; a folder with a .sln or .csproj opens as this kind too.",
+      "icon": "icon.svg",
+      "folder": "ConsoleApp",
+      "detect": ["*.sln", "*.slnx", "*.csproj"],
+      "template": "templates/console",
+      "open": ["Program.cs"]
+    },
+    {
+      "kind": "upm",
+      "label": "Unity Package",
+      "title": "Unity package (UPM)",
+      "text": "A package.json, Runtime and Editor assemblies, tests and a sample.",
+      "icon": "icon.svg",
+      "folder": "MyPackage",
+      "template": "templates/upm",
+      "open": ["package.json"]
+    }
+  ],
+  "frontend": { "script": "frontend/index.js", "style": "frontend/style.css" },
+  "backend": { "command": "bin/csharp-host" },
+  "build": { "command": ["make", "dist"], "output": "dist" }
+}
