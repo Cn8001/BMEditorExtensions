@@ -1,0 +1,60 @@
+{
+  "name": "autocomplete",
+  "displayName": "bmeditor-autocomplete",
+  "version": "0.1.0",
+  "description": "Inline code suggestions (ghost text) in every language from a small code model on your machine: llama.cpp with Qwen2.5-Coder, downloaded when you ask, a .gguf of your own, or Ollama. Nothing leaves the machine.",
+  "icon": "icon.svg",
+  "engines": { "bmeditor": ">=0.1.5" },
+  "settings": [
+    {
+      "key": "provider",
+      "label": "Model server",
+      "description": "local: llama.cpp, which the extension downloads and runs. ollama: a model Ollama serves. off: no suggestions.",
+      "default": "local",
+      "placeholder": "local, ollama or off"
+    },
+    {
+      "key": "localModel",
+      "label": "Model",
+      "description": "For local: 0.5b (0.5 GB, fast on any CPU), 1.5b (1.6 GB, better) or 3b (3.3 GB, best, slow without a GPU), all Qwen2.5-Coder. Or the path or URL of a .gguf of your own that fills in the middle.",
+      "default": "0.5b",
+      "placeholder": "0.5b"
+    },
+    {
+      "key": "threads",
+      "label": "CPU threads",
+      "description": "For local: how many threads llama.cpp uses. Empty: its own choice.",
+      "placeholder": "auto"
+    },
+    {
+      "key": "ollamaUrl",
+      "label": "Ollama URL",
+      "default": "http://localhost:11434",
+      "placeholder": "http://localhost:11434"
+    },
+    {
+      "key": "ollamaModel",
+      "label": "Ollama model",
+      "description": "A code model that fills in the middle: qwen2.5-coder:1.5b, starcoder2:3b, codegemma:2b... Pull it with ollama pull first.",
+      "default": "qwen2.5-coder:1.5b",
+      "placeholder": "qwen2.5-coder:1.5b"
+    },
+    {
+      "key": "debounceMs",
+      "label": "Wait before asking (ms)",
+      "description": "How long typing must pause before a suggestion is asked for.",
+      "default": "300",
+      "placeholder": "300"
+    },
+    {
+      "key": "disabledLanguages",
+      "label": "Languages without suggestions",
+      "description": "Comma-separated language ids, such as markdown, plaintext.",
+      "scope": "both",
+      "placeholder": "markdown, plaintext"
+    }
+  ],
+  "frontend": { "script": "frontend/index.js", "style": "frontend/style.css" },
+  "backend": { "command": "bin/autocomplete-host" },
+  "build": { "command": ["make", "dist"], "output": "dist" }
+}
