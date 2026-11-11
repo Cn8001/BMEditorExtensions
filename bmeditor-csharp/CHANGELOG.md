@@ -4,6 +4,12 @@ Each version of the C# extension, newest first. The section of a version
 becomes the notes of its release, and a version is published only when it
 has a section here.
 
+## 0.1.2
+
+- C# is coloured as Visual Studio colours it: namespaces, types, methods
+  and members, attributes and constants, besides keywords and strings.
+  Raw (`"""`), verbatim and interpolated strings and `#region` lines too.
+
 ## 0.1.1
 
 - Named bmeditor-csharp in Extensions.
