@@ -6,13 +6,13 @@ desktop code editor. BMEditor can be downloaded from its
 
 ## Extensions
 
-| Extension | Description |
-|---|---|
-| [bmeditor-web](bmeditor-web) | JavaScript, TypeScript, CSS, SCSS, Less, HTML, Svelte, Vue and SVG, each with its language server, and an image viewer panel |
-| [bmeditor-vim](bmeditor-vim) | Vim key bindings in every editor tab |
-| [bmeditor-csharp](bmeditor-csharp) | C# for Unity and UPM packages: language server, Solution Explorer, assembly graph, Inspector for .asmdef and package.json, Unity compile errors, .meta and GUID tools |
-| [bmeditor-powershell](bmeditor-powershell) | PowerShell with PowerShell Editor Services (completion, PSScriptAnalyzer, debugging) and cmd batch files with a language server of their own and F5 to run them |
-| [bmeditor-autocomplete](bmeditor-autocomplete) | Inline code suggestions in every language from a small model on your machine (llama.cpp with Qwen2.5-Coder, or Ollama) |
+| Extension | Description | Install URL |
+|---|---|---|
+| [bmeditor-web](bmeditor-web) | JavaScript, TypeScript, CSS, SCSS, Less, HTML, Svelte, Vue and SVG, each with its language server, and an image viewer panel | `https://github.com/Cn8001/BMEditorExtensions/releases/download/web/latest/web.zip` |
+| [bmeditor-vim](bmeditor-vim) | Vim key bindings in every editor tab | `https://github.com/Cn8001/BMEditorExtensions/releases/download/vim/latest/vim.zip` |
+| [bmeditor-csharp](bmeditor-csharp) | C# for Unity and UPM packages: language server, Solution Explorer, assembly graph, Inspector for .asmdef and package.json, Unity compile errors, .meta and GUID tools | `https://github.com/Cn8001/BMEditorExtensions/releases/download/csharp/latest/csharp.zip` |
+| [bmeditor-powershell](bmeditor-powershell) | PowerShell with PowerShell Editor Services (completion, PSScriptAnalyzer, debugging) and cmd batch files with a language server of their own and F5 to run them | `https://github.com/Cn8001/BMEditorExtensions/releases/download/powershell/latest/powershell.zip` |
+| [bmeditor-autocomplete](bmeditor-autocomplete) | Inline code suggestions in every language from a small model on your machine (llama.cpp with Qwen2.5-Coder, or Ollama) | `https://github.com/Cn8001/BMEditorExtensions/releases/download/autocomplete/latest/autocomplete.zip` |
 
 The [bmext](bmext) directory holds the extension format and SDK. See
 [bmext/README.md](bmext/README.md) or
@@ -21,16 +21,7 @@ The [bmext](bmext) directory holds the extension format and SDK. See
 ## Installation
 
 1. In BMEditor, open Extensions (Ctrl+Shift+X).
-2. Enter the install URL of the extension: its name without `bmeditor-`
-   in
-
-   ```
-   https://github.com/Cn8001/BMEditorExtensions/releases/download/<name>/latest/<name>.zip
-   ```
-
-   For bmeditor-web, for example:
-   `https://github.com/Cn8001/BMEditorExtensions/releases/download/web/latest/web.zip`.
-
+2. Enter the extension's install URL from the table above.
 3. Reload the window when prompted.
 
 These URLs always point to the latest version, and Update in BMEditor keeps
