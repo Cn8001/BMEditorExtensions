@@ -4,6 +4,20 @@ Each version of the Autocomplete extension, newest first. The section of a
 version becomes the notes of its release, and a version is published only
 when it has a section here.
 
+## 0.1.2
+
+- The model runs on the GPU: llama.cpp's Vulkan build (NVIDIA, AMD or
+  Intel) with every layer on the card. Settings › Autocomplete › Run the
+  model on the GPU turns it off.
+- The top bar's Autocomplete button opens a menu: pick the model (it
+  downloads and starts), the GPU, pause, turn off. Nothing is typed.
+- In Settings, Model server and Model are dropdowns, and the Ollama
+  settings show only while Ollama is the server. A `.gguf` of your own
+  goes in Model file. Needs BMEditor 0.1.6.
+- A cancelled suggestion no longer shows a warning in the top bar.
+- A keystroke while llama.cpp loads no longer kills it, so it gets ready
+  even while you type.
+
 ## 0.1.1
 
 - llama.cpp downloads straight from its release, with its size and

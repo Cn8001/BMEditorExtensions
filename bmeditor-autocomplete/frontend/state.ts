@@ -11,6 +11,7 @@ export interface Model {
   id: string
   label: string
   size: number
+  downloaded: boolean
 }
 
 export interface Status {
@@ -72,6 +73,11 @@ export function modelName(): string {
   if (!st) return ''
   if (st.provider === 'ollama') return setting('ollamaModel', 'qwen2.5-coder:1.5b')
   const id = setting('localModel', '0.5b')
+  if (id === 'custom') return setting('modelFile').split(/[\\/]/).pop() || 'Own model'
   const m = st.models.find((x) => x.id === id)
   return m ? `Qwen2.5-Coder ${id.toUpperCase()}` : id.split(/[\\/]/).pop() ?? id
+}
+
+export function onGPU(): boolean {
+  return setting('gpu', 'true') !== 'false'
 }

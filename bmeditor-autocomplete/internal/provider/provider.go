@@ -29,8 +29,10 @@ type Provider interface {
 // Config is the extension's settings that choose and set up a provider.
 type Config struct {
 	Provider    string // off, local, ollama
-	LocalModel  string // 0.5b, 1.5b, 3b, or a .gguf file or URL of one's own
+	LocalModel  string // 0.5b, 1.5b, 3b, custom, or a .gguf file or URL of one's own
+	ModelFile   string // the .gguf file or URL when LocalModel is custom
 	Threads     int    // llama.cpp's threads; 0 for its own choice
+	GPU         bool   // llama.cpp's Vulkan build, with the model on the GPU
 	OllamaURL   string
 	OllamaModel string
 }
@@ -57,5 +59,5 @@ func New(c Config) (Provider, error) {
 // Key is what makes two configs the same provider: a change of any of it
 // makes a new one.
 func (c Config) Key() string {
-	return fmt.Sprintf("%s\x00%s\x00%d\x00%s\x00%s", c.Provider, c.LocalModel, c.Threads, c.OllamaURL, c.OllamaModel)
+	return fmt.Sprintf("%s\x00%s\x00%s\x00%d\x00%t\x00%s\x00%s", c.Provider, c.LocalModel, c.ModelFile, c.Threads, c.GPU, c.OllamaURL, c.OllamaModel)
 }

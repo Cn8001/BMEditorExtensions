@@ -51,7 +51,8 @@ function askerFor(tab: Tab): Asker {
         })
         .catch((err) => {
           const f = api.ui.failureOf(err)
-          if (f.code === 'CANCELLED') throw err
+          // Before BMEditor 0.1.6 a cancel came back as INTERNAL, by its name only.
+          if (f.code === 'CANCELLED' || (err as Error)?.name === 'CancelError') throw err
           if (f.code === 'not-ready' || f.code === 'off') void refresh()
           else {
             state.error = f.message
@@ -80,7 +81,7 @@ export default function activate(a: ExtensionAPI) {
     editor: (tab) => ghostText(askerFor(tab)),
     toolbar: StatusButton,
     commands: [
-      { id: 'autocomplete-ready', label: 'Autocomplete: Get Model Ready', icon: 'cloud-download', run: getReady },
+      { id: 'autocomplete-ready', label: 'Autocomplete: Get Model Ready', icon: 'cloud-download', run: () => getReady() },
       { id: 'autocomplete-toggle', label: 'Autocomplete: Pause or Resume Suggestions', icon: 'sparkle', run: toggle },
       { id: 'autocomplete-cancel', label: 'Autocomplete: Cancel Download', icon: 'debug-stop', when: () => !!state.status?.busy, run: () => api.call('cancel') },
       { id: 'autocomplete-remove', label: 'Autocomplete: Remove Downloaded Models', icon: 'trash', run: removeDownloads },

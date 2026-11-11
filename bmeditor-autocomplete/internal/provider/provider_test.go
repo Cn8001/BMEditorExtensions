@@ -46,6 +46,12 @@ func TestNew_ResolvesModels(t *testing.T) {
 			t.Errorf("%q: path %s, url %q", c.model, l.path, l.model.URL)
 		}
 	}
+	if p, err := New(Config{Provider: "local", LocalModel: "custom", ModelFile: "/m/own.gguf"}); err != nil || p.(*local).path != "/m/own.gguf" {
+		t.Errorf("custom: %v", err)
+	}
+	if _, err := New(Config{Provider: "local", LocalModel: "custom"}); err == nil {
+		t.Error("custom without a file should be refused")
+	}
 	if _, err := New(Config{Provider: "local", LocalModel: "7b"}); err == nil {
 		t.Error("an unknown model should be refused")
 	}
@@ -132,7 +138,9 @@ func TestDownloadEngine_FromTheRelease(t *testing.T) {
 	defer srv.Close()
 	oldReleases, oldEngine := releases, engineFor
 	releases = srv.URL + "/download/"
-	engineFor = func() (engine, error) { return engine{Name: name, Size: int64(len(raw)), SHA: hex.EncodeToString(sum[:])}, nil }
+	engineFor = func(bool) (engine, error) {
+		return engine{Name: name, Size: int64(len(raw)), SHA: hex.EncodeToString(sum[:])}, nil
+	}
 	defer func() { releases, engineFor = oldReleases, oldEngine }()
 	p, _ := newLocal(Config{})
 
@@ -155,9 +163,25 @@ func TestDownloadEngine_FromTheRelease(t *testing.T) {
 }
 
 func TestEngines_EverySystemHasOne(t *testing.T) {
-	for sys, e := range engines {
-		if e.Size <= 0 || len(e.SHA) != 64 {
-			t.Errorf("%s: %+v", sys, e)
+	for _, m := range []map[string]engine{engines, gpuEngines} {
+		for sys, e := range m {
+			if e.Size <= 0 || len(e.SHA) != 64 {
+				t.Errorf("%s: %+v", sys, e)
+			}
 		}
+	}
+}
+
+func TestEngineDir_GPUBuildApart(t *testing.T) {
+	// Arrange
+	home := cache(t)
+
+	// Act
+	cpu, _ := newLocal(Config{})
+	gpu, _ := newLocal(Config{GPU: true})
+
+	// Assert
+	if cpu.engineDir() != filepath.Join(home, "llama.cpp", llamaBuild) || gpu.engineDir() != filepath.Join(home, "llama.cpp", llamaBuild+"-gpu") {
+		t.Errorf("cpu %s, gpu %s", cpu.engineDir(), gpu.engineDir())
 	}
 }

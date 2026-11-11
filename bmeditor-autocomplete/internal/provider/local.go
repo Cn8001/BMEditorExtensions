@@ -32,6 +32,8 @@ type Model struct {
 	File  string `json:"file"`
 	Size  int64  `json:"size"`
 	SHA   string `json:"sha256"`
+	// Downloaded is filled in by Here, for the menu that picks one.
+	Downloaded bool `json:"downloaded"`
 }
 
 func hf(id, label, repo, file string, size int64, sha string) Model {
@@ -58,6 +60,17 @@ func Home() (string, error) {
 	return filepath.Join(cache, "bmeditor-autocomplete"), nil
 }
 
+// Here is Models, each saying whether it is downloaded.
+func Here() []Model {
+	home, err := Home()
+	out := make([]Model, len(Models))
+	for i, m := range Models {
+		m.Downloaded = err == nil && isFile(filepath.Join(home, "models", m.File))
+		out[i] = m
+	}
+	return out
+}
+
 // RemoveDownloads deletes the downloaded models and llama.cpp.
 func RemoveDownloads() error {
 	home, err := Home()
@@ -73,6 +86,7 @@ type local struct {
 	model   Model // URL "" for a .gguf file of one's own
 	path    string
 	threads int
+	gpu     bool
 
 	mu     sync.Mutex
 	cmd    *exec.Cmd
@@ -91,10 +105,16 @@ func newLocal(c Config) (*local, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &local{home: home, threads: c.Threads}
+	p := &local{home: home, threads: c.Threads, gpu: c.GPU}
 	id := strings.TrimSpace(c.LocalModel)
 	if id == "" {
 		id = DefaultModel
+	}
+	if strings.EqualFold(id, "custom") {
+		id = strings.TrimSpace(c.ModelFile)
+		if id == "" {
+			return nil, errors.New("no model file: Settings › Autocomplete › Model file takes a .gguf or its URL")
+		}
 	}
 	for _, m := range Models {
 		if strings.EqualFold(m.ID, id) {
@@ -121,7 +141,14 @@ func newLocal(c Config) (*local, error) {
 	return p, nil
 }
 
-func (p *local) engineDir() string { return filepath.Join(p.home, "llama.cpp", llamaBuild) }
+// engineDir keeps the GPU build apart, so that switching downloads it
+// rather than running the other.
+func (p *local) engineDir() string {
+	if p.gpu {
+		return filepath.Join(p.home, "llama.cpp", llamaBuild+"-gpu")
+	}
+	return filepath.Join(p.home, "llama.cpp", llamaBuild)
+}
 
 // server finds llama-server in the unpacked build.
 func (p *local) server() string {
@@ -175,7 +202,11 @@ func (p *local) Prepare(ctx context.Context, progress func(string)) error {
 			return fmt.Errorf("download %s: %w", p.model.File, err)
 		}
 	}
-	progress("Starting llama.cpp on " + filepath.Base(p.path))
+	on := "CPU"
+	if p.gpu {
+		on = "GPU"
+	}
+	progress(fmt.Sprintf("Starting llama.cpp on %s (%s)", filepath.Base(p.path), on))
 	if _, err := p.start(ctx); err != nil {
 		return err
 	}
@@ -218,9 +249,23 @@ var engines = map[string]engine{
 	"darwin/amd64":  {"macos-x64.tar.gz", 12613034, "7179905c572cd11e9eadf9669058b49846cc9519f3d8d10497cad19fbf9eb8b0"},
 }
 
+// gpuEngines are the pinned build's Vulkan builds: one download for
+// NVIDIA, AMD and Intel, where CUDA's needs 400 MB more of runtime. Without
+// a Vulkan driver they run on the CPU. macOS builds have Metal already.
+var gpuEngines = map[string]engine{
+	"windows/amd64": {"win-vulkan-x64.zip", 38022362, "58c3426f7473bc08135c83333259366521fc940e4ad7bc6ad2b26755cc42cb03"},
+	"windows/arm64": {"win-vulkan-arm64.zip", 25954885, "78c3fe2ce5705663156e296d49ba8b734926cae424f016c61e66b28098054e17"},
+	"linux/amd64":   {"ubuntu-vulkan-x64.tar.gz", 36106160, "34138a7d99f2cc4b2be8b6978a656eb77240e742ba0870a58d418024c6e2e8b8"},
+	"linux/arm64":   {"ubuntu-vulkan-arm64.tar.gz", 29383025, "3b8af7db1538b7995bbec32c4b3d739addf1f39f888ca668dd8a3478b106a5cf"},
+}
+
 // engineFor is the build for this system (a variable for tests).
-var engineFor = func() (engine, error) {
-	e, ok := engines[runtime.GOOS+"/"+runtime.GOARCH]
+var engineFor = func(gpu bool) (engine, error) {
+	sys := runtime.GOOS + "/" + runtime.GOARCH
+	e, ok := gpuEngines[sys]
+	if !gpu || !ok {
+		e, ok = engines[sys]
+	}
 	if !ok {
 		return engine{}, fmt.Errorf("llama.cpp has no build for %s/%s: run Ollama and choose it instead", runtime.GOOS, runtime.GOARCH)
 	}
@@ -232,7 +277,7 @@ var engineFor = func() (engine, error) {
 var releases = "https://github.com/ggml-org/llama.cpp/releases/download/" + llamaBuild + "/"
 
 func (p *local) downloadEngine(ctx context.Context, progress func(string)) error {
-	a, err := engineFor()
+	a, err := engineFor(p.gpu)
 	if err != nil {
 		return err
 	}
@@ -310,6 +355,9 @@ func (p *local) start(ctx context.Context) (string, error) {
 		"-c", "8192", "-b", "1024", "-ub", "1024", "--cache-reuse", "256"}
 	if p.threads > 0 {
 		args = append(args, "-t", strconv.Itoa(p.threads))
+	}
+	if p.gpu {
+		args = append(args, "-ngl", "99") // every layer: these models fit any GPU
 	}
 	cmd := exec.Command(p.server(), args...)
 	cmd.Dir = filepath.Dir(p.server()) // its DLLs are beside it

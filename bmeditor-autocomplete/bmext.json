@@ -1,43 +1,107 @@
 {
   "name": "autocomplete",
   "displayName": "bmeditor-autocomplete",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Inline code suggestions (ghost text) in every language from a small code model on your machine: llama.cpp with Qwen2.5-Coder, downloaded when you ask, a .gguf of your own, or Ollama. Nothing leaves the machine.",
   "icon": "icon.svg",
-  "engines": { "bmeditor": ">=0.1.5" },
+  "engines": {
+    "bmeditor": ">=0.1.5"
+  },
   "settings": [
     {
       "key": "provider",
       "label": "Model server",
-      "description": "local: llama.cpp, which the extension downloads and runs. ollama: a model Ollama serves. off: no suggestions.",
       "default": "local",
-      "placeholder": "local, ollama or off"
+      "description": "Where the model runs. The top bar's Autocomplete button picks it too.",
+      "options": [
+        {
+          "value": "local",
+          "label": "This machine (llama.cpp, downloaded on request)"
+        },
+        {
+          "value": "ollama",
+          "label": "Ollama"
+        },
+        {
+          "value": "off",
+          "label": "Off"
+        }
+      ]
     },
     {
       "key": "localModel",
       "label": "Model",
-      "description": "For local: 0.5b (0.5 GB, fast on any CPU), 1.5b (1.6 GB, better) or 3b (3.3 GB, best, slow without a GPU), all Qwen2.5-Coder. Or the path or URL of a .gguf of your own that fills in the middle.",
       "default": "0.5b",
-      "placeholder": "0.5b"
+      "when": {
+        "provider": "local"
+      },
+      "description": "Qwen2.5-Coder, all filling in the middle. The top bar's Autocomplete button picks it too, and downloads it.",
+      "options": [
+        {
+          "value": "0.5b",
+          "label": "Qwen2.5-Coder 0.5B: fast, 0.5 GB"
+        },
+        {
+          "value": "1.5b",
+          "label": "Qwen2.5-Coder 1.5B: better, 1.6 GB"
+        },
+        {
+          "value": "3b",
+          "label": "Qwen2.5-Coder 3B: best, 3.3 GB, wants a GPU"
+        },
+        {
+          "value": "custom",
+          "label": "A .gguf of my own"
+        }
+      ]
+    },
+    {
+      "key": "modelFile",
+      "label": "Model file",
+      "when": {
+        "provider": "local",
+        "localModel": "custom"
+      },
+      "description": "The path or URL of a .gguf that fills in the middle.",
+      "placeholder": "C:\\models\\my-model.gguf or https://..."
+    },
+    {
+      "key": "gpu",
+      "label": "Run the model on the GPU",
+      "type": "boolean",
+      "description": "For local: llama.cpp's Vulkan build (NVIDIA, AMD or Intel), many times faster than the CPU. Without a Vulkan driver it runs on the CPU anyway.",
+      "default": "true",
+      "when": {
+        "provider": "local"
+      }
     },
     {
       "key": "threads",
       "label": "CPU threads",
       "description": "For local: how many threads llama.cpp uses. Empty: its own choice.",
-      "placeholder": "auto"
+      "placeholder": "auto",
+      "when": {
+        "provider": "local"
+      }
     },
     {
       "key": "ollamaUrl",
       "label": "Ollama URL",
       "default": "http://localhost:11434",
-      "placeholder": "http://localhost:11434"
+      "placeholder": "http://localhost:11434",
+      "when": {
+        "provider": "ollama"
+      }
     },
     {
       "key": "ollamaModel",
       "label": "Ollama model",
       "description": "A code model that fills in the middle: qwen2.5-coder:1.5b, starcoder2:3b, codegemma:2b... Pull it with ollama pull first.",
       "default": "qwen2.5-coder:1.5b",
-      "placeholder": "qwen2.5-coder:1.5b"
+      "placeholder": "qwen2.5-coder:1.5b",
+      "when": {
+        "provider": "ollama"
+      }
     },
     {
       "key": "debounceMs",
@@ -54,7 +118,18 @@
       "placeholder": "markdown, plaintext"
     }
   ],
-  "frontend": { "script": "frontend/index.js", "style": "frontend/style.css" },
-  "backend": { "command": "bin/autocomplete-host" },
-  "build": { "command": ["make", "dist"], "output": "dist" }
+  "frontend": {
+    "script": "frontend/index.js",
+    "style": "frontend/style.css"
+  },
+  "backend": {
+    "command": "bin/autocomplete-host"
+  },
+  "build": {
+    "command": [
+      "make",
+      "dist"
+    ],
+    "output": "dist"
+  }
 }

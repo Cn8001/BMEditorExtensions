@@ -33,7 +33,9 @@ func (b *backend) config() provider.Config {
 	return provider.Config{
 		Provider:    c.Setting("provider"),
 		LocalModel:  c.Setting("localModel"),
+		ModelFile:   c.Setting("modelFile"),
 		Threads:     threads,
+		GPU:         c.Setting("gpu") != "false",
 		OllamaURL:   c.Setting("ollamaUrl"),
 		OllamaModel: c.Setting("ollamaModel"),
 	}
@@ -69,7 +71,7 @@ type status struct {
 
 func (b *backend) status() status {
 	c := b.config()
-	st := status{Provider: c.Provider, Models: provider.Models}
+	st := status{Provider: c.Provider, Models: provider.Here()}
 	if st.Provider == "" {
 		st.Provider = "local"
 	}
