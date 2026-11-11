@@ -137,6 +137,7 @@ func (m *Manager) Install(ctx context.Context, spec string, log Log) (Installed,
 	if err := os.MkdirAll(m.Dir, 0o755); err != nil {
 		return Installed{}, fmt.Errorf("create extensions folder: %w", err)
 	}
+	m.sweep()
 	stage, err := os.MkdirTemp(m.Dir, ".staging-")
 	if err != nil {
 		return Installed{}, fmt.Errorf("stage install: %w", err)
@@ -188,7 +189,7 @@ func (m *Manager) place(stage, out string, src Source, log Log) (Installed, erro
 	if _, err := os.Stat(final); err == nil {
 		m.release(man.Name)
 		if err := retry(func() error { return os.Rename(final, old) }); err != nil {
-			return Installed{}, fmt.Errorf("replace %s: %w", man.Name, err)
+			return Installed{}, fmt.Errorf("replace %s: %w", man.Name, inUse(err))
 		}
 	}
 	if err := retry(func() error { return os.Rename(out, final) }); err != nil {
@@ -278,10 +279,45 @@ func (m *Manager) Remove(name string) error {
 		return fmt.Errorf("%s: %w", name, ErrNotInstalled)
 	}
 	m.release(name)
-	if err := retry(func() error { return os.RemoveAll(dir) }); err != nil {
+	m.sweep()
+	// Moved aside first: a folder that cannot move is left whole, never
+	// half deleted as RemoveAll leaves one with a file in use.
+	trash, err := os.MkdirTemp(m.Dir, ".trash-")
+	if err != nil {
 		return fmt.Errorf("remove %s: %w", name, err)
 	}
+	gone := filepath.Join(trash, name)
+	if err := retry(func() error { return os.Rename(dir, gone) }); err != nil {
+		_ = os.Remove(trash)
+		return fmt.Errorf("remove %s: %w", name, inUse(err))
+	}
+	_ = os.RemoveAll(trash) // what stays is taken away next time (sweep)
 	return nil
+}
+
+// ErrInUse is a folder a running program holds: on Windows a program
+// keeps its folder from being moved or deleted.
+var ErrInUse = errors.New("a program still runs from it, perhaps in another BMEditor window: close or reload that window, then try again")
+
+func inUse(err error) error {
+	if errors.Is(err, os.ErrPermission) || strings.Contains(err.Error(), "used by another process") || strings.Contains(err.Error(), "Access is denied") {
+		return fmt.Errorf("%w (%v)", ErrInUse, err)
+	}
+	return err
+}
+
+// sweep removes what earlier installs and removals left: folders moved
+// aside that a running program kept then, and stages of installs that
+// stopped half way.
+func (m *Manager) sweep() {
+	entries, _ := os.ReadDir(m.Dir)
+	for _, e := range entries {
+		if e.IsDir() && (strings.HasPrefix(e.Name(), ".trash-") || strings.HasPrefix(e.Name(), ".staging-")) {
+			if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > time.Minute {
+				_ = os.RemoveAll(filepath.Join(m.Dir, e.Name()))
+			}
+		}
+	}
 }
 
 func (m *Manager) release(name string) {

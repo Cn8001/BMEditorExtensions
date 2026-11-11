@@ -5,6 +5,15 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.3
+
+- Remove moves the extension's folder aside before deleting it. A folder
+  a running program holds (on Windows, one another BMEditor window runs
+  from) is left whole, with an error that says so, instead of half
+  deleted and broken. Replace says the same.
+- Install and Remove clear what earlier ones left behind: folders moved
+  aside and stages of installs that stopped half way.
+
 ## 0.2.2
 
 - `editor?: (tab) => Extension` in `register`: CodeMirror support for

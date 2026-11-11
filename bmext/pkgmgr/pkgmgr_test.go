@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/Cn8001/BMEditorExtensions/bmext"
 )
@@ -281,5 +282,36 @@ func TestRemoveClone_LeavesOtherFoldersAlone(t *testing.T) {
 	}
 	if _, err := os.Stat(other); err != nil {
 		t.Fatal("the folder was removed")
+	}
+}
+
+func TestRemove_MovesTheFolderAsideAndSweeps(t *testing.T) {
+	// Arrange: an installed extension and a .trash- left by an earlier removal.
+	dir := t.TempDir()
+	m := &Manager{Dir: dir}
+	ext := filepath.Join(dir, "demo")
+	if err := os.MkdirAll(filepath.Join(ext, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.WriteFile(filepath.Join(ext, "bmext.json"), []byte(`{"name":"demo","version":"1.0.0"}`), 0o644)
+	old := filepath.Join(dir, ".trash-old")
+	_ = os.MkdirAll(filepath.Join(old, "x"), 0o755)
+	long := time.Now().Add(-time.Hour)
+	_ = os.Chtimes(old, long, long)
+
+	// Act
+	err := m.Remove("demo")
+
+	// Assert
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 0 {
+		var names []string
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Errorf("left in the extensions folder: %v", names)
 	}
 }
