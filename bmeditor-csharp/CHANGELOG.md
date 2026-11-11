@@ -4,6 +4,10 @@ Each version of the C# extension, newest first. The section of a version
 becomes the notes of its release, and a version is published only when it
 has a section here.
 
+## 0.1.1
+
+- Named bmeditor-csharp in Extensions.
+
 ## 0.1.0
 
 - C# with a language server: `csharp-ls`, Roslyn's or OmniSharp's, on the

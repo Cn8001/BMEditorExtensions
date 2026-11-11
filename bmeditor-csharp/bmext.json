@@ -1,7 +1,7 @@
 {
   "name": "csharp",
-  "displayName": "C#",
-  "version": "0.1.0",
+  "displayName": "bmeditor-csharp",
+  "version": "0.1.1",
   "description": "C# for Unity and UPM packages: a Solution Explorer, the assembly graph, an Inspector for .asmdef and package.json, Unity's compile errors in Problems, .meta and GUID tools, script templates and Unity message completion, with csharp-ls.",
   "icon": "icon.svg",
   "engines": { "bmeditor": ">=0.1.0" },
