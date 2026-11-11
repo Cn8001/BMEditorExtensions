@@ -10,7 +10,7 @@ on:
       extension:
         description: Extension
         type: choice
-        options: [bmeditor-web, bmeditor-vim, bmeditor-csharp]
+        options: [bmeditor-web, bmeditor-vim, bmeditor-csharp, bmeditor-powershell]
         required: true
       version:
         description: Released version to make the latest, such as 0.1.0

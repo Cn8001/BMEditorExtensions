@@ -1,0 +1,12 @@
+/* The icon of a snippet in the completion list, as the editor draws the
+   other kinds: a codicon in the list's colours. */
+.cm-completionIcon-snippet::after {
+  content: '\eb66';
+  color: var(--accent);
+}
+.cm-tooltip.cm-completionInfo .ps-snippet-preview {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  white-space: pre;
+}

@@ -1,0 +1,64 @@
+{
+  "name": "powershell",
+  "displayName": "bmeditor-powershell",
+  "version": "0.1.0",
+  "description": "PowerShell and cmd: PowerShell Editor Services for completion, errors, PSScriptAnalyzer, formatting and debugging; a language server for .bat and .cmd with commands, labels and variables, and F5 to run them; snippets for both.",
+  "icon": "icon.svg",
+  "engines": { "bmeditor": ">=0.1.0" },
+  "languages": [
+    {
+      "id": "powershell",
+      "label": "PowerShell",
+      "extensions": [".ps1", ".psm1", ".psd1", ".pssc", ".psrc"],
+      "icon": "icon.svg",
+      "color": "#5391fe",
+      "lineComment": "#",
+      "blockComment": ["<#", "#>"],
+      "server": {
+        "command": ["./bin/ps-ls"],
+        "install": "Run PowerShell: Install Editor Services from the command palette"
+      }
+    },
+    {
+      "id": "batch",
+      "label": "Batch",
+      "extensions": [".bat", ".cmd"],
+      "codicon": "terminal-cmd",
+      "color": "#c1c1c1",
+      "lineComment": "REM",
+      "server": {
+        "command": ["./bin/bat-ls"]
+      }
+    }
+  ],
+  "debuggers": [
+    {
+      "id": "powershell",
+      "label": "PowerShell",
+      "languages": ["powershell"],
+      "command": ["./bin/ps-ls", "--debug"],
+      "install": "Run PowerShell: Install Editor Services from the command palette",
+      "launch": {
+        "type": "PowerShell",
+        "request": "launch",
+        "name": "PowerShell: this file",
+        "script": "${file}",
+        "cwd": "${fileDirname}",
+        "createTemporaryIntegratedConsole": false
+      }
+    },
+    {
+      "id": "batch",
+      "label": "cmd",
+      "languages": ["batch"],
+      "command": ["./bin/bat-run"],
+      "launch": {
+        "program": "${file}",
+        "cwd": "${fileDirname}"
+      }
+    }
+  ],
+  "frontend": { "script": "frontend/index.js", "style": "frontend/style.css" },
+  "backend": { "command": "bin/powershell-host" },
+  "build": { "command": ["make", "dist"], "output": "dist" }
+}

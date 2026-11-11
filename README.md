@@ -11,6 +11,7 @@ desktop code editor. BMEditor can be downloaded from its
 | [bmeditor-web](bmeditor-web) | JavaScript, TypeScript, CSS, SCSS, Less, HTML, Svelte, Vue and SVG, each with its language server, and an image viewer panel |
 | [bmeditor-vim](bmeditor-vim) | Vim key bindings in every editor tab |
 | [bmeditor-csharp](bmeditor-csharp) | C# for Unity and UPM packages: language server, Solution Explorer, assembly graph, Inspector for .asmdef and package.json, Unity compile errors, .meta and GUID tools |
+| [bmeditor-powershell](bmeditor-powershell) | PowerShell with PowerShell Editor Services (completion, PSScriptAnalyzer, debugging) and cmd batch files with a language server of their own and F5 to run them |
 
 The [bmext](bmext) directory holds the extension format and SDK. See
 [bmext/README.md](bmext/README.md) or
@@ -26,6 +27,7 @@ The [bmext](bmext) directory holds the extension format and SDK. See
    | bmeditor-web | `https://github.com/Cn8001/BMEditorExtensions/releases/download/web/latest/web.zip` |
    | bmeditor-vim | `https://github.com/Cn8001/BMEditorExtensions/releases/download/vim/latest/vim.zip` |
    | bmeditor-csharp | `https://github.com/Cn8001/BMEditorExtensions/releases/download/csharp/latest/csharp.zip` |
+   | bmeditor-powershell | `https://github.com/Cn8001/BMEditorExtensions/releases/download/powershell/latest/powershell.zip` |
 
 3. Reload the window when prompted.
 
