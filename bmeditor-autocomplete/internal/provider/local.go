@@ -375,7 +375,9 @@ func (p *local) Close() {
 }
 
 func (p *local) Complete(ctx context.Context, r fim.Request) (string, error) {
-	url, err := p.start(ctx)
+	// Loading must outlive the request: the next keystroke cancels it, and
+	// a cancelled load kills llama-server before it is ever ready.
+	url, err := p.start(context.WithoutCancel(ctx))
 	if err != nil {
 		return "", err
 	}
