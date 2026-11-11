@@ -33,6 +33,7 @@ var (
 	ErrBadSource    = errors.New("not a folder, .zip or git repository")
 	ErrGitMissing   = errors.New("git is not installed")
 	ErrFetch        = errors.New("could not fetch the extension")
+	ErrNotBuilt     = errors.New("extension is not built")
 )
 
 type Source struct {
@@ -59,6 +60,11 @@ type Manager struct {
 	Git  string // the git program; "git" when empty
 	HTTP *http.Client
 	Now  func() time.Time
+	// Release, when set, is called with an extension's name just before its
+	// installed folder is replaced or removed, to stop the programs of it
+	// that run (its backend, its language servers): Windows does not let a
+	// folder go while a program in it runs.
+	Release func(name string)
 }
 
 // Log receives the progress of an install, a line at a time.
@@ -141,8 +147,12 @@ func (m *Manager) Install(ctx context.Context, spec string, log Log) (Installed,
 	src := Source{Spec: spec, Installed: m.now().UTC()}
 	switch kind, target, ref := classify(spec); kind {
 	case "folder":
-		log("Copying " + target)
-		if err := copyTree(target, out); err != nil {
+		from, err := builtFolder(target)
+		if err != nil {
+			return Installed{}, err
+		}
+		log("Copying " + from)
+		if err := copyTree(from, out); err != nil {
 			return Installed{}, err
 		}
 	case "zip":
@@ -176,11 +186,12 @@ func (m *Manager) place(stage, out string, src Source, log Log) (Installed, erro
 	final := filepath.Join(m.Dir, man.Name)
 	old := filepath.Join(stage, "previous")
 	if _, err := os.Stat(final); err == nil {
-		if err := os.Rename(final, old); err != nil {
+		m.release(man.Name)
+		if err := retry(func() error { return os.Rename(final, old) }); err != nil {
 			return Installed{}, fmt.Errorf("replace %s: %w", man.Name, err)
 		}
 	}
-	if err := os.Rename(out, final); err != nil {
+	if err := retry(func() error { return os.Rename(out, final) }); err != nil {
 		_ = os.Rename(old, final)
 		return Installed{}, fmt.Errorf("install %s: %w", man.Name, err)
 	}
@@ -266,14 +277,50 @@ func (m *Manager) Remove(name string) error {
 	if _, err := os.Stat(dir); err != nil {
 		return fmt.Errorf("%s: %w", name, ErrNotInstalled)
 	}
-	if err := os.RemoveAll(dir); err != nil {
+	m.release(name)
+	if err := retry(func() error { return os.RemoveAll(dir) }); err != nil {
 		return fmt.Errorf("remove %s: %w", name, err)
 	}
 	return nil
 }
 
+func (m *Manager) release(name string) {
+	if m.Release != nil {
+		m.Release(name)
+	}
+}
+
+// retry runs fn again for a little while when it fails: on Windows a file
+// stays in use for a moment after its program ends, and a virus scanner or
+// the search indexer may hold one briefly.
+func retry(fn func() error) error {
+	err := fn()
+	for i := 0; err != nil && i < 20; i++ {
+		time.Sleep(100 * time.Millisecond)
+		err = fn()
+	}
+	return err
+}
+
 // classify tells what kind of source spec is, and for git which repository
 // and ref. host/path without a scheme, as in github.com/me/ext, is https.
+// builtFolder is what to install from a folder: the folder itself, or, for
+// an extension's source whose manifest has a build step, the folder the
+// build writes (dist/), which must be built already. A source folder
+// copied as it is would lack the programs and the script the build makes.
+func builtFolder(dir string) (string, error) {
+	man, err := bmext.Read(dir)
+	if err != nil || man.Build == nil || man.Build.Output == "" {
+		return dir, nil // a manifest's own problems are reported once installed
+	}
+	out := filepath.Join(dir, filepath.FromSlash(man.Build.Output))
+	if _, err := bmext.Read(out); err != nil {
+		return "", fmt.Errorf("%w: %s is the source of %s; build it (%s, or bmx dev) and install %s", ErrNotBuilt,
+			dir, man.Title(), strings.Join(man.Build.Command, " "), out)
+	}
+	return out, nil
+}
+
 func classify(spec string) (kind, target, ref string) {
 	if spec == "" {
 		return "", "", ""

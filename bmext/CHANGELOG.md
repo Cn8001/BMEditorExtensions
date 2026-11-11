@@ -5,6 +5,20 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.1
+
+- `api.ui.output(text, stream?)` and `api.ui.showOutput()` write to and
+  open the extension's channel in Output, where BMEditor 0.1.5 also puts
+  its backend's stderr and the stderr of its language servers.
+- `pkgmgr.Manager.Release` is called before an installed extension is
+  replaced or removed, so the editor can stop its programs first: on
+  Windows a running backend or language server kept Update and a new
+  install from replacing the folder. Replacing also retries briefly.
+- Installing an extension's source folder, one whose manifest has a build
+  step, installs what the build wrote (`dist/`) rather than the source,
+  which lacks the programs and the script. If it is not built yet, the
+  install says to build it first.
+
 ## 0.2.0
 
 - `bmx dev -target os/arch` builds for another system, with `-dir` to

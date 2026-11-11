@@ -81,6 +81,11 @@ export interface ExtensionAPI {
     showPanel(id: string): void
     activeTab(): Tab | undefined
     openSettings(): void
+    // output writes text, one line or several, to the extension's channel
+    // in Output (stream info by default), where its backend's stderr goes
+    // too; showOutput opens Output on that channel.
+    output(text: string, stream?: 'info' | 'stdout' | 'stderr'): void
+    showOutput(): void
   }
   paths: { relativeTo(root: string, path: string): string }
   components: { CodeView: Component } // props: text, language ('sql' | 'json' | 'plain')

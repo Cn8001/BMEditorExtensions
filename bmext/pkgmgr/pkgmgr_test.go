@@ -44,6 +44,46 @@ func TestInstall_CopiesAFolderAndRecordsItsSource(t *testing.T) {
 	}
 }
 
+func TestInstall_FromASourceFolderInstallsItsBuild(t *testing.T) {
+	// Arrange
+	src := filepath.Join(t.TempDir(), "ext")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"name": "c", "version": "1.0.0", "build": {"command": ["make", "dist"], "output": "dist"}}`
+	if err := os.WriteFile(filepath.Join(src, bmext.ManifestFile), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m := &Manager{Dir: t.TempDir()}
+
+	// Act: not built yet
+	_, err := m.Install(t.Context(), src, nil)
+
+	// Assert
+	if !errors.Is(err, ErrNotBuilt) {
+		t.Fatalf("err = %v, want ErrNotBuilt", err)
+	}
+
+	// Act: built
+	writeExtension(t, filepath.Join(src, "dist"), "c", "1.0.0")
+	_ = os.WriteFile(filepath.Join(src, "dist", "built.txt"), nil, 0o644)
+	ins, err := m.Install(t.Context(), src, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(ins.Dir, "built.txt")); err != nil {
+		t.Error("the build's output should be installed")
+	}
+	if _, err := os.Stat(filepath.Join(ins.Dir, "dist")); err == nil {
+		t.Error("the source folder should not be installed")
+	}
+	if ins.Source.Spec != src {
+		t.Errorf("source = %q, want the folder picked, for Update", ins.Source.Spec)
+	}
+}
+
 func TestInstall_ClonesAGitRepositoryAtARef(t *testing.T) {
 	// Arrange
 	if _, err := exec.LookPath("git"); err != nil {
@@ -94,6 +134,31 @@ func TestInstall_ReplacesTheOlderVersion(t *testing.T) {
 	// Assert
 	if err != nil || ins.Manifest.Version != "1.1.0" {
 		t.Fatalf("installed = %+v, %v", ins, err)
+	}
+}
+
+func TestInstall_ReleasesTheOldOneBeforeReplacingIt(t *testing.T) {
+	// Arrange
+	src := filepath.Join(t.TempDir(), "c-ext")
+	writeExtension(t, src, "c", "1.0.0")
+	var released []string
+	m := &Manager{Dir: t.TempDir(), Release: func(name string) { released = append(released, name) }}
+
+	// Act
+	if _, err := m.Install(t.Context(), src, nil); err != nil {
+		t.Fatal(err)
+	}
+	first := len(released)
+	if _, err := m.Install(t.Context(), src, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Remove("c"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Assert: nothing to release on the first install, then once each.
+	if first != 0 || len(released) != 2 || released[0] != "c" || released[1] != "c" {
+		t.Fatalf("released = %v (after the first install: %d)", released, first)
 	}
 }
 
