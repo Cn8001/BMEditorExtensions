@@ -108,6 +108,17 @@ type Setting struct {
 	Scope       string `json:"scope,omitempty"` // global (default), project, both
 	Default     string `json:"default,omitempty"`
 	Placeholder string `json:"placeholder,omitempty"`
+	// Options, when given, are the only values: Settings shows a dropdown.
+	Options []Option `json:"options,omitempty"`
+	// When shows the setting only while other settings have these values,
+	// such as {"provider": "ollama"}.
+	When map[string]string `json:"when,omitempty"`
+}
+
+// Option is one value a dropdown setting offers.
+type Option struct {
+	Value string `json:"value"`
+	Label string `json:"label,omitempty"`
 }
 
 // ProjectKind is a kind of project New Project offers.
@@ -212,6 +223,21 @@ func (m Manifest) Validate() error {
 		case "", "global", "project", "both":
 		default:
 			return bad("setting %s: scope %q is not global, project or both", s.Key, s.Scope)
+		}
+		if len(s.Options) > 0 && s.Type != "" && s.Type != "string" {
+			return bad("setting %s: options need type string", s.Key)
+		}
+		for _, o := range s.Options {
+			if o.Value == "" {
+				return bad("setting %s: an option has no value", s.Key)
+			}
+		}
+	}
+	for _, s := range m.Settings {
+		for k := range s.When {
+			if !keys[k] || k == s.Key {
+				return bad("setting %s: when names %q, not another setting", s.Key, k)
+			}
 		}
 	}
 	for _, k := range m.ProjectKinds {

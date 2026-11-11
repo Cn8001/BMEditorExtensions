@@ -5,6 +5,16 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.4
+
+- A setting's `options` are its only values, shown as a dropdown, and
+  `when` shows it only while other settings have the values it names:
+  `"when": {"provider": "ollama"}`. BMEditor 0.1.6 shows both.
+- `api.saveSettings(values)` changes some of the extension's global
+  settings and keeps the rest, for choosing one outside Settings.
+- `api.components.DropMenu`, the top bar's menu, for a toolbar button
+  that opens one.
+
 ## 0.2.3
 
 - Remove moves the extension's folder aside before deleting it. A folder
