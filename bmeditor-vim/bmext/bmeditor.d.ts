@@ -40,6 +40,9 @@ export interface Contributions {
   // Behaviour for a language the manifest declares: more editor support
   // (highlighting from the backend, completion), and hooks for its tabs.
   languages?: { id: string; support?: (tab: Tab) => Extension; changed?: (tab: Tab) => void; closed?: (tab: Tab) => void }[]
+  // More editor support for every tab, whatever its language (BMEditor
+  // 0.1.5 and later): inline completion, a gutter.
+  editor?: (tab: Tab) => Extension
   panels?: { id: string; label: string; component: Component; busy?: () => boolean }[]
   toolbar?: Component // gets `compact` (0 to 3) as the top bar narrows
   commands?: { id: string; label: string; kbd?: string; icon?: string; run: () => unknown; when?: () => boolean }[]

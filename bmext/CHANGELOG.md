@@ -5,6 +5,12 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.2
+
+- `editor?: (tab) => Extension` in `register`: CodeMirror support for
+  every tab, whatever its language, such as inline completion. BMEditor
+  0.1.5 applies it.
+
 ## 0.2.1
 
 - `api.ui.output(text, stream?)` and `api.ui.showOutput()` write to and
