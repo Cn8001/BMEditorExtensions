@@ -68,6 +68,9 @@ export interface ExtensionAPI {
     reconfigureLanguage(language: string): void
     activate(id: string): void
     goto(line: number, col: number, length?: number): void
+    // openFile opens a file in a tab, or switches to its tab, and goes to
+    // pos when given. quiet leaves out the "Cannot open" notice on failure.
+    openFile(path: string, pos?: { line: number; col: number; length?: number }, quiet?: boolean): Promise<void>
   }
   ide: { folder: string; activeId: string; tabs: Tab[]; settingsOpen: boolean; [key: string]: unknown }
   ui: {

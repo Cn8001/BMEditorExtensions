@@ -2,7 +2,7 @@
 // folder, the one with bmext.json:
 //
 //	bmx init [-backend] [-name n]   make a new extension here, or update its copy of the SDK
-//	bmx dev [-dir d]                build it for this system only and install it in the editor
+//	bmx dev [-target os/arch] [-dir d]  build it for one system and install it in the editor
 //	bmx check                       install it from a clean git clone, as the editor would, and check the result
 //	bmx pack                        build it for every system and zip it: <name>-<version>.zip, to publish
 //	bmx version                     print bmx's version
@@ -25,7 +25,7 @@ import (
 
 const usage = `usage:
   bmx init [-backend] [-name n]   make a new extension here, or update its copy of the SDK
-  bmx dev [-dir d]                build it for this system only and install it in the editor
+  bmx dev [-target os/arch] [-dir d]  build it for one system and install it in the editor
   bmx check                       install it from a clean git clone and check the result
   bmx pack                        build it for every system and zip it, to publish
   bmx version                     print bmx's version
