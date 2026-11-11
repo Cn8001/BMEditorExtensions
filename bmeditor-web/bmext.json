@@ -1,7 +1,7 @@
 {
   "name": "web",
   "displayName": "Web",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "JavaScript, TypeScript, CSS, SCSS, Less, Svelte, Vue, SVG and HTML, with their language servers, and an image viewer.",
   "icon": "icon.svg",
   "engines": {

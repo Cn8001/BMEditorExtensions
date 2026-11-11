@@ -36,10 +36,14 @@ Click a PNG, JPG, GIF, WebP, AVIF, BMP or ICO file in the Explorer and it
 opens in the **Image** panel at the bottom. You can also run **Image: Open
 Image…** from the command palette, or drag an image into the panel from the
 Explorer or your desktop. Click the image to switch between fit and actual
-size.
+size; zoom with the buttons or Ctrl+wheel, and switch to a light background
+for a dark image. An image that changes on disk shows again by itself;
+Refresh reads it again by hand.
 
-An SVG opens as code. **Image: Preview SVG** shows it in the Image panel,
-and the preview follows your typing.
+An SVG opens as code, and the Image panel shows it beside the code as the
+tab becomes active, following your typing. When fitted it fills the panel,
+and its size comes from its `width`, `height` or `viewBox`. **Image: Preview
+SVG** shows it again after you open another image.
 
 ## Install
 

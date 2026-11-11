@@ -1,29 +1,69 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { openFile, openPath, pick, viewer } from './api'
+import { openFile, openPath, pick, reload, viewer } from './api'
 
 // The image viewer: what a click in the Explorer, the file picker, a drop
 // or Preview SVG put in viewer.
 
 const explorerDrag = 'application/x-bmeditor-entry'
 const picker = ref<HTMLInputElement>()
-const actual = ref(false)
 const hover = ref(false)
-const size = ref('')
+// zoom is 0 to fit the panel, else the scale of the image's own size.
+const zoom = ref(0)
+const natural = ref({ width: 0, height: 0 })
+// A light background for a dark image, such as an icon drawn in black.
+const light = ref(false)
+
+const steps = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24, 32]
+
+// The image's own size: an SVG's from its width, height or viewBox, else
+// what the browser read.
+const own = computed(() => (viewer.svg && viewer.width && viewer.height ? { width: viewer.width, height: viewer.height } : natural.value))
 
 const facts = computed(() => {
   const b = viewer.bytes
   const bytes = b < 0 ? '' : b < 1024 ? `${b} B` : b < 1 << 20 ? `${(b / 1024).toFixed(1)} KB` : `${(b / (1 << 20)).toFixed(1)} MB`
-  return [size.value, bytes, viewer.tabId ? 'live' : ''].filter(Boolean).join(' · ')
+  const { width, height } = own.value
+  const size = width && height ? `${width} × ${height}` : ''
+  const box = viewer.svg && viewer.viewBox ? `viewBox ${viewer.viewBox}` : ''
+  return [viewer.svg ? 'SVG' : '', size, box, bytes, viewer.tabId ? 'live' : ''].filter(Boolean).join(' · ')
+})
+
+const imgStyle = computed(() => {
+  if (!zoom.value) return {}
+  const { width, height } = own.value
+  if (!width || !height) return { transform: `scale(${zoom.value})`, transformOrigin: '0 0' }
+  return { width: `${width * zoom.value}px`, height: `${height * zoom.value}px` }
 })
 
 watch(
   () => viewer.src,
   () => {
-    size.value = ''
-    if (!viewer.tabId) actual.value = false
+    if (!viewer.tabId) zoom.value = 0
   },
 )
+watch(
+  () => viewer.name,
+  () => {
+    natural.value = { width: 0, height: 0 }
+    zoom.value = 0
+  },
+)
+
+function zoomBy(dir: 1 | -1) {
+  const stage = document.querySelector('.web-image-stage') as HTMLElement | null
+  const img = stage?.querySelector('img') as HTMLImageElement | null
+  // From fit, start at the scale the image is drawn at.
+  const now = zoom.value || (img && own.value.width ? img.clientWidth / own.value.width : 1)
+  const next = dir > 0 ? steps.find((s) => s > now + 1e-6) : [...steps].reverse().find((s) => s < now - 1e-6)
+  zoom.value = next ?? now
+}
+
+function onWheel(e: WheelEvent) {
+  if (!e.ctrlKey || !viewer.src) return
+  e.preventDefault()
+  zoomBy(e.deltaY < 0 ? 1 : -1)
+}
 
 function onPicked(e: Event) {
   const input = e.target as HTMLInputElement
@@ -50,7 +90,7 @@ function onDrop(e: DragEvent) {
 
 function onLoad(e: Event) {
   const img = e.target as HTMLImageElement
-  size.value = img.naturalWidth ? `${img.naturalWidth} × ${img.naturalHeight}` : ''
+  natural.value = { width: img.naturalWidth, height: img.naturalHeight }
 }
 
 function answer() {
@@ -69,14 +109,29 @@ onMounted(answer)
       <button @click="picker?.click()"><i class="codicon codicon-folder-opened" /> Choose Image…</button>
       <template v-if="viewer.src">
         <span class="name" :title="viewer.name">{{ viewer.name }}</span>
-        <span class="facts">{{ facts }}</span>
-        <button class="fit" @click="actual = !actual">{{ actual ? 'Fit' : 'Actual size' }}</button>
+        <span class="facts" :title="facts">{{ facts }}</span>
+        <span class="tools">
+          <button title="Read it again" @click="reload()"><i class="codicon codicon-refresh" /></button>
+          <button title="Zoom out (Ctrl+wheel)" @click="zoomBy(-1)"><i class="codicon codicon-zoom-out" /></button>
+          <button class="pct" :class="{ on: !zoom }" title="Fit the panel" @click="zoom = 0">{{ zoom ? Math.round(zoom * 100) + '%' : 'Fit' }}</button>
+          <button title="Zoom in (Ctrl+wheel)" @click="zoomBy(1)"><i class="codicon codicon-zoom-in" /></button>
+          <button :class="{ on: zoom === 1 }" title="Actual size" @click="zoom = 1">1:1</button>
+          <button :title="light ? 'Dark background' : 'Light background'" @click="light = !light"><i class="codicon" :class="light ? 'codicon-color-mode' : 'codicon-lightbulb'" /></button>
+        </span>
       </template>
-      <input ref="picker" type="file" accept="image/*" hidden @change="onPicked" />
+      <input ref="picker" type="file" accept="image/*,.svg" hidden @change="onPicked" />
     </div>
-    <div class="stage" :class="{ actual }">
-      <p v-if="viewer.failed" class="empty">{{ viewer.name }} could not be shown.</p>
-      <img v-else-if="viewer.src" :src="viewer.src" :alt="viewer.name" @load="onLoad" @error="viewer.failed = true" @click="actual = !actual" />
+    <div class="stage web-image-stage" :class="{ zoomed: !!zoom, light, svg: viewer.svg }" @wheel="onWheel">
+      <p v-if="viewer.failed" class="empty">{{ viewer.name }} could not be shown: it is gone, or {{ viewer.svg ? 'not a well-formed SVG' : 'not an image' }}.</p>
+      <img
+        v-else-if="viewer.src"
+        :src="viewer.src"
+        :alt="viewer.name"
+        :style="imgStyle"
+        @load="onLoad"
+        @error="viewer.failed = true"
+        @click="zoom = zoom ? 0 : 1"
+      />
       <p v-else class="empty">Click an image in the Explorer, choose one, or drag one here.</p>
     </div>
   </div>
@@ -123,8 +178,22 @@ onMounted(answer)
   color: var(--text-faint);
   white-space: nowrap;
 }
-.fit {
+.tools {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.tools button {
+  padding: 3px 6px;
+}
+.tools .pct {
+  min-width: 46px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.tools button.on {
+  color: var(--text);
 }
 .stage {
   flex: 1;
@@ -136,16 +205,24 @@ onMounted(answer)
   /* A checkerboard, so a transparent image shows where it is clear. */
   background: repeating-conic-gradient(#24211e 0% 25%, #1b1a17 0% 50%) 0 0 / 16px 16px;
 }
+.stage.light {
+  background: repeating-conic-gradient(#ffffff 0% 25%, #e6e6e6 0% 50%) 0 0 / 16px 16px;
+}
 .stage img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
   cursor: zoom-in;
 }
-.stage.actual {
+/* A vector image fills the panel when fitted, as large as it fits. */
+.stage.svg:not(.zoomed) img {
+  width: 100%;
+  height: 100%;
+}
+.stage.zoomed {
   place-items: start;
 }
-.stage.actual img {
+.stage.zoomed img {
   max-width: none;
   max-height: none;
   cursor: zoom-out;

@@ -62,6 +62,16 @@ export default function activate(api: ExtensionAPI) {
     },
   )
 
+  // An SVG opens as code; the panel shows it beside, live, as it becomes
+  // the active tab.
+  watch(
+    () => api.ui.activeTab(),
+    (tab) => {
+      if (tab?.language === 'svg' && viewer.tabId !== tab.id) openTab(tab.id)
+    },
+    { immediate: true },
+  )
+
   // An SVG in the panel follows its tab as it is edited.
   watch(
     () => viewer.tabId && api.session.tab(viewer.tabId)?.version,
