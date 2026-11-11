@@ -13,7 +13,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,10 +27,42 @@ type Progress func(done, total int64)
 
 var client = &http.Client{} // no timeout: a model is gigabytes; ctx ends it
 
+// Retries are the waits before trying again after a network failure: a
+// lookup that failed, a connection cut. Each try goes on from the bytes
+// already here.
+var Retries = []time.Duration{2 * time.Second, 5 * time.Second, 15 * time.Second}
+
 // Fetch downloads url to dest. A dest.part left by an earlier try is
 // continued. size and sum (hex SHA-256) are checked when given; a file
-// that fails the check is removed.
+// that fails the check is removed. A network failure is tried again.
 func Fetch(ctx context.Context, url, dest string, size int64, sum string, progress Progress) error {
+	err := fetch(ctx, url, dest, size, sum, progress)
+	for _, wait := range Retries {
+		if err == nil || !transient(err) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(wait):
+		}
+		err = fetch(ctx, url, dest, size, sum, progress)
+	}
+	return err
+}
+
+// transient says whether an error is the network's, worth another try:
+// not a refusal by the server or a file that failed its check.
+func transient(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var u *neturl.Error
+	var n net.Error
+	return errors.As(err, &u) || errors.As(err, &n) || errors.Is(err, io.ErrUnexpectedEOF)
+}
+
+func fetch(ctx context.Context, url, dest string, size int64, sum string, progress Progress) error {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return err
 	}

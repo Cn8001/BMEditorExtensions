@@ -4,6 +4,14 @@ Each version of the Autocomplete extension, newest first. The section of a
 version becomes the notes of its release, and a version is published only
 when it has a section here.
 
+## 0.1.1
+
+- llama.cpp downloads straight from its release, with its size and
+  SHA-256 known in advance: no call to GitHub's API, which failed when
+  api.github.com could not be reached and has a rate limit.
+- A download cut by the network (a failed lookup, a dropped connection)
+  is tried again three times, going on from where it stopped.
+
 ## 0.1.0
 
 - Inline suggestions (ghost text) in every language from a code model on

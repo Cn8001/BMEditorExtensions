@@ -108,19 +108,13 @@ func TestOllama_PrepareAndComplete(t *testing.T) {
 }
 
 func TestDownloadEngine_FromTheRelease(t *testing.T) {
-	// Arrange: a release with this system's build, a zip holding llama-server.
+	// Arrange: the release's file, a zip holding llama-server.
 	home := cache(t)
-	name, err := asset()
-	if err != nil {
-		t.Skip(err)
-	}
-	if strings.HasSuffix(name, ".tar.gz") {
-		name = strings.TrimSuffix(name, ".tar.gz") + ".zip" // Extract takes either; a zip is simpler to make here
-	}
 	server := "llama-server"
 	if runtime.GOOS == "windows" {
 		server += ".exe"
 	}
+	name := "llama-" + llamaBuild + "-bin-test.zip"
 	zipPath := filepath.Join(t.TempDir(), name)
 	f, _ := os.Create(zipPath)
 	w := zip.NewWriter(f)
@@ -130,36 +124,40 @@ func TestDownloadEngine_FromTheRelease(t *testing.T) {
 	_ = f.Close()
 	raw, _ := os.ReadFile(zipPath)
 	sum := sha256.Sum256(raw)
+	var asked []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/asset" {
-			_, _ = w.Write(raw)
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"assets": []map[string]any{
-			{"name": "other.zip", "browser_download_url": "x", "size": 1},
-			{"name": name, "browser_download_url": "http://" + r.Host + "/asset", "size": len(raw), "digest": "sha256:" + hex.EncodeToString(sum[:])},
-		}})
+		asked = append(asked, r.URL.Path)
+		_, _ = w.Write(raw)
 	}))
 	defer srv.Close()
-	old := releaseAPI
-	releaseAPI = srv.URL + "/release"
-	defer func() { releaseAPI = old }()
+	oldReleases, oldEngine := releases, engineFor
+	releases = srv.URL + "/download/"
+	engineFor = func() (engine, error) { return engine{Name: name, Size: int64(len(raw)), SHA: hex.EncodeToString(sum[:])}, nil }
+	defer func() { releases, engineFor = oldReleases, oldEngine }()
 	p, _ := newLocal(Config{})
-	orig := assetName
-	assetName = func() (string, error) { return name, nil }
-	defer func() { assetName = orig }()
 
 	// Act
-	err = p.downloadEngine(context.Background(), func(string) {})
+	err := p.downloadEngine(context.Background(), func(string) {})
 
 	// Assert
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(asked) != 1 || asked[0] != "/download/"+name {
+		t.Errorf("asked for %v: only the file, no API", asked)
 	}
 	if got := p.server(); got != filepath.Join(home, "llama.cpp", llamaBuild, "build", "bin", server) {
 		t.Errorf("server = %s", got)
 	}
 	if ok, why := p.Ready(); ok || !strings.Contains(why, "not downloaded") {
 		t.Errorf("without the model: %v %s", ok, why)
+	}
+}
+
+func TestEngines_EverySystemHasOne(t *testing.T) {
+	for sys, e := range engines {
+		if e.Size <= 0 || len(e.SHA) != 64 {
+			t.Errorf("%s: %+v", sys, e)
+		}
 	}
 }

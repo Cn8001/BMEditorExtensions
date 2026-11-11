@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -199,76 +198,59 @@ func bar(progress func(string), name string) download.Progress {
 	}
 }
 
-// asset is the name of llama.cpp's CPU build for this system.
-var assetName = asset
-
-func asset() (string, error) {
-	plat := map[string]string{
-		"windows/amd64": "win-cpu-x64.zip",
-		"windows/arm64": "win-cpu-arm64.zip",
-		"linux/amd64":   "ubuntu-x64.tar.gz",
-		"linux/arm64":   "ubuntu-arm64.tar.gz",
-		"darwin/arm64":  "macos-arm64.tar.gz",
-		"darwin/amd64":  "macos-x64.tar.gz",
-	}[runtime.GOOS+"/"+runtime.GOARCH]
-	if plat == "" {
-		return "", fmt.Errorf("llama.cpp has no build for %s/%s: run Ollama and choose it instead", runtime.GOOS, runtime.GOARCH)
-	}
-	return "llama-" + llamaBuild + "-bin-" + plat, nil
+// engine is a llama.cpp build to download, as its release publishes it.
+type engine struct {
+	Name string
+	Size int64
+	SHA  string
 }
 
-// releaseAPI is GitHub's API for the pinned build's release (a variable
-// for tests).
-var releaseAPI = "https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/" + llamaBuild
+// engines are the pinned build's CPU builds, by system, with the sizes and
+// SHA-256 sums GitHub publishes: fixed here so that the download needs no
+// call to GitHub's API, which has a rate limit and was one more host to
+// reach.
+var engines = map[string]engine{
+	"windows/amd64": {"win-cpu-x64.zip", 25058174, "dafb19ac757bfb7cfc1f91c6e26703264df861c4331e3ef6dc9543ae8d010c5e"},
+	"windows/arm64": {"win-cpu-arm64.zip", 13409429, "a9e50ed274c6f31a8549297c2c571ebaabfe27b15bccd3a1b3115fe8ca5aca8f"},
+	"linux/amd64":   {"ubuntu-x64.tar.gz", 23283834, "5f24a62b84a37c186efd1e3e1d77bfad3a1772d9aa35bfcc9e1572723d0c4faf"},
+	"linux/arm64":   {"ubuntu-arm64.tar.gz", 18926106, "2e44d8517120793b0227d28012a794d114a7d4ad7c3bead4a62b6f3f78b469e7"},
+	"darwin/arm64":  {"macos-arm64.tar.gz", 16870708, "bbc2abe2001293687540fb274bf4114b27b56af1fc166ee76730f64996d68b00"},
+	"darwin/amd64":  {"macos-x64.tar.gz", 12613034, "7179905c572cd11e9eadf9669058b49846cc9519f3d8d10497cad19fbf9eb8b0"},
+}
+
+// engineFor is the build for this system (a variable for tests).
+var engineFor = func() (engine, error) {
+	e, ok := engines[runtime.GOOS+"/"+runtime.GOARCH]
+	if !ok {
+		return engine{}, fmt.Errorf("llama.cpp has no build for %s/%s: run Ollama and choose it instead", runtime.GOOS, runtime.GOARCH)
+	}
+	e.Name = "llama-" + llamaBuild + "-bin-" + e.Name
+	return e, nil
+}
+
+// releases is where the pinned build's files are (a variable for tests).
+var releases = "https://github.com/ggml-org/llama.cpp/releases/download/" + llamaBuild + "/"
 
 func (p *local) downloadEngine(ctx context.Context, progress func(string)) error {
-	name, err := assetName()
+	a, err := engineFor()
 	if err != nil {
 		return err
 	}
-	progress("Looking up llama.cpp " + llamaBuild)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, releaseAPI, nil)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
+	archive := filepath.Join(p.home, "llama.cpp", a.Name)
+	progress(fmt.Sprintf("Downloading llama.cpp %s (%.0f MB)", llamaBuild, float64(a.Size)/1e6))
+	if err := download.Fetch(ctx, releases+a.Name, archive, a.Size, a.SHA, bar(progress, a.Name)); err != nil {
 		return err
 	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("llama.cpp release %s: %s", llamaBuild, res.Status)
-	}
-	var rel struct {
-		Assets []struct {
-			Name   string `json:"name"`
-			URL    string `json:"browser_download_url"`
-			Size   int64  `json:"size"`
-			Digest string `json:"digest"`
-		} `json:"assets"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&rel); err != nil {
+	dir := p.engineDir()
+	_ = os.RemoveAll(dir)
+	if err := download.Extract(archive, dir); err != nil {
 		return err
 	}
-	for _, a := range rel.Assets {
-		if a.Name != name {
-			continue
-		}
-		archive := filepath.Join(p.home, "llama.cpp", a.Name)
-		progress(fmt.Sprintf("Downloading llama.cpp %s (%.0f MB)", llamaBuild, float64(a.Size)/1e6))
-		if err := download.Fetch(ctx, a.URL, archive, a.Size, a.Digest, bar(progress, a.Name)); err != nil {
-			return err
-		}
-		dir := p.engineDir()
-		_ = os.RemoveAll(dir)
-		if err := download.Extract(archive, dir); err != nil {
-			return err
-		}
-		_ = os.Remove(archive)
-		if p.server() == "" {
-			return fmt.Errorf("%s has no llama-server", a.Name)
-		}
-		return nil
+	_ = os.Remove(archive)
+	if p.server() == "" {
+		return fmt.Errorf("%s has no llama-server", a.Name)
 	}
-	return fmt.Errorf("llama.cpp %s has no %s", llamaBuild, name)
+	return nil
 }
 
 // tail keeps the last lines a process wrote, to say why it stopped.
