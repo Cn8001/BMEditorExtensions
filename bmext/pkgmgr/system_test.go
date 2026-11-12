@@ -140,3 +140,31 @@ func contains(list []string, s string) bool {
 	}
 	return false
 }
+
+func TestInstall_AllSystemsKeepsEveryProgram(t *testing.T) {
+	// Arrange
+	src := filepath.Join(t.TempDir(), "c-ext")
+	writeExtension(t, src, "c", "1.0.0")
+	other := filepath.Join(src, "bin", "host-plan9-amd64")
+	if runtime.GOOS != "windows" {
+		other = filepath.Join(src, "bin", "host-windows-amd64.exe")
+	}
+	if err := os.MkdirAll(filepath.Dir(other), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(other, nil, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m := &Manager{Dir: t.TempDir(), AllSystems: true}
+
+	// Act
+	ins, err := m.Install(t.Context(), src, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(ins.Dir, "bin", filepath.Base(other))); err != nil {
+		t.Errorf("another system's program should be kept: %v", err)
+	}
+}

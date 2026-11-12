@@ -47,7 +47,7 @@ func cmdCheck(args []string) error {
 		return err
 	}
 	fmt.Println("Installing from a clean clone of the extension's own files:")
-	mgr := &pkgmgr.Manager{Dir: filepath.Join(tmp, "extensions")}
+	mgr := &pkgmgr.Manager{Dir: filepath.Join(tmp, "extensions"), AllSystems: true}
 	ins, err := mgr.Install(context.Background(), fileURL(repo), func(line string) { fmt.Println("  " + line) })
 	if err != nil {
 		problems = append(problems, "it does not install from its own repository: "+err.Error())

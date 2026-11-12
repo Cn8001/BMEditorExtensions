@@ -63,6 +63,9 @@ type Manager struct {
 	Git  string // the git program; "git" when empty
 	HTTP *http.Client
 	Now  func() time.Time
+	// AllSystems keeps every system's programs, which an install otherwise
+	// leaves out: bmx check looks for all of them.
+	AllSystems bool
 	// Release, when set, is called with an extension's name just before its
 	// installed folder is replaced or removed, to stop the programs of it
 	// that run (its backend, its language servers): Windows does not let a
@@ -200,8 +203,10 @@ func (m *Manager) install(ctx context.Context, spec string, prev *Installed, log
 // place records where out came from and puts it in place of any installed
 // extension of the same name, out's manifest being valid.
 func (m *Manager) place(stage, out string, src Source, log Log) (Installed, error) {
-	if err := prune(out); err != nil {
-		return Installed{}, fmt.Errorf("leave out other systems' programs: %w", err)
+	if !m.AllSystems {
+		if err := prune(out); err != nil {
+			return Installed{}, fmt.Errorf("leave out other systems' programs: %w", err)
+		}
 	}
 	man, err := bmext.Read(out)
 	if err != nil {
