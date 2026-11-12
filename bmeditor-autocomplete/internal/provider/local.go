@@ -51,8 +51,12 @@ var Models = []Model{
 // DefaultModel is the smallest: fast everywhere, and half a gigabyte.
 const DefaultModel = "0.5b"
 
-// Home is where downloads go: the user's cache, never the extension.
+// Home is where downloads go: the editor's data folder, never the
+// extension; the user's cache under an editor before 0.1.6.
 func Home() (string, error) {
+	if d := os.Getenv("BMEDITOR_DATA"); d != "" {
+		return filepath.Join(d, "extension-data", "autocomplete"), nil
+	}
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
@@ -295,7 +299,19 @@ func (p *local) downloadEngine(ctx context.Context, progress func(string)) error
 	if p.server() == "" {
 		return fmt.Errorf("%s has no llama-server", a.Name)
 	}
+	p.removeOldBuilds()
 	return nil
+}
+
+// removeOldBuilds deletes the llama.cpp builds before the pinned one,
+// which nothing runs again.
+func (p *local) removeOldBuilds() {
+	builds, _ := filepath.Glob(filepath.Join(p.home, "llama.cpp", "*"))
+	for _, b := range builds {
+		if name := filepath.Base(b); name != llamaBuild && name != llamaBuild+"-gpu" {
+			_ = os.RemoveAll(b)
+		}
+	}
 }
 
 // tail keeps the last lines a process wrote, to say why it stopped.

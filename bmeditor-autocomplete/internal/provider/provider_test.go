@@ -22,6 +22,7 @@ func cache(t *testing.T) string {
 	t.Setenv("XDG_CACHE_HOME", dir)
 	t.Setenv("LOCALAPPDATA", dir)
 	t.Setenv("HOME", dir)
+	t.Setenv("BMEDITOR_DATA", dir)
 	home, _ := Home()
 	return home
 }
