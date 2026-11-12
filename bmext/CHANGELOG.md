@@ -5,6 +5,23 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.5
+
+- Update installs only something newer: a zip asked for with its ETag
+  that is unchanged, or holds the version installed, and a git ref at the
+  commit installed, return `pkgmgr.ErrUpToDate` and leave the extension
+  as it is.
+- An install keeps only this system's programs (`bin/x-<os>-<arch>`), and
+  from a URL downloads `<name>-<os>-<arch>.zip` beside `<name>.zip` when
+  there is one. `bmx pack` writes one for each system as well, and the
+  release scripts publish them.
+- `bmext.DataDir`, `ExtensionsDir` and `ExtensionData`: the one local
+  folder the editor keeps everything but settings in. The editor names it
+  to every program it starts as `BMEDITOR_DATA`; an extension keeps its
+  downloads in `$BMEDITOR_DATA/extension-data/<name>`. `bmx dev` installs
+  there.
+- Clone folders a terminal left behind are removed after a day.
+
 ## 0.2.4
 
 - A setting's `options` are its only values, shown as a dropdown, and

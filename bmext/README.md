@@ -57,10 +57,13 @@ in a shell: for a private repository git asks there for a username and
 password or token, an ssh key's passphrase, or whether to trust a host, and
 uses the credentials already set up first. (`pkgmgr.Install` called on its
 own runs git without a terminal and asks nothing.) Each install
-records its source, so Update fetches the same one again. Extensions live
-in the config folder: `~/.config/bmeditor/extensions/<name>` on Linux,
-`%AppData%\bmeditor\extensions` on Windows. A change takes effect when the
-window reloads.
+records its source, so Update fetches it again when there is something
+newer there. Extensions live in the editor's data folder
+(`bmext.DataDir`): `~/.local/share/bmeditor/extensions/<name>` on Linux,
+`%LOCALAPPDATA%\bmeditor\extensions` on Windows, with only this system's
+programs. An extension keeps what it downloads in
+`$BMEDITOR_DATA/extension-data/<name>`; the editor sets `BMEDITOR_DATA` for
+every program it starts. A change takes effect when the window reloads.
 
 A repository whose manifest has `build` is built after cloning (`make dist`,
 say) and the folder named by `build.output` is installed. Without `build`,
