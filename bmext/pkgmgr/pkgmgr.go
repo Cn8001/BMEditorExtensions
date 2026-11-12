@@ -176,6 +176,9 @@ func (m *Manager) Install(ctx context.Context, spec string, log Log) (Installed,
 // place records where out came from and puts it in place of any installed
 // extension of the same name, out's manifest being valid.
 func (m *Manager) place(stage, out string, src Source, log Log) (Installed, error) {
+	if err := prune(out); err != nil {
+		return Installed{}, fmt.Errorf("leave out other systems' programs: %w", err)
+	}
 	man, err := bmext.Read(out)
 	if err != nil {
 		return Installed{}, err
@@ -470,12 +473,21 @@ func run(ctx context.Context, cmd *exec.Cmd, env []string, log Log) error {
 	return err
 }
 
+// unzip unpacks the zip at target into out, downloading it first from a
+// URL: the one for this system alone when there is one.
 func (m *Manager) unzip(ctx context.Context, target, stage, out string, log Log) error {
 	path := target
-	if strings.HasPrefix(strings.ToLower(target), "http") {
-		log("Downloading " + target)
+	if isURL(target) {
 		path = filepath.Join(stage, "download.zip")
-		if err := m.download(ctx, target, path); err != nil {
+		var err error
+		for _, url := range []string{systemURL(target), target} {
+			log("Downloading " + url)
+			err = m.download(ctx, url, path)
+			if !errors.Is(err, errNotFound) || url == target {
+				break
+			}
+		}
+		if err != nil {
 			return err
 		}
 	}
@@ -494,6 +506,13 @@ func (m *Manager) unzip(ctx context.Context, target, stage, out string, log Log)
 	return os.Rename(from, out)
 }
 
+func isURL(target string) bool {
+	lower := strings.ToLower(target)
+	return strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://")
+}
+
+var errNotFound = errors.New("not found")
+
 func (m *Manager) download(ctx context.Context, url, path string) error {
 	client := m.HTTP
 	if client == nil {
@@ -508,7 +527,10 @@ func (m *Manager) download(ctx context.Context, url, path string) error {
 		return fmt.Errorf("%w: %w", ErrFetch, err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	switch {
+	case resp.StatusCode == http.StatusNotFound:
+		return fmt.Errorf("%w: %s answered %s: %w", ErrFetch, url, resp.Status, errNotFound)
+	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("%w: %s answered %s", ErrFetch, url, resp.Status)
 	}
 	f, err := os.Create(path)
