@@ -47,8 +47,8 @@ PowerShell's language server and debugger need PowerShell Editor Services.
 Run **PowerShell: Install Editor Services** from the command palette
 (Ctrl+Shift+P). It downloads the latest release from
 [GitHub](https://github.com/PowerShell/PowerShellEditorServices/releases)
-into the extension's folder in your cache (`%LOCALAPPDATA%\bmeditor-powershell`
-on Windows). Then open a PowerShell file again. Running the command again
+into the extension's folder in BMEditor's data folder
+(`%LOCALAPPDATA%\bmeditor\extension-data\powershell` on Windows). Then open a PowerShell file again. Running the command again
 updates it.
 
 It also uses one that is there already:

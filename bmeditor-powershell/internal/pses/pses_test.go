@@ -23,6 +23,7 @@ func TestFind_TakesTheEnvironmentsThenTheInstalledOne(t *testing.T) {
 	cache := t.TempDir()
 	t.Setenv("XDG_CACHE_HOME", cache)
 	t.Setenv("LOCALAPPDATA", cache)
+	t.Setenv("BMEDITOR_DATA", "")
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("USERPROFILE", t.TempDir())
 	t.Setenv("BMEDITOR_PSES", "")

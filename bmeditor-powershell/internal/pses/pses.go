@@ -23,9 +23,13 @@ import (
 // PSScriptAnalyzer and PSReadLine, side by side.
 const DownloadURL = "https://github.com/PowerShell/PowerShellEditorServices/releases/latest/download/PowerShellEditorServices.zip"
 
-// Home is the extension's own folder in the user's cache, where Install
-// puts the bundle and the logs go.
+// Home is the extension's own folder, where Install puts the bundle and
+// the logs go: in the editor's data folder, or the user's cache under an
+// editor before 0.1.6.
 func Home() (string, error) {
+	if d := os.Getenv("BMEDITOR_DATA"); d != "" {
+		return filepath.Join(d, "extension-data", "powershell"), nil
+	}
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		return "", err

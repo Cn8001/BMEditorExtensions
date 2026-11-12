@@ -4,6 +4,12 @@ Each version of the PowerShell extension, newest first. The section of a
 version becomes the notes of its release, and a version is published only
 when it has a section here.
 
+## 0.1.1
+
+- Editor Services and its logs go in BMEditor's data folder
+  (`extension-data/powershell`) rather than the user's cache; the logs of
+  runs older than three days are removed.
+
 ## 0.1.0
 
 - PowerShell with PowerShell Editor Services: completion, hover, go to

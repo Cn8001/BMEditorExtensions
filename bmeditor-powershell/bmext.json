@@ -1,7 +1,7 @@
 {
   "name": "powershell",
   "displayName": "bmeditor-powershell",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "PowerShell and cmd: PowerShell Editor Services for completion, errors, PSScriptAnalyzer, formatting and debugging; a language server for .bat and .cmd with commands, labels and variables, and F5 to run them; snippets for both.",
   "icon": "icon.svg",
   "engines": { "bmeditor": ">=0.1.0" },

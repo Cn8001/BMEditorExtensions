@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"bmeditor-powershell/internal/pses"
 	"bmeditor-powershell/internal/rpc"
@@ -59,7 +60,15 @@ func logDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(home, "logs", strconv.Itoa(os.Getpid()))
+	logs := filepath.Join(home, "logs")
+	// One folder per run: the ones of past days are no use to anyone.
+	entries, _ := os.ReadDir(logs)
+	for _, e := range entries {
+		if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > 72*time.Hour {
+			_ = os.RemoveAll(filepath.Join(logs, e.Name()))
+		}
+	}
+	dir := filepath.Join(logs, strconv.Itoa(os.Getpid()))
 	return dir, os.MkdirAll(dir, 0o755)
 }
 
