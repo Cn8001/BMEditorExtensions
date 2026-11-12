@@ -55,13 +55,5 @@ func cmdDev(args []string) error {
 	return nil
 }
 
-// extensionsDir is where the editor keeps extensions:
-// ~/.config/bmeditor/extensions on Linux, %AppData%\bmeditor\extensions on
-// Windows.
-func extensionsDir() (string, error) {
-	c, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(c, "bmeditor", "extensions"), nil
-}
+// extensionsDir is where the editor keeps extensions.
+func extensionsDir() (string, error) { return bmext.ExtensionsDir() }
