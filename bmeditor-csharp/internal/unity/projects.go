@@ -564,12 +564,12 @@ func solutionText(ps []Generated) string {
 }
 
 // ProjectsDir is where the projects of a folder are written: a folder of
-// the user's cache named after it.
+// Home named after it.
 func ProjectsDir(root string) (string, error) {
-	cache, err := os.UserCacheDir()
+	home, err := Home()
 	if err != nil {
 		return "", err
 	}
 	h := md5.Sum([]byte(strings.ToLower(filepath.Clean(root))))
-	return filepath.Join(cache, "bmeditor-csharp", "projects", filepath.Base(root)+"-"+hex.EncodeToString(h[:4])), nil
+	return filepath.Join(home, "projects", filepath.Base(root)+"-"+hex.EncodeToString(h[:4])), nil
 }

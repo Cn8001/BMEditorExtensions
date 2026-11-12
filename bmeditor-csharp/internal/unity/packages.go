@@ -200,11 +200,11 @@ func editorPackage(u *Install, name string) (string, bool) {
 	if best == "" {
 		return "", false
 	}
-	cache, err := os.UserCacheDir()
+	home, err := Home()
 	if err != nil {
 		return "", false
 	}
-	dir := filepath.Join(cache, "bmeditor-csharp", "packages", strings.TrimSuffix(filepath.Base(best), ".tgz"))
+	dir := filepath.Join(home, "packages", strings.TrimSuffix(filepath.Base(best), ".tgz"))
 	if isFile(filepath.Join(dir, "package.json")) {
 		return dir, true
 	}

@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"bmeditor-csharp/internal/dotnet"
 	"bmeditor-csharp/internal/unity"
@@ -58,7 +59,7 @@ var servers = []server{
 	{
 		id: "roslyn", program: "roslyn-language-server",
 		args: func(string) []string {
-			return []string{"--stdio", "--logLevel", "Information", "--extensionLogDirectory", filepath.Join(os.TempDir(), "bmeditor-roslyn")}
+			return []string{"--stdio", "--logLevel", "Information", "--extensionLogDirectory", roslynLogs()}
 		},
 		open: func(sln string, projects []string) (string, any) {
 			if strings.EqualFold(filepath.Ext(sln), ".sln") || strings.EqualFold(filepath.Ext(sln), ".slnx") {
@@ -199,7 +200,7 @@ func relay(from io.Reader, to io.Writer, srv server) {
 	}
 }
 
-// generate writes projects for root's assemblies into the user's cache and
+// generate writes projects for root's assemblies into unity.ProjectsDir and
 // returns their solution, or "" when root has no C# scripts.
 func generate(root string) (string, error) {
 	w := unity.Detect(root)
@@ -258,6 +259,21 @@ func pick(named string) (server, string, error) {
 		return server{}, "", fmt.Errorf("BMEDITOR_CSHARP_SERVER=%s: use csharp-ls, roslyn or omnisharp", named)
 	}
 	return server{}, "", errors.New("no C# language server is installed: " + install + ", then restart BMEditor")
+}
+
+// roslynLogs is where Roslyn logs, with the logs of past days removed.
+func roslynLogs() string {
+	dir := filepath.Join(os.TempDir(), "bmeditor-roslyn")
+	if home, err := unity.Home(); err == nil {
+		dir = filepath.Join(home, "logs", "roslyn")
+	}
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > 72*time.Hour {
+			_ = os.RemoveAll(filepath.Join(dir, e.Name()))
+		}
+	}
+	return dir
 }
 
 // find looks for a program on PATH, then where dotnet tool install -g puts

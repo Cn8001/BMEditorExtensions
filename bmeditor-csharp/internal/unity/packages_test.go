@@ -51,6 +51,7 @@ func TestProjects_TakesTheTestFrameworkFromTheEditor(t *testing.T) {
 	// Framework and NUnit as .tgz files, as Unity 2022 does.
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	t.Setenv("LOCALAPPDATA", t.TempDir())
+	t.Setenv("BMEDITOR_DATA", "")
 	u := fakeUnity(t)
 	pm := filepath.Join(u.Data, "Resources", "PackageManager", "Editor")
 	writeTgz(t, filepath.Join(pm, "com.unity.test-framework-1.1.33.tgz"), map[string]string{
