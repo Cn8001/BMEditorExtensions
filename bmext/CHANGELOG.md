@@ -26,7 +26,7 @@ is released only when it has one.
 
 - A setting's `options` are its only values, shown as a dropdown, and
   `when` shows it only while other settings have the values it names:
-  `"when": {"provider": "ollama"}`. BMEditor 0.1.6 shows both.
+  `"when": {"provider": "ollama"}`. BMEditor 0.1.5 shows both.
 - `api.saveSettings(values)` changes some of the extension's global
   settings and keeps the rest, for choosing one outside Settings.
 - `api.components.DropMenu`, the top bar's menu, for a toolbar button

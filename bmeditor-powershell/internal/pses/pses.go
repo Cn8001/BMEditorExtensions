@@ -25,7 +25,7 @@ const DownloadURL = "https://github.com/PowerShell/PowerShellEditorServices/rele
 
 // Home is the extension's own folder, where Install puts the bundle and
 // the logs go: in the editor's data folder, or the user's cache under an
-// editor before 0.1.6.
+// editor before 0.1.5.
 func Home() (string, error) {
 	if d := os.Getenv("BMEDITOR_DATA"); d != "" {
 		return filepath.Join(d, "extension-data", "powershell"), nil

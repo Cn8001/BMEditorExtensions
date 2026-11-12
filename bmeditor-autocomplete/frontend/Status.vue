@@ -95,7 +95,7 @@ function select(id: string) {
   else if (what === 'settings' || what === 'custom') api.ui.openSettings()
 }
 
-// An editor before 0.1.6 has no menu to lend: a click does what it did.
+// An editor before 0.1.5 has no menu to lend: a click does what it did.
 const DropMenu = api.components.DropMenu
 function click() {
   const st = state.status

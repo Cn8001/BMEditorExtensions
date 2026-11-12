@@ -51,7 +51,7 @@ Settings also take the CPU threads, how long typing pauses before a
 suggestion is asked for, and languages to leave alone.
 
 Needs BMEditor 0.1.5 or later; the menu and the dropdowns in Settings
-need 0.1.6.
+need 0.1.5.
 
 ## Building
 

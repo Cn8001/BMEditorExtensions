@@ -10,7 +10,7 @@ when it has a section here.
   downloaded, picks where the model runs (this machine, Ollama, off) and
   removes the downloads not in use, saying how much that frees.
 - Models and llama.cpp go in BMEditor's data folder
-  (`extension-data/autocomplete`); BMEditor 0.1.6 moves the ones already
+  (`extension-data/autocomplete`); BMEditor 0.1.5 moves the ones already
   downloaded there. An older llama.cpp build is removed once the new one
   is in.
 
@@ -23,7 +23,7 @@ when it has a section here.
   downloads and starts), the GPU, pause, turn off. Nothing is typed.
 - In Settings, Model server and Model are dropdowns, and the Ollama
   settings show only while Ollama is the server. A `.gguf` of your own
-  goes in Model file. Needs BMEditor 0.1.6.
+  goes in Model file. Needs BMEditor 0.1.5.
 - A cancelled suggestion no longer shows a warning in the top bar.
 - A keystroke while llama.cpp loads no longer kills it, so it gets ready
   even while you type.

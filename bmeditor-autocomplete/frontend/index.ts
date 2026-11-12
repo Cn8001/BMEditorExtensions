@@ -51,7 +51,7 @@ function askerFor(tab: Tab): Asker {
         })
         .catch((err) => {
           const f = api.ui.failureOf(err)
-          // Before BMEditor 0.1.6 a cancel came back as INTERNAL, by its name only.
+          // Before BMEditor 0.1.5 a cancel came back as INTERNAL, by its name only.
           if (f.code === 'CANCELLED' || (err as Error)?.name === 'CancelError') throw err
           if (f.code === 'not-ready' || f.code === 'off') void refresh()
           else {

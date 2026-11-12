@@ -52,7 +52,7 @@ var Models = []Model{
 const DefaultModel = "0.5b"
 
 // Home is where downloads go: the editor's data folder, never the
-// extension; the user's cache under an editor before 0.1.6.
+// extension; the user's cache under an editor before 0.1.5.
 func Home() (string, error) {
 	if d := os.Getenv("BMEDITOR_DATA"); d != "" {
 		return filepath.Join(d, "extension-data", "autocomplete"), nil
