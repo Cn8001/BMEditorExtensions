@@ -51,6 +51,17 @@ export interface Contributions {
   reset?: () => void // the project closed or another opened
 }
 
+export interface MenuItem {
+  id: string
+  label?: string
+  detail?: string
+  icon?: string // a codicon name
+  kbd?: string
+  disabled?: boolean
+  separator?: boolean
+  heading?: boolean
+}
+
 export type CancellablePromise<T> = Promise<T> & { cancel: () => void }
 
 export interface ExtensionAPI {
@@ -63,6 +74,9 @@ export interface ExtensionAPI {
   call<T = unknown>(method: string, params?: unknown): CancellablePromise<T>
   on(method: string, fn: (params: any) => void): () => void // backend notifications
   settings(): Promise<{ values: Record<string, string>; secrets: Record<string, boolean> }>
+  // saveSettings changes some of the extension's global settings and keeps
+  // the rest (BMEditor 0.1.6 and later): a model picked from a menu.
+  saveSettings?(values: Record<string, string>): Promise<void>
   session: {
     tab(id: string): Tab | undefined
     textOf(id: string): string
@@ -91,6 +105,12 @@ export interface ExtensionAPI {
     showOutput(): void
   }
   paths: { relativeTo(root: string, path: string): string }
-  components: { CodeView: Component } // props: text, language ('sql' | 'json' | 'plain')
+  components: {
+    CodeView: Component // props: text, language ('sql' | 'json' | 'plain')
+    // DropMenu (BMEditor 0.1.6 and later) is the top bar's menu: props
+    // items: MenuItem[], align?, width?; emits select(id); its default slot
+    // is the button.
+    DropMenu?: Component
+  }
   theme: { palette: Record<string, string> }
 }
