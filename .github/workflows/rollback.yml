@@ -38,5 +38,10 @@ jobs:
         run: sh scripts/rollback.sh "$EXTENSION" "$VERSION"
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Publish the catalog
+        run: sh scripts/publish-catalog.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
           EXTENSION: ${{ inputs.extension }}
           VERSION: ${{ inputs.version }}
