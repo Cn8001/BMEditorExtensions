@@ -392,8 +392,14 @@ func inUse(err error) error {
 func (m *Manager) sweep() {
 	entries, _ := os.ReadDir(m.Dir)
 	for _, e := range entries {
-		if e.IsDir() && (strings.HasPrefix(e.Name(), ".trash-") || strings.HasPrefix(e.Name(), ".staging-")) {
-			if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > time.Minute {
+		limit := time.Minute
+		if strings.HasPrefix(e.Name(), ".clone-") {
+			limit = 24 * time.Hour // one a terminal may still be cloning into
+		} else if !strings.HasPrefix(e.Name(), ".trash-") && !strings.HasPrefix(e.Name(), ".staging-") {
+			continue
+		}
+		if e.IsDir() {
+			if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > limit {
 				_ = os.RemoveAll(filepath.Join(m.Dir, e.Name()))
 			}
 		}
