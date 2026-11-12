@@ -64,6 +64,59 @@ func Home() (string, error) {
 	return filepath.Join(cache, "bmeditor-autocomplete"), nil
 }
 
+// Unused lists the downloads c does not run on, with their size: the
+// other models, and llama.cpp builds older than the pinned one.
+func Unused(c Config) (paths []string, size int64) {
+	home, err := Home()
+	if err != nil {
+		return nil, 0
+	}
+	keep := ""
+	if p, err := newLocal(c); err == nil && c.Provider != "ollama" {
+		keep = p.path
+	}
+	models, _ := filepath.Glob(filepath.Join(home, "models", "*"))
+	for _, m := range models {
+		if m != keep {
+			paths = append(paths, m)
+			size += sizeOf(m)
+		}
+	}
+	builds, _ := filepath.Glob(filepath.Join(home, "llama.cpp", "*"))
+	for _, b := range builds {
+		if name := filepath.Base(b); name != llamaBuild && name != llamaBuild+"-gpu" {
+			paths = append(paths, b)
+			size += sizeOf(b)
+		}
+	}
+	return paths, size
+}
+
+func sizeOf(path string) int64 {
+	var n int64
+	_ = filepath.WalkDir(path, func(_ string, d os.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			if info, err := d.Info(); err == nil {
+				n += info.Size()
+			}
+		}
+		return nil
+	})
+	return n
+}
+
+// RemoveUnused deletes what Unused lists.
+func RemoveUnused(c Config) error {
+	paths, _ := Unused(c)
+	var errs []error
+	for _, p := range paths {
+		if err := os.RemoveAll(p); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
 // Here is Models, each saying whether it is downloaded.
 func Here() []Model {
 	home, err := Home()

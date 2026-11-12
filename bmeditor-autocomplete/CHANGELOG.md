@@ -4,6 +4,16 @@ Each version of the Autocomplete extension, newest first. The section of a
 version becomes the notes of its release, and a version is published only
 when it has a section here.
 
+## 0.1.3
+
+- The top bar's menu says what each model is good for and whether it is
+  downloaded, picks where the model runs (this machine, Ollama, off) and
+  removes the downloads not in use, saying how much that frees.
+- Models and llama.cpp go in BMEditor's data folder
+  (`extension-data/autocomplete`); BMEditor 0.1.6 moves the ones already
+  downloaded there. An older llama.cpp build is removed once the new one
+  is in.
+
 ## 0.1.2
 
 - The model runs on the GPU: llama.cpp's Vulkan build (NVIDIA, AMD or

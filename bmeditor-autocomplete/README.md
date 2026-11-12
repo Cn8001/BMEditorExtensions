@@ -15,8 +15,9 @@ next lines, drawn faint at the cursor. Nothing leaves the machine.
 
 Pick a model from the Autocomplete menu in the top bar, or run
 **Autocomplete: Get Model Ready** from the command palette (Ctrl+Shift+P). It downloads llama.cpp (about 38 MB)
-and the model into your cache (`%LOCALAPPDATA%\bmeditor-autocomplete` on
-Windows), then starts it. A broken download goes on where it stopped,
+and the model into BMEditor's data folder
+(`%LOCALAPPDATA%\bmeditor\extension-data\autocomplete` on Windows), then
+starts it. A broken download goes on where it stopped,
 and each file is checked against its published SHA-256.
 
 The extension itself is a few megabytes: one model fills in the middle of
@@ -38,8 +39,9 @@ model to one you pulled (`ollama pull qwen2.5-coder:1.5b`): nothing is
 downloaded.
 
 The model runs only while you write: it stops after ten idle minutes and
-when BMEditor closes. **Autocomplete: Remove Downloaded Models** gives the
-disk space back.
+when BMEditor closes. **Remove unused downloads** in the menu deletes the
+models you switched away from; **Autocomplete: Remove Downloaded Models**
+gives all the disk space back.
 
 The model runs on the graphics card (llama.cpp's Vulkan build, for
 NVIDIA, AMD and Intel); unticking Settings › Autocomplete › Run the model on

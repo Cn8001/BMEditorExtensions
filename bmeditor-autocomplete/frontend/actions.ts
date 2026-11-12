@@ -46,3 +46,13 @@ export async function removeDownloads() {
     api.ui.toastFailure('Cannot remove the downloads', api.ui.failureOf(err))
   }
 }
+
+export async function removeUnused() {
+  try {
+    await api.call('removeUnused')
+    await refresh()
+    api.ui.toast('info', 'Unused downloads removed')
+  } catch (err) {
+    api.ui.toastFailure('Cannot remove the downloads', api.ui.failureOf(err))
+  }
+}

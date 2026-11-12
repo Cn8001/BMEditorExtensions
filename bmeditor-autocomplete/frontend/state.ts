@@ -20,6 +20,7 @@ export interface Status {
   why?: string
   busy: boolean
   models: Model[]
+  unused: number // bytes of downloads not in use
 }
 
 // What the status bar shows and the ghost text needs: the backend's status,

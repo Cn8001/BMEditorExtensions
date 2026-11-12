@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { MenuItem } from '../bmext/bmeditor'
-import { change, getReady, toggle } from './actions'
-import { api, modelName, onGPU, setting, state } from './state'
+import { change, getReady, removeUnused, toggle } from './actions'
+import { api, modelName, onGPU, setting, state, type Model } from './state'
 
 // The top bar's button: what the model is doing, and a menu that picks the
-// model, the GPU and pauses suggestions, so nothing is typed in Settings.
+// model, where it runs and the GPU, so nothing is typed in Settings.
 
 defineProps<{ compact?: number }>()
 
@@ -25,40 +25,58 @@ const view = computed(() => {
 })
 
 function gb(bytes: number) {
-  return `${(bytes / 1e9).toFixed(1)} GB`
+  return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(bytes / 1e6))} MB`
+}
+
+// The backend's label, "Qwen2.5-Coder 0.5B: fast on any CPU, 0.5 GB", as
+// a name and what it is good for.
+function described(m: Model) {
+  const [name, rest = ''] = m.label.split(': ')
+  const what = rest.replace(/,\s*[\d.]+ GB$/, '')
+  return { name, what: what.charAt(0).toUpperCase() + what.slice(1) }
 }
 
 const items = computed<MenuItem[]>(() => {
   const st = state.status
   if (!st) return [{ id: 'settings', label: 'Settings', icon: 'settings-gear' }]
   const out: MenuItem[] = []
-  if (st.provider === 'off') {
-    out.push({ id: 'provider:local', label: 'Turn on', detail: 'A model on this machine', icon: 'sparkle' })
-  } else if (st.provider === 'ollama') {
-    out.push({ id: 'h', heading: true, label: 'Ollama' })
-    out.push({ id: 'x', label: setting('ollamaModel', 'qwen2.5-coder:1.5b'), icon: 'check', disabled: true })
-    out.push({ id: 'provider:local', label: 'Run a model here instead', icon: 'blank' })
-  } else {
+  if (st.provider === 'local') {
     const current = setting('localModel', '0.5b')
-    out.push({ id: 'h', heading: true, label: 'Model' })
+    out.push({ id: 'h1', heading: true, label: 'Model' })
     for (const m of st.models) {
+      const d = described(m)
       out.push({
         id: 'model:' + m.id,
-        label: `Qwen2.5-Coder ${m.id.toUpperCase()}`,
-        detail: m.downloaded ? 'Downloaded' : `Downloads ${gb(m.size)}`,
+        label: d.name,
+        detail: `${d.what} · ${m.downloaded ? 'downloaded' : gb(m.size) + ' to download'}`,
         icon: m.id === current ? 'check' : 'blank',
         disabled: st.busy,
       })
     }
-    if (current === 'custom') out.push({ id: 'settings', label: modelName(), detail: 'A .gguf of your own', icon: 'check' })
-    out.push({ id: 's1', separator: true })
+    out.push({
+      id: 'custom',
+      label: current === 'custom' ? modelName() : 'A .gguf of my own...',
+      detail: current === 'custom' ? 'Your own model' : 'Set its path in Settings',
+      icon: current === 'custom' ? 'check' : 'blank',
+    })
     out.push({ id: 'gpu', label: 'Run on the GPU', detail: 'Vulkan: NVIDIA, AMD or Intel', icon: onGPU() ? 'check' : 'blank', disabled: st.busy })
   }
-  out.push({ id: 's2', separator: true })
+  out.push({ id: 'h2', heading: true, label: 'Runs on' })
+  out.push({ id: 'provider:local', label: 'This machine', detail: 'llama.cpp, nothing leaves it', icon: st.provider === 'local' ? 'check' : 'blank' })
+  out.push({
+    id: 'provider:ollama',
+    label: 'Ollama',
+    detail: st.provider === 'ollama' ? setting('ollamaModel', 'qwen2.5-coder:1.5b') : 'A model you pulled',
+    icon: st.provider === 'ollama' ? 'check' : 'blank',
+  })
+  out.push({ id: 'provider:off', label: 'Off', icon: st.provider === 'off' ? 'check' : 'blank' })
+  out.push({ id: 's1', separator: true })
   if (st.busy) out.push({ id: 'cancel', label: 'Cancel download', icon: 'debug-stop' })
   else if (!st.ready && st.provider !== 'off') out.push({ id: 'ready', label: 'Get model ready', icon: 'cloud-download' })
   if (st.ready) out.push({ id: 'pause', label: state.on ? 'Pause suggestions' : 'Resume suggestions', icon: state.on ? 'debug-pause' : 'debug-start' })
-  if (st.provider !== 'off') out.push({ id: 'provider:off', label: 'Turn off', icon: 'circle-slash' })
+  if (st.unused > 0 && !st.busy) {
+    out.push({ id: 'unused', label: 'Remove unused downloads', detail: `Frees ${gb(st.unused)}`, icon: 'trash' })
+  }
   out.push({ id: 'output', label: 'Show Output', icon: 'output' })
   out.push({ id: 'settings', label: 'Settings', icon: 'settings-gear' })
   return out
@@ -71,9 +89,10 @@ function select(id: string) {
   else if (what === 'gpu') void change({ gpu: onGPU() ? 'false' : 'true' })
   else if (what === 'ready') void getReady()
   else if (what === 'cancel') void api.call('cancel')
+  else if (what === 'unused') void removeUnused()
   else if (what === 'pause') toggle()
   else if (what === 'output') api.ui.showOutput()
-  else if (what === 'settings') api.ui.openSettings()
+  else if (what === 'settings' || what === 'custom') api.ui.openSettings()
 }
 
 // An editor before 0.1.6 has no menu to lend: a click does what it did.

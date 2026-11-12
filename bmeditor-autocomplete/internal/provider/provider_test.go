@@ -186,3 +186,36 @@ func TestEngineDir_GPUBuildApart(t *testing.T) {
 		t.Errorf("cpu %s, gpu %s", cpu.engineDir(), gpu.engineDir())
 	}
 }
+
+func TestUnused_ListsOtherModelsAndOldBuilds(t *testing.T) {
+	// Arrange
+	home := cache(t)
+	for _, p := range []string{
+		filepath.Join("models", "qwen2.5-coder-0.5b-q8_0.gguf"),
+		filepath.Join("models", "qwen2.5-coder-3b-q8_0.gguf"),
+		filepath.Join("llama.cpp", llamaBuild, "llama-server"),
+		filepath.Join("llama.cpp", llamaBuild+"-gpu", "llama-server"),
+		filepath.Join("llama.cpp", "b1000", "llama-server"),
+	} {
+		_ = os.MkdirAll(filepath.Dir(filepath.Join(home, p)), 0o755)
+		_ = os.WriteFile(filepath.Join(home, p), []byte("12345"), 0o644)
+	}
+	c := Config{Provider: "local", LocalModel: "0.5b"}
+
+	// Act
+	paths, size := Unused(c)
+	err := RemoveUnused(c)
+
+	// Assert
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) != 2 || size != 10 {
+		t.Fatalf("unused = %v (%d bytes), want the 3b model and b1000", paths, size)
+	}
+	for _, p := range []string{filepath.Join("models", "qwen2.5-coder-0.5b-q8_0.gguf"), filepath.Join("llama.cpp", llamaBuild), filepath.Join("llama.cpp", llamaBuild+"-gpu")} {
+		if _, err := os.Stat(filepath.Join(home, p)); err != nil {
+			t.Errorf("%s should stay: %v", p, err)
+		}
+	}
+}

@@ -67,11 +67,13 @@ type status struct {
 	Why      string           `json:"why,omitempty"`
 	Busy     bool             `json:"busy"` // getting ready
 	Models   []provider.Model `json:"models"`
+	Unused   int64            `json:"unused"` // bytes of downloads not in use, which removeUnused frees
 }
 
 func (b *backend) status() status {
 	c := b.config()
 	st := status{Provider: c.Provider, Models: provider.Here()}
+	_, st.Unused = provider.Unused(c)
 	if st.Provider == "" {
 		st.Provider = "local"
 	}
@@ -182,6 +184,15 @@ func main() {
 		}
 		b.mu.Unlock()
 		return nil, provider.RemoveDownloads()
+	})
+	s.Handle("removeUnused", func(context.Context, json.RawMessage) (any, error) {
+		b.mu.Lock()
+		busy := b.preparing != nil
+		b.mu.Unlock()
+		if busy {
+			return nil, &host.Error{Code: "busy", Message: "the model is being got ready"}
+		}
+		return nil, provider.RemoveUnused(b.config())
 	})
 	err := s.Serve(context.Background(), os.Stdin, os.Stdout)
 	// The editor closed us: llama-server goes too.
