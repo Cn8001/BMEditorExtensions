@@ -9,14 +9,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Cn8001/BMEditorExtensions/bmext"
+	"github.com/Cn8001/BMEditorExtensions/bmext/pkgmgr"
 )
 
 // cmdPack runs the manifest's build for every system and zips its output as
-// <name>-<version>.zip, the file to publish: BMEditor installs it from a
-// path or a URL without building.
+// <name>-<version>.zip, and <name>-<version>-<os>-<arch>.zip for each
+// system: the files to publish, which BMEditor installs without building.
 func cmdPack(args []string) error {
 	if err := flags("pack", args, func(*flag.FlagSet) {}); err != nil {
 		return err
@@ -41,11 +43,46 @@ func cmdPack(args []string) error {
 		return fmt.Errorf("the build's output: %w", err)
 	}
 	zipPath := filepath.Join(dir, fmt.Sprintf("%s-%s.zip", built.Name, built.Version))
-	if err := zipDir(out, zipPath); err != nil {
+	if err := zipDir(out, zipPath, func(string) bool { return true }); err != nil {
 		return err
 	}
 	fmt.Println(filepath.Base(zipPath))
+	systems, err := systemsIn(out)
+	if err != nil {
+		return err
+	}
+	// One zip per system as well, which BMEditor downloads instead when
+	// there is one: a fifth of the size of the zip for every system.
+	for _, sys := range systems {
+		goos, goarch, _ := strings.Cut(sys, "-")
+		p := filepath.Join(dir, fmt.Sprintf("%s-%s-%s.zip", built.Name, built.Version, sys))
+		if err := zipDir(out, p, func(name string) bool { return pkgmgr.ForSystem(name, goos, goarch) }); err != nil {
+			return err
+		}
+		fmt.Println(filepath.Base(p))
+	}
 	return nil
+}
+
+// systemsIn lists the systems the programs under root are built for, as
+// os-arch.
+func systemsIn(root string) ([]string, error) {
+	seen := map[string]bool{}
+	err := filepath.WalkDir(root, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if goos, goarch, ok := pkgmgr.SystemOf(d.Name()); ok && !d.IsDir() {
+			seen[goos+"-"+goarch] = true
+		}
+		return nil
+	})
+	out := make([]string, 0, len(seen))
+	for s := range seen {
+		out = append(out, s)
+	}
+	sort.Strings(out)
+	return out, err
 }
 
 // build runs the manifest's build command in dir. targets, when given,
@@ -73,8 +110,9 @@ func build(dir string, m bmext.Manifest, targets string) error {
 
 // zipDir writes the files under root to a new zip at dst, executables kept
 // executable, leaving out what an install leaves out (version control,
-// dependencies, symbolic links) and any zip in root itself.
-func zipDir(root, dst string) error {
+// dependencies, symbolic links), any zip in root itself, and the files keep
+// says no to.
+func zipDir(root, dst string, keep func(name string) bool) error {
 	tmp := dst + ".part"
 	f, err := os.Create(tmp)
 	if err != nil {
@@ -89,7 +127,7 @@ func zipDir(root, dst string) error {
 		if d.IsDir() && (d.Name() == ".git" || d.Name() == "node_modules") {
 			return filepath.SkipDir
 		}
-		if !d.Type().IsRegular() || p == tmp || strings.HasSuffix(p, ".zip") {
+		if !d.Type().IsRegular() || p == tmp || strings.HasSuffix(p, ".zip") || !keep(d.Name()) {
 			return nil
 		}
 		info, err := d.Info()

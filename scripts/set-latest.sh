@@ -20,11 +20,20 @@ repo_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-Cn8001/B
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-cp "$zip" "$work/$name.zip"
+mkdir "$work/assets"
+cp "$zip" "$work/assets/$name.zip"
+for f in $(sh "$(dirname "$0")/system-zips.sh" "$zip"); do
+	cp "$f" "$work/assets/$name-${f#"${zip%.zip}-"}"
+done
 
 if gh release view "$tag" >/dev/null 2>&1; then
 	git push -q -f "$remote" "$target:refs/tags/$tag"
-	gh release upload "$tag" "$work/$name.zip" --clobber
+	gh release upload "$tag" "$work"/assets/*.zip --clobber
+	# A system this version has no zip for must not keep an older one, which
+	# BMEditor would download instead of $name.zip.
+	for a in $(gh release view "$tag" --json assets -q '.assets[].name'); do
+		[ -f "$work/assets/$a" ] || gh release delete-asset "$tag" "$a" -y
+	done
 	gh release edit "$tag" --title "$title (latest: $version)"
 else
 	cat >"$work/notes.md" <<EOF
@@ -36,7 +45,7 @@ $repo_url/releases/download/$tag/$name.zip
 
 Every version is also kept as a release of its own, tagged \`$name/v<version>\`.
 EOF
-	gh release create "$tag" "$work/$name.zip" --target "$target" --latest=false \
+	gh release create "$tag" "$work"/assets/*.zip --target "$target" --latest=false \
 		--title "$title (latest: $version)" --notes-file "$work/notes.md"
 fi
 echo "$name: latest is now $version"

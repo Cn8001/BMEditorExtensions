@@ -6,6 +6,9 @@
 #   .../releases/download/<name>/v<version>/<name>-<version>.zip   that version
 #   .../releases/download/<name>/latest/<name>.zip                 the latest
 #
+# each with a zip per system beside it (<name>-<os>-<arch>.zip), which
+# BMEditor downloads instead when there is one.
+#
 # A version is published once, when the version in bmext.json is not
 # released yet; a push without a version change publishes nothing. The
 # version must be newer than every released one and have an entry in the
@@ -67,8 +70,8 @@ case $version in *-*) prerelease=--prerelease ;; esac
 	fi
 } >"$work/notes.md"
 
-# shellcheck disable=SC2086 # $prerelease is empty or one flag
-gh release create "$tag" "$zip" --target "$target" --latest=false $prerelease \
+# shellcheck disable=SC2086,SC2046 # $prerelease is empty or one flag; one argument per zip
+gh release create "$tag" "$zip" $(sh "$here/system-zips.sh" "$zip") --target "$target" --latest=false $prerelease \
 	--title "$title $version" --notes-file "$work/notes.md"
 echo "$name: released $tag"
 

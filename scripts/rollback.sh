@@ -33,5 +33,5 @@ commit=$(git rev-parse "FETCH_HEAD^{commit}")
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-gh release download "$tag" --pattern "$name-$version.zip" --dir "$work"
+gh release download "$tag" --pattern "$name-$version*.zip" --dir "$work"
 sh "$here/set-latest.sh" "$name" "$title" "$version" "$work/$name-$version.zip" "$commit"
