@@ -34,11 +34,14 @@ var (
 	ErrGitMissing   = errors.New("git is not installed")
 	ErrFetch        = errors.New("could not fetch the extension")
 	ErrNotBuilt     = errors.New("extension is not built")
+	// ErrUpToDate is Update finding nothing newer; the extension is left as it is.
+	ErrUpToDate = errors.New("extension is up to date")
 )
 
 type Source struct {
 	Spec      string    `json:"spec"` // as given to Install
 	Commit    string    `json:"commit,omitempty"`
+	ETag      string    `json:"etag,omitempty"` // of a downloaded zip, so Update asks only for a changed one
 	Installed time.Time `json:"installed"`
 }
 
@@ -130,6 +133,12 @@ func (m *Manager) read(name string) (Installed, error) {
 // place of any installed extension of the same name. Nothing changes until
 // the new one is complete and its manifest is valid.
 func (m *Manager) Install(ctx context.Context, spec string, log Log) (Installed, error) {
+	return m.install(ctx, spec, nil, log)
+}
+
+// install is Install; prev, when Update calls it, is what is installed now,
+// kept when the download is the same or of the same version.
+func (m *Manager) install(ctx context.Context, spec string, prev *Installed, log Log) (Installed, error) {
 	if log == nil {
 		log = func(string) {}
 	}
@@ -157,8 +166,23 @@ func (m *Manager) Install(ctx context.Context, spec string, log Log) (Installed,
 			return Installed{}, err
 		}
 	case "zip":
-		if err := m.unzip(ctx, target, stage, out, log); err != nil {
+		etag := ""
+		if prev != nil {
+			etag = prev.Source.ETag
+		}
+		got, err := m.unzip(ctx, target, etag, stage, out, log)
+		if errors.Is(err, ErrUpToDate) {
+			log(prev.Manifest.Title() + " " + prev.Manifest.Version + " is up to date")
+			return *prev, ErrUpToDate
+		}
+		if err != nil {
 			return Installed{}, err
+		}
+		src.ETag = got
+		if prev != nil && isURL(target) {
+			if man, err := bmext.Read(out); err == nil && man.Version == prev.Manifest.Version {
+				return m.keep(*prev, src, log)
+			}
 		}
 	case "git":
 		commit, err := m.clone(ctx, target, ref, stage, out, log)
@@ -261,8 +285,14 @@ func (m *Manager) InstallClone(ctx context.Context, dir, spec string, log Log) (
 	return m.place(dir, out, src, log)
 }
 
-// Update installs an extension again from where it first came from.
+// Update installs an extension again from where it first came from, when
+// there is something newer there: a zip that changed and holds another
+// version, a git ref at another commit. Otherwise it returns what is
+// installed with ErrUpToDate. A folder is always installed again (bmx dev).
 func (m *Manager) Update(ctx context.Context, name string, log Log) (Installed, error) {
+	if log == nil {
+		log = func(string) {}
+	}
 	ins, err := m.read(name)
 	if err != nil {
 		return Installed{}, fmt.Errorf("%s: %w", name, ErrNotInstalled)
@@ -270,7 +300,54 @@ func (m *Manager) Update(ctx context.Context, name string, log Log) (Installed, 
 	if ins.Source.Spec == "" {
 		return Installed{}, fmt.Errorf("%s: no recorded source to update from: %w", name, ErrBadSource)
 	}
-	return m.Install(ctx, ins.Source.Spec, log)
+	if url, ref, ok := GitSource(ins.Source.Spec); ok && ins.Source.Commit != "" {
+		if head, err := m.remoteHead(ctx, url, ref); err == nil && head == ins.Source.Commit {
+			log(ins.Manifest.Title() + " " + ins.Manifest.Version + " is up to date")
+			return ins, ErrUpToDate
+		}
+	}
+	return m.install(ctx, ins.Source.Spec, &ins, log)
+}
+
+// keep leaves ins as it is, recording src (its new ETag) for the next Update.
+func (m *Manager) keep(ins Installed, src Source, log Log) (Installed, error) {
+	src.Installed = ins.Source.Installed
+	if raw, err := json.MarshalIndent(src, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(ins.Dir, SourceFile), raw, 0o644)
+	}
+	ins.Source = src
+	log(ins.Manifest.Title() + " " + ins.Manifest.Version + " is up to date")
+	return ins, ErrUpToDate
+}
+
+// remoteHead is the commit ref (or the default branch) is at on url.
+func (m *Manager) remoteHead(ctx context.Context, url, ref string) (string, error) {
+	if ref == "" {
+		ref = "HEAD"
+	}
+	cmd := hide(exec.CommandContext(ctx, m.git(), "ls-remote", "--", url, ref))
+	cmd.Env = gitEnv()
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	head := ""
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		sha, name, ok := strings.Cut(line, "\t")
+		if !ok {
+			continue
+		}
+		if strings.HasSuffix(name, "^{}") { // an annotated tag's commit
+			return sha, nil
+		}
+		if head == "" {
+			head = sha
+		}
+	}
+	if head == "" {
+		return "", fmt.Errorf("%w: %s has no %s", ErrFetch, url, ref)
+	}
+	return head, nil
 }
 
 func (m *Manager) Remove(name string) error {
@@ -474,27 +551,29 @@ func run(ctx context.Context, cmd *exec.Cmd, env []string, log Log) error {
 }
 
 // unzip unpacks the zip at target into out, downloading it first from a
-// URL: the one for this system alone when there is one.
-func (m *Manager) unzip(ctx context.Context, target, stage, out string, log Log) error {
+// URL: the one for this system alone when there is one. It returns the
+// download's ETag, or ErrUpToDate when it is still etag.
+func (m *Manager) unzip(ctx context.Context, target, etag, stage, out string, log Log) (string, error) {
 	path := target
+	got := ""
 	if isURL(target) {
 		path = filepath.Join(stage, "download.zip")
 		var err error
 		for _, url := range []string{systemURL(target), target} {
 			log("Downloading " + url)
-			err = m.download(ctx, url, path)
+			got, err = m.download(ctx, url, etag, path)
 			if !errors.Is(err, errNotFound) || url == target {
 				break
 			}
 		}
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 	log("Unpacking " + filepath.Base(path))
 	root := filepath.Join(stage, "unzipped")
 	if err := extract(path, root); err != nil {
-		return err
+		return "", err
 	}
 	// An archive often holds one folder with the extension in it.
 	from := root
@@ -503,7 +582,7 @@ func (m *Manager) unzip(ctx context.Context, target, stage, out string, log Log)
 			from = filepath.Join(root, entries[0].Name())
 		}
 	}
-	return os.Rename(from, out)
+	return got, os.Rename(from, out)
 }
 
 func isURL(target string) bool {
@@ -513,35 +592,42 @@ func isURL(target string) bool {
 
 var errNotFound = errors.New("not found")
 
-func (m *Manager) download(ctx context.Context, url, path string) error {
+// download saves url at path and returns its ETag; with etag it asks for
+// the file only when it changed, and answers ErrUpToDate when it did not.
+func (m *Manager) download(ctx context.Context, url, etag, path string) (string, error) {
 	client := m.HTTP
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Minute}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrFetch, err)
+		return "", fmt.Errorf("%w: %w", ErrFetch, err)
+	}
+	if etag != "" {
+		req.Header.Set("If-None-Match", etag)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrFetch, err)
+		return "", fmt.Errorf("%w: %w", ErrFetch, err)
 	}
 	defer resp.Body.Close()
 	switch {
+	case resp.StatusCode == http.StatusNotModified && etag != "":
+		return etag, ErrUpToDate
 	case resp.StatusCode == http.StatusNotFound:
-		return fmt.Errorf("%w: %s answered %s: %w", ErrFetch, url, resp.Status, errNotFound)
+		return "", fmt.Errorf("%w: %s answered %s: %w", ErrFetch, url, resp.Status, errNotFound)
 	case resp.StatusCode != http.StatusOK:
-		return fmt.Errorf("%w: %s answered %s", ErrFetch, url, resp.Status)
+		return "", fmt.Errorf("%w: %s answered %s", ErrFetch, url, resp.Status)
 	}
 	f, err := os.Create(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer f.Close()
 	if _, err := io.Copy(f, resp.Body); err != nil {
-		return fmt.Errorf("%w: %w", ErrFetch, err)
+		return "", fmt.Errorf("%w: %w", ErrFetch, err)
 	}
-	return f.Close()
+	return resp.Header.Get("ETag"), f.Close()
 }
 
 // extract unpacks a zip, refusing an entry that would land outside root.
