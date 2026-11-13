@@ -35,6 +35,14 @@
       "blockComment": ["<!--", "-->"]
     },
     {
+      "id": "sln",
+      "label": "Solution",
+      "extensions": [".sln"],
+      "codicon": "repo",
+      "color": "#a179dc",
+      "lineComment": "#"
+    },
+    {
       "id": "uss",
       "label": "USS",
       "extensions": [".uss", ".tss"],
