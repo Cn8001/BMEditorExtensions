@@ -5,6 +5,13 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.7
+
+- `sidebar` adds views to the sidebar, each with a button in its switch;
+  one with `replaces: 'explorer'` is the Explorer itself while its `when`
+  holds, as the C# extension's Solution Explorer is for a C# project. Needs
+  BMEditor 0.1.5.
+
 ## 0.2.6
 
 - A menu row can carry a button at its end (`MenuItem.action`), such as
