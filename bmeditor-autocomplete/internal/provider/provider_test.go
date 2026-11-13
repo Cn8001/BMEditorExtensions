@@ -219,3 +219,31 @@ func TestUnused_ListsOtherModelsAndOldBuilds(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveModel_DeletesOnlyThatModel(t *testing.T) {
+	// Arrange
+	home := cache(t)
+	keep := filepath.Join(home, "models", "qwen2.5-coder-0.5b-q8_0.gguf")
+	gone := filepath.Join(home, "models", "qwen2.5-coder-3b-q8_0.gguf")
+	for _, p := range []string{keep, gone, gone + ".part"} {
+		_ = os.MkdirAll(filepath.Dir(p), 0o755)
+		_ = os.WriteFile(p, []byte("x"), 0o644)
+	}
+
+	// Act
+	err := RemoveModel("3b")
+
+	// Assert
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(gone); err == nil {
+		t.Error("the 3b model should be gone")
+	}
+	if _, err := os.Stat(gone + ".part"); err == nil {
+		t.Error("its half download should be gone")
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Errorf("the 0.5b model should stay: %v", err)
+	}
+}

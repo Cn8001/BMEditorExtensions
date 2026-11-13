@@ -128,6 +128,25 @@ func Here() []Model {
 	return out
 }
 
+// RemoveModel deletes one of Models, downloaded or half so.
+func RemoveModel(id string) error {
+	home, err := Home()
+	if err != nil {
+		return err
+	}
+	for _, m := range Models {
+		if m.ID == id {
+			path := filepath.Join(home, "models", m.File)
+			_ = os.Remove(path + ".part")
+			if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return err
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown model %q", id)
+}
+
 // RemoveDownloads deletes the downloaded models and llama.cpp.
 func RemoveDownloads() error {
 	home, err := Home()

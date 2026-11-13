@@ -1,7 +1,7 @@
 {
   "name": "autocomplete",
   "displayName": "bmeditor-autocomplete",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Inline code suggestions (ghost text) in every language from a small code model on your machine: llama.cpp with Qwen2.5-Coder, downloaded when you ask, a .gguf of your own, or Ollama. Nothing leaves the machine.",
   "icon": "icon.svg",
   "engines": {

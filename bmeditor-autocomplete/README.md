@@ -39,9 +39,10 @@ model to one you pulled (`ollama pull qwen2.5-coder:1.5b`): nothing is
 downloaded.
 
 The model runs only while you write: it stops after ten idle minutes and
-when BMEditor closes. **Remove unused downloads** in the menu deletes the
-models you switched away from; **Autocomplete: Remove Downloaded Models**
-gives all the disk space back.
+when BMEditor closes; what was downloaded stays. The trash button on a
+model's row in the menu deletes it, **Remove unused downloads** deletes the
+models you switched away from, and **Autocomplete: Remove Downloaded
+Models** gives all the disk space back.
 
 The model runs on the graphics card (llama.cpp's Vulkan build, for
 NVIDIA, AMD and Intel); unticking Settings › Autocomplete › Run the model on

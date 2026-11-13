@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { MenuItem } from '../bmext/bmeditor'
-import { change, getReady, removeUnused, toggle } from './actions'
+import { change, getReady, removeModel, removeUnused, toggle } from './actions'
 import { api, modelName, onGPU, setting, state, type Model } from './state'
 
 // The top bar's button: what the model is doing, and a menu that picks the
@@ -51,6 +51,8 @@ const items = computed<MenuItem[]>(() => {
         detail: `${d.what} · ${m.downloaded ? 'downloaded' : gb(m.size) + ' to download'}`,
         icon: m.id === current ? 'check' : 'blank',
         disabled: st.busy,
+        // Downloads stay when BMEditor closes; this makes room.
+        action: m.downloaded ? { id: 'delete:' + m.id, icon: 'trash', title: `Delete the download (${gb(m.size)})` } : undefined,
       })
     }
     out.push({
@@ -90,6 +92,10 @@ function select(id: string) {
   else if (what === 'ready') void getReady()
   else if (what === 'cancel') void api.call('cancel')
   else if (what === 'unused') void removeUnused()
+  else if (what === 'delete') {
+    const m = state.status?.models.find((x) => x.id === value)
+    if (m) void removeModel(m.id, described(m).name)
+  }
   else if (what === 'pause') toggle()
   else if (what === 'output') api.ui.showOutput()
   else if (what === 'settings' || what === 'custom') api.ui.openSettings()

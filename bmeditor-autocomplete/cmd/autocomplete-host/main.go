@@ -41,6 +41,16 @@ func (b *backend) config() provider.Config {
 	}
 }
 
+// stop ends the running model, if any; the next request starts it again.
+func (b *backend) stop() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.p != nil {
+		b.p.Close()
+		b.p, b.key = nil, ""
+	}
+}
+
 // current is the provider the settings name, made again when they change.
 func (b *backend) current() (provider.Provider, error) {
 	c := b.config()
@@ -177,13 +187,26 @@ func main() {
 	// remove stops the model and deletes what was downloaded.
 	s.Handle("remove", func(context.Context, json.RawMessage) (any, error) {
 		b.cancelPrepare()
-		b.mu.Lock()
-		if b.p != nil {
-			b.p.Close()
-			b.p, b.key = nil, ""
-		}
-		b.mu.Unlock()
+		b.stop()
 		return nil, provider.RemoveDownloads()
+	})
+	// removeModel deletes one model, stopping it first: a running
+	// llama-server holds its file, and Windows will not delete it then.
+	s.Handle("removeModel", func(_ context.Context, params json.RawMessage) (any, error) {
+		var p struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(params, &p); err != nil {
+			return nil, err
+		}
+		b.mu.Lock()
+		busy := b.preparing != nil
+		b.mu.Unlock()
+		if busy {
+			return nil, &host.Error{Code: "busy", Message: "the model is being got ready"}
+		}
+		b.stop()
+		return nil, provider.RemoveModel(p.ID)
 	})
 	s.Handle("removeUnused", func(context.Context, json.RawMessage) (any, error) {
 		b.mu.Lock()

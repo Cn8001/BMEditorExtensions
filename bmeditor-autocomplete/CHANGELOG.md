@@ -4,6 +4,12 @@ Each version of the Autocomplete extension, newest first. The section of a
 version becomes the notes of its release, and a version is published only
 when it has a section here.
 
+## 0.1.4
+
+- A downloaded model has a delete button on its row in the top bar's
+  menu, to make room. Downloads stay when BMEditor closes; closing only
+  stops the model. Needs BMEditor 0.1.5.
+
 ## 0.1.3
 
 - The top bar's menu says what each model is good for and whether it is

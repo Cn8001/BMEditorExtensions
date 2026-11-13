@@ -47,6 +47,16 @@ export async function removeDownloads() {
   }
 }
 
+export async function removeModel(id: string, name: string) {
+  try {
+    await api.call('removeModel', { id })
+    await refresh()
+    api.ui.toast('info', `${name} deleted`, 'Pick it in the menu to download it again.')
+  } catch (err) {
+    api.ui.toastFailure(`Cannot delete ${name}`, api.ui.failureOf(err))
+  }
+}
+
 export async function removeUnused() {
   try {
     await api.call('removeUnused')
