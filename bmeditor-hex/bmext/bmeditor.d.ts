@@ -1,0 +1,133 @@
+// The API a bmeditor extension's script gets: its default export is called
+// with it once, when the editor starts.
+//
+//   export default function activate(api: ExtensionAPI) {
+//     api.register({ panels: [...], commands: [...] })
+//   }
+//
+// Kept in step with frontend/src/lib/extensionHost.ts in the editor; version
+// says which shape this is.
+
+import type { Component } from 'vue'
+import type { EditorState, Extension, TransactionSpec } from '@codemirror/state'
+
+export interface Tab {
+  id: string
+  path: string
+  name: string
+  language: string
+  version: number // rises with every edit, and when a binary file changes on disk
+  dirty: boolean // a binary editor sets it for what it has not saved
+  binary?: boolean // not text: shown by an extension's binaryEditor (BMEditor 0.1.5 and later)
+}
+
+export interface Failure {
+  code: string
+  message: string
+  line?: number
+  col?: number
+}
+
+export interface Problem {
+  file: string
+  line: number
+  col: number
+  severity: 'error' | 'warning' | 'info'
+  message: string
+  source?: string
+}
+
+export interface Contributions {
+  // Behaviour for a language the manifest declares: more editor support
+  // (highlighting from the backend, completion), and hooks for its tabs.
+  languages?: { id: string; support?: (tab: Tab) => Extension; changed?: (tab: Tab) => void; closed?: (tab: Tab) => void }[]
+  // More editor support for every tab, whatever its language (BMEditor
+  // 0.1.5 and later): inline completion, a gutter.
+  editor?: (tab: Tab) => Extension
+  panels?: { id: string; label: string; component: Component; busy?: () => boolean }[]
+  // sidebar adds views to the sidebar, each with a button in its switch
+  // (BMEditor 0.1.5 and later). One with replaces: 'explorer' is another
+  // view of the Explorer while when holds, beside its files, as Rider
+  // offers a C# project's solution.
+  sidebar?: { id: string; label: string; icon: string; component: Component; replaces?: 'explorer'; when?: () => boolean }[]
+  toolbar?: Component // gets `compact` (0 to 3) as the top bar narrows
+  commands?: { id: string; label: string; kbd?: string; icon?: string; run: () => unknown; when?: () => boolean }[]
+  keydown?: (e: KeyboardEvent) => boolean // true when handled
+  shortcuts?: [label: string, keys: string][]
+  reset?: () => void // the project closed or another opened
+  // binaryEditor shows a file that is not text (BMEditor 0.1.5 and later;
+  // images the editor shows itself): its component gets the tab as a
+  // prop, and save, when there is one, runs on Ctrl+S and answers whether
+  // it saved. A hex editor.
+  binaryEditor?: { component: Component; save?: (tab: Tab) => Promise<boolean> }
+  // explorerHide leaves a file or folder out of the Explorer (BMEditor 0.1.5
+  // and later): one the project's tools generate, which nobody edits.
+  explorerHide?: (entry: { name: string; path: string; isDir: boolean }) => boolean
+}
+
+export interface MenuItem {
+  id: string
+  label?: string
+  detail?: string
+  icon?: string // a codicon name
+  kbd?: string
+  disabled?: boolean
+  separator?: boolean
+  heading?: boolean
+  // action is a button at the row's end, such as delete, chosen by its own
+  // id (BMEditor 0.1.5 and later).
+  action?: { id: string; icon: string; title: string }
+}
+
+export type CancellablePromise<T> = Promise<T> & { cancel: () => void }
+
+export interface ExtensionAPI {
+  version: 1
+  name: string
+  base: string // URL prefix of the extension's own files
+  register(c: Contributions): void
+  // call runs a method of the extension's backend; a rejection carries a
+  // Failure (read it with ui.failureOf). cancel() cancels it there too.
+  call<T = unknown>(method: string, params?: unknown): CancellablePromise<T>
+  on(method: string, fn: (params: any) => void): () => void // backend notifications
+  settings(): Promise<{ values: Record<string, string>; secrets: Record<string, boolean> }>
+  // saveSettings changes some of the extension's global settings and keeps
+  // the rest (BMEditor 0.1.5 and later): a model picked from a menu.
+  saveSettings?(values: Record<string, string>): Promise<void>
+  session: {
+    tab(id: string): Tab | undefined
+    textOf(id: string): string
+    stateOf(id: string): EditorState | undefined
+    dispatchTo(id: string, spec: TransactionSpec): void
+    reconfigureLanguage(language: string): void
+    activate(id: string): void
+    goto(line: number, col: number, length?: number): void
+    // openFile opens a file in a tab, or switches to its tab, and goes to
+    // pos when given. quiet leaves out the "Cannot open" notice on failure.
+    openFile(path: string, pos?: { line: number; col: number; length?: number }, quiet?: boolean): Promise<void>
+  }
+  ide: { folder: string; activeId: string; tabs: Tab[]; settingsOpen: boolean; [key: string]: unknown }
+  ui: {
+    toast(kind: 'info' | 'error', title: string, detail?: string): void
+    toastFailure(title: string, f: Failure): void
+    failureOf(err: unknown): Failure
+    setProblems(key: string, problems: Problem[]): void
+    showPanel(id: string): void
+    activeTab(): Tab | undefined
+    openSettings(): void
+    // output writes text, one line or several, to the extension's channel
+    // in Output (stream info by default), where its backend's stderr goes
+    // too; showOutput opens Output on that channel.
+    output(text: string, stream?: 'info' | 'stdout' | 'stderr'): void
+    showOutput(): void
+  }
+  paths: { relativeTo(root: string, path: string): string }
+  components: {
+    CodeView: Component // props: text, language ('sql' | 'json' | 'plain')
+    // DropMenu (BMEditor 0.1.5 and later) is the top bar's menu: props
+    // items: MenuItem[], align?, width?; emits select(id); its default slot
+    // is the button.
+    DropMenu?: Component
+  }
+  theme: { palette: Record<string, string> }
+}

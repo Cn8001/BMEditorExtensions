@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#2e2620"/>
+      <stop offset="1" stop-color="#14110f"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="26" fill="url(#bg)"/>
+  <g font-family="JetBrains Mono, Consolas, monospace" font-weight="700" text-anchor="middle">
+    <text x="64" y="58" font-size="30" fill="#efe3cb">0x</text>
+    <text x="64" y="94" font-size="26" fill="#a9cdc4">4F 2A</text>
+  </g>
+</svg>
