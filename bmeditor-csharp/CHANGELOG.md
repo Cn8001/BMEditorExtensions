@@ -19,6 +19,11 @@ has a section here.
   only the next into one row (Assets/Scripts/Gameplay), shows a project's
   framework on hover only, and groups references into Projects, Packages
   and Assemblies, each closed, so a hundred of them stay out of the way.
+- Properties follow the Solution Explorer's selection, as Visual Studio's
+  do: a project shows its assembly, framework, output, project file, files
+  and references, and in a Unity project its assembly definition, which
+  Edit opens in the Inspector. The project's right-click menu opens its
+  project file.
 - A .sln is highlighted: its projects, sections, GUIDs and settings.
 - The assembly graph stays readable with many assemblies: a layer wider
   than the panel wraps onto more rows, and Fit zooms out no further than

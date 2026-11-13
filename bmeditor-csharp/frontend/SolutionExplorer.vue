@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { api } from './api'
+import { api, store } from './api'
 import Graph from './Graph.vue'
 import Inspector from './Inspector.vue'
+import ProjectProperties from './ProjectProperties.vue'
 import SolutionPanel from './SolutionPanel.vue'
 
 // The Explorer's Solution and Assemblies views of a C# project, as Rider
@@ -16,6 +17,9 @@ const inspectable = computed(() => {
   const path = (api.ide.activeId ? api.session.tab(api.ide.activeId)?.path : '') ?? ''
   return /\.(asmdef|asmref)$/i.test(path) || /[\\/]package\.json$/i.test(path)
 })
+// The project selected in the Solution Explorer first, as Visual Studio's
+// Properties window follows the selection; else the open file's.
+const project = computed(() => (props.graph ? null : store.ui.selectedProject))
 const folded = ref(false)
 </script>
 
@@ -23,12 +27,15 @@ const folded = ref(false)
   <div class="solution-explorer">
     <Graph v-if="props.graph" narrow class="tree-part" />
     <SolutionPanel v-else side class="tree-part" />
-    <section v-if="inspectable" class="properties" :class="{ folded }">
+    <section v-if="project || inspectable" class="properties" :class="{ folded }">
       <button class="properties-head" @click="folded = !folded">
         <i class="codicon" :class="folded ? 'codicon-chevron-right' : 'codicon-chevron-down'" />
         Properties
       </button>
-      <Inspector v-if="!folded" narrow class="properties-body" />
+      <template v-if="!folded">
+        <ProjectProperties v-if="project" :key="project.path" :project="project" class="properties-body" />
+        <Inspector v-else narrow class="properties-body" />
+      </template>
     </section>
   </div>
 </template>

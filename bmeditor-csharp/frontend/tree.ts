@@ -12,6 +12,7 @@ export interface Node {
   dir?: string // a folder New Script can write in
   detail?: string
   title?: string // on hover, where the path is not enough
+  project?: Project // a project's, for its Properties
   children?: Node[]
 }
 
@@ -75,7 +76,7 @@ function projectNode(item: SolutionItem, sep: string): Node {
   const refs = groups.length === 1 ? groups[0].children! : groups
   const refCount = groups.reduce((n, g) => n + g.children!.length, 0)
   // The framework only on hover: on every row it crowded the names out.
-  const root: Node = { id, label: p.name, icon: 'project', kind: 'project', dir, title: [p.name, p.targetFramework, p.sdk ? 'SDK-style' : ''].filter(Boolean).join(' · '), children: [] }
+  const root: Node = { id, label: p.name, icon: 'project', kind: 'project', dir, path: p.path, project: p, title: [p.name, p.targetFramework, p.sdk ? 'SDK-style' : ''].filter(Boolean).join(' · '), children: [] }
   if (refs.length) root.children!.push({ id: id + ':refs', label: 'References', icon: 'references', kind: 'refs', detail: String(refCount), children: refs })
   const folders = new Map<string, Node>()
   const folder = (relDir: string): Node => {

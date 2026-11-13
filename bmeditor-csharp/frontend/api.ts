@@ -145,7 +145,9 @@ export const store = reactive({
   // Unity's .csproj, .sln and .meta in the Explorer: hidden, as in Visual Studio.
   showGenerated: false,
   // Which tab each panel shows, and the folder New Script is open for.
-  ui: { solutionTab: 'solution' as 'solution' | 'graph', unityTab: 'console' as 'console' | 'meta', newScriptDir: '' },
+  // selectedProject is the project the Solution Explorer has selected, whose
+  // Properties show.
+  ui: { solutionTab: 'solution' as 'solution' | 'graph', unityTab: 'console' as 'console' | 'meta', newScriptDir: '', selectedProject: null as Project | null },
 })
 
 export function setShowGenerated(show: boolean) {
@@ -170,6 +172,7 @@ export function fail(title: string, err: unknown) {
 
 export function clear() {
   Object.assign(store, { workspace: null, solutions: [], solutionPath: '', solution: null, solutionError: '', assemblies: null, meta: null, log: null, logLines: [] })
+  store.ui.selectedProject = null
 }
 
 export async function loadWorkspace() {

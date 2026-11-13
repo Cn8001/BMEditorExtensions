@@ -79,6 +79,7 @@ async function reveal() {
   if (!ids) return
   for (const id of ids.slice(0, -1)) open.add(id)
   selected.value = ids[ids.length - 1]
+  store.ui.selectedProject = null
   await nextTick()
   treeEl.value?.querySelector('.row.selected')?.scrollIntoView({ block: 'nearest' })
 }
@@ -123,6 +124,7 @@ function entries(n: Node): MenuEntry[] {
 
 function openMenu(n: Node, e: MouseEvent) {
   selected.value = n.id
+  store.ui.selectedProject = n.kind === 'project' ? (n.project ?? null) : null
   if (!entries(n).length) return
   menu.value = { node: n, x: Math.min(e.clientX, window.innerWidth - 260), y: Math.min(e.clientY, window.innerHeight - 260) }
 }
@@ -174,6 +176,7 @@ onBeforeUnmount(() => window.removeEventListener('click', closeMenu))
 
 function click(n: Node) {
   selected.value = n.id
+  store.ui.selectedProject = n.kind === 'project' ? (n.project ?? null) : null
   if (n.children?.length) {
     if (open.has(n.id)) open.delete(n.id)
     else open.add(n.id)
