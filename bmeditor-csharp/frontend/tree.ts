@@ -14,6 +14,22 @@ export interface Node {
   title?: string // on hover, where the path is not enough
   project?: Project // a project's, for its Properties
   children?: Node[]
+  // lazy makes the children the first time they are asked for (kids): a
+  // project's files, of which a large solution has tens of thousands.
+  lazy?: () => Node[]
+}
+
+// kids is a node's children, made now if they were left for later.
+export function kids(n: Node): Node[] {
+  if (n.lazy) {
+    n.children = n.lazy()
+    n.lazy = undefined
+  }
+  return n.children ?? []
+}
+
+export function expandable(n: Node): boolean {
+  return !!n.lazy || !!n.children?.length
 }
 
 export interface Row {
@@ -64,6 +80,13 @@ function projectNode(item: SolutionItem, sep: string): Node {
     return { id, label: item.name, icon: 'warning', kind: 'error', path: item.path, detail: item.error ?? 'not a C# project' }
   }
   const p: Project = item.project
+  const node: Node = { id, label: p.name, icon: 'project', kind: 'project', dir: dirOf(p.path), path: p.path, project: p, title: [p.name, p.targetFramework, p.sdk ? 'SDK-style' : ''].filter(Boolean).join(' · ') }
+  node.lazy = () => projectChildren(id, p, sep)
+  return node
+}
+
+// projectChildren is a project's references and files, in folders.
+function projectChildren(id: string, p: Project, sep: string): Node[] {
   const dir = dirOf(p.path)
   // References by kind, each group closed: a Unity project has a hundred
   // assemblies of the engine and the framework, which nobody reads through.
@@ -106,7 +129,7 @@ function projectNode(item: SolutionItem, sep: string): Node {
   }
   sort(root)
   compact(root)
-  return root
+  return root.children!
 }
 
 // compact joins a chain of folders that each hold only the next into one
@@ -198,13 +221,20 @@ export function pathTo(root: Node, path: string): string[] | null {
   const want = path.toLowerCase()
   const visit = (n: Node, above: string[]): string[] | null => {
     if (n.kind === 'file' && n.path?.toLowerCase() === want) return [...above, n.id]
-    for (const c of n.children ?? []) {
+    // Only the project that has the file makes its children for this.
+    if (n.kind === 'project' && n.project && !n.project.files.some((f) => f.path.toLowerCase() === want)) return null
+    for (const c of kids(n)) {
       const found = visit(c, [...above, n.id])
       if (found) return found
     }
     return null
   }
   return visit(root, [])
+}
+
+function mentions(p: Project, f: string): boolean {
+  const names = [...p.files.map((x) => baseOf(x.rel)), ...(p.projectReferences ?? []).map(baseOf), ...(p.packageReferences ?? []).map((r) => r.name), ...(p.references ?? []).map((r) => r.name)]
+  return names.some((n) => n.toLowerCase().includes(f))
 }
 
 // rows are the visible rows: open nodes' children, or with a filter, the
@@ -216,15 +246,21 @@ export function rows(root: Node, open: Set<string>, filter: string): Row[] {
   const matches = (n: Node): boolean => {
     if (keep.has(n)) return keep.get(n)!
     const self = n.kind === 'file' || n.kind === 'ref' ? n.label.toLowerCase().includes(f) : false
-    const any = self || (n.children ?? []).some(matches)
+    // A project not made yet is looked into first by its files' and
+    // references' names, so only one that has a match makes its children.
+    if (n.lazy && n.project && !mentions(n.project, f)) {
+      keep.set(n, false)
+      return false
+    }
+    const any = self || kids(n).some(matches)
     keep.set(n, any)
     return any
   }
   const visit = (n: Node, depth: number) => {
     if (f && !matches(n)) return
-    const isOpen = f ? !!n.children?.length : open.has(n.id)
+    const isOpen = f ? expandable(n) : open.has(n.id)
     out.push({ node: n, depth, open: isOpen })
-    if (isOpen) for (const c of n.children ?? []) visit(c, depth + 1)
+    if (isOpen) for (const c of kids(n)) visit(c, depth + 1)
   }
   visit(root, 0)
   return out

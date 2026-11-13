@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { markRaw, reactive } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
 
 // The editor's API, kept from activate for the components, and what the
@@ -195,7 +195,9 @@ export async function loadWorkspace() {
 export async function loadSolution() {
   store.busy.solution = true
   try {
-    store.solution = await call<Solution>('solution', { path: store.solutionPath })
+    // Read only, and in a large solution tens of thousands of files: kept
+    // out of Vue's reactivity, which would wrap every one.
+    store.solution = markRaw(await call<Solution>('solution', { path: store.solutionPath }))
     store.solutionError = ''
   } catch (err) {
     store.solution = null
@@ -209,7 +211,7 @@ export async function loadSolution() {
 export async function loadAssemblies() {
   store.busy.assemblies = true
   try {
-    store.assemblies = await call<Assemblies>('assemblies')
+    store.assemblies = markRaw(await call<Assemblies>('assemblies'))
   } catch (err) {
     fail('Assemblies', err)
   } finally {

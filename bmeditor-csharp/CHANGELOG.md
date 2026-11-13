@@ -25,6 +25,11 @@ has a section here.
   Edit opens in the Inspector. The project's right-click menu opens its
   project file.
 - A .sln is highlighted: its projects, sections, GUIDs and settings.
+- A large solution opens at once in the Solution Explorer: a project's
+  files are laid out when it is first opened, the filter looks only into
+  the projects that have a match, after a pause in typing, and the
+  solution's data stays out of Vue's reactivity. On 150 projects of 600
+  files, opening went from 850 ms to 17 ms.
 - The assembly graph stays readable with many assemblies: a layer wider
   than the panel wraps onto more rows, and Fit zooms out no further than
   readable, starting at the graph's top.

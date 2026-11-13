@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { api, basename, call, fail, loadAssemblies, loadSolution, openPath, rel, sep, setShowGenerated, store } from './api'
-import { packageCount, pathTo, rows, solutionTree, type Node } from './tree'
+import { expandable, packageCount, pathTo, rows, solutionTree, type Node } from './tree'
 import Graph from './Graph.vue'
 
 // The Solution Explorer: the solution as Visual Studio shows it, the
@@ -36,7 +36,15 @@ watch(prefs, () => {
 
 const tree = computed(() => (store.solution ? solutionTree(store.solution, sep(), prefs.packages) : null))
 const packages = computed(() => (store.solution ? packageCount(store.solution) : 0))
-const visible = computed(() => (tree.value ? rows(tree.value, open, filter.value) : []))
+// The filter applies after a pause in typing: in a large solution each
+// text looks through every project's files.
+const filtering = ref('')
+let filterTimer = 0
+watch(filter, (f) => {
+  window.clearTimeout(filterTimer)
+  filterTimer = window.setTimeout(() => (filtering.value = f), f ? 150 : 0)
+})
+const visible = computed(() => (tree.value ? rows(tree.value, open, filtering.value) : []))
 const shown = computed(() => visible.value.slice(0, most))
 
 // A new solution opens on its folders and projects.
@@ -177,7 +185,7 @@ onBeforeUnmount(() => window.removeEventListener('click', closeMenu))
 function click(n: Node) {
   selected.value = n.id
   store.ui.selectedProject = n.kind === 'project' ? (n.project ?? null) : null
-  if (n.children?.length) {
+  if (expandable(n)) {
     if (open.has(n.id)) open.delete(n.id)
     else open.add(n.id)
   } else if (n.path && (n.kind === 'file' || n.kind === 'error' || n.kind === 'ref')) {
@@ -298,7 +306,7 @@ async function create() {
           @click="click(r.node)"
           @contextmenu.prevent.stop="openMenu(r.node, $event)"
         >
-          <i class="chevron codicon" :class="r.node.children?.length ? (r.open ? 'codicon-chevron-down' : 'codicon-chevron-right') : ''" />
+          <i class="chevron codicon" :class="expandable(r.node) ? (r.open ? 'codicon-chevron-down' : 'codicon-chevron-right') : ''" />
           <i class="codicon" :class="'codicon-' + r.node.icon" />
           <span class="label">{{ r.node.label }}</span>
           <span v-if="r.node.detail" class="detail">{{ r.node.detail }}</span>
