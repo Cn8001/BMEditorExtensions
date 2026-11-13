@@ -24,6 +24,11 @@ interface GNode {
 const H = 22
 const ROW = 70
 const GAP = 14
+// A layer wider than this wraps onto more rows, SUBROW apart: a project
+// with dozens of assemblies that reference nothing would otherwise be one
+// line, shrunk to unreadable to fit the panel.
+const MAX_ROW = 1200
+const SUBROW = 34
 
 const graph = computed(() => {
   const as = store.assemblies
@@ -70,15 +75,30 @@ const graph = computed(() => {
   const nodes = new Map<number, GNode>()
   const width = (a: Assembly) => Math.max(70, a.name.length * 6.4 + 22)
   const place = () => {
-    layers.forEach((l, y) => {
-      const total = l.reduce((s, i) => s + width(as.assemblies[i]) + GAP, -GAP)
-      let x = -total / 2
+    let top = 0
+    layers.forEach((l, layerIndex) => {
+      const rows: number[][] = [[]]
+      let used = -GAP
       for (const i of l) {
-        const a = as.assemblies[i]
-        const w = width(a)
-        nodes.set(i, { i, a, x, y: y * ROW, w, layer: y, missing: a.references.filter((r) => r.status === 'unresolved').length })
-        x += w + GAP
+        const w = width(as.assemblies[i])
+        if (rows[rows.length - 1].length && used + GAP + w > MAX_ROW) {
+          rows.push([])
+          used = -GAP
+        }
+        rows[rows.length - 1].push(i)
+        used += GAP + w
       }
+      rows.forEach((row, r) => {
+        const total = row.reduce((s, i) => s + width(as.assemblies[i]) + GAP, -GAP)
+        let x = -total / 2
+        for (const i of row) {
+          const a = as.assemblies[i]
+          const w = width(a)
+          nodes.set(i, { i, a, x, y: top + r * SUBROW, w, layer: layerIndex, missing: a.references.filter((ref) => ref.status === 'unresolved').length })
+          x += w + GAP
+        }
+      })
+      top += (rows.length - 1) * SUBROW + ROW
     })
   }
   place()
@@ -164,9 +184,12 @@ function fit() {
   const maxX = Math.max(...ns.map((n) => n.x + n.w)) + 20
   const minY = Math.min(...ns.map((n) => n.y)) - 20
   const maxY = Math.max(...ns.map((n) => n.y + H)) + 20
-  view.k = Math.min(1.2, view.w / (maxX - minX), view.h / (maxY - minY))
+  // Never smaller than readable: a larger graph starts at its top, and is
+  // panned and zoomed from there.
+  const fits = Math.min(view.w / (maxX - minX), view.h / (maxY - minY))
+  view.k = Math.min(1.2, Math.max(0.6, fits))
   view.x = view.w / 2 - ((minX + maxX) / 2) * view.k
-  view.y = view.h / 2 - ((minY + maxY) / 2) * view.k
+  view.y = fits < 0.6 ? -minY * view.k : view.h / 2 - ((minY + maxY) / 2) * view.k
 }
 
 onMounted(() => {
