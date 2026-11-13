@@ -13,6 +13,8 @@ desktop code editor. BMEditor can be downloaded from its
 | [bmeditor-csharp](bmeditor-csharp) | C# for Unity and UPM packages: language server, Solution Explorer, assembly graph, Inspector for .asmdef and package.json, Unity compile errors, .meta and GUID tools | `https://github.com/Cn8001/BMEditorExtensions/releases/download/csharp/latest/csharp.zip` |
 | [bmeditor-powershell](bmeditor-powershell) | PowerShell with PowerShell Editor Services (completion, PSScriptAnalyzer, debugging) and cmd batch files with a language server of their own and F5 to run them | `https://github.com/Cn8001/BMEditorExtensions/releases/download/powershell/latest/powershell.zip` |
 | [bmeditor-autocomplete](bmeditor-autocomplete) | Inline code suggestions in every language from a small model on your machine (llama.cpp with Qwen2.5-Coder, or Ollama) | `https://github.com/Cn8001/BMEditorExtensions/releases/download/autocomplete/latest/autocomplete.zip` |
+| [bmeditor-hex](bmeditor-hex) | Files that are not text, such as executables, in hex: offsets, sixteen bytes a row, the bytes as characters, what a selection reads as, and editing in place | `https://github.com/Cn8001/BMEditorExtensions/releases/download/hex/latest/hex.zip` |
+| [bmeditor-ascdii](bmeditor-ascdii) | Games made with the [ASCDII Engine](https://github.com/Cn8001/ASCDII-Engine): a Game view of the project's assets, Lua with the engine's API and Code Vision, Project Settings, a Console, and Play in the game's window or the engine's editor | `https://github.com/Cn8001/BMEditorExtensions/releases/download/ascdii/latest/ascdii.zip` |
 
 The [bmext](bmext) directory holds the extension format and SDK. See
 [bmext/README.md](bmext/README.md) or
