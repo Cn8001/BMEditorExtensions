@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { api, basename, call, fail, loadAssemblies, loadSolution, openPath, rel, sep, setShowGenerated, store } from './api'
-import { pathTo, rows, solutionTree, type Node } from './tree'
+import { packageCount, pathTo, rows, solutionTree, type Node } from './tree'
 import Graph from './Graph.vue'
 
 // The Solution Explorer: the solution as Visual Studio shows it, the
 // assembly graph, and New Script for a folder.
 
-// side is the sidebar's narrow Solution Explorer, without the graph.
+// side is the Explorer's Solution view: narrow, one row of tools, and the
+// graph a view of its own.
 const props = defineProps<{ side?: boolean }>()
 
 const open = reactive(new Set<string>())
@@ -34,15 +35,20 @@ watch(prefs, () => {
 })
 
 const tree = computed(() => (store.solution ? solutionTree(store.solution, sep(), prefs.packages) : null))
+const packages = computed(() => (store.solution ? packageCount(store.solution) : 0))
 const visible = computed(() => (tree.value ? rows(tree.value, open, filter.value) : []))
 const shown = computed(() => visible.value.slice(0, most))
 
 // A new solution opens on its folders and projects.
-watch(tree, (t) => {
-  if (!t) return
-  open.add(t.id)
-  for (const c of t.children ?? []) if (c.kind === 'sfolder') open.add(c.id)
-})
+watch(
+  tree,
+  (t) => {
+    if (!t) return
+    open.add(t.id)
+    for (const c of t.children ?? []) if (c.kind === 'sfolder' && c.id !== 's:packages') open.add(c.id)
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   if (!store.solution && !store.busy.solution && store.workspace) void loadSolution()
@@ -76,7 +82,7 @@ async function reveal() {
   await nextTick()
   treeEl.value?.querySelector('.row.selected')?.scrollIntoView({ block: 'nearest' })
 }
-watch(() => [api.ide.activeId, tree.value, prefs.track], () => void reveal())
+watch(() => [api.ide.activeId, tree.value, prefs.track], () => void reveal(), { immediate: true })
 
 // The context menu, and the bar that asks for a name or a yes.
 const menu = ref<{ node: Node; x: number; y: number } | null>(null)
@@ -232,7 +238,12 @@ async function create() {
         <button title="New Script in the solution's folder" :disabled="!store.workspace" @click="store.ui.newScriptDir = store.workspace!.root"><i class="codicon codicon-new-file" /></button>
         <button title="Track Active Item" :class="{ on: prefs.track }" @click="prefs.track = !prefs.track"><i class="codicon codicon-target" /></button>
         <button title="Collapse All" @click="collapseAll"><i class="codicon codicon-collapse-all" /></button>
-        <button title="Show package projects (Unity's registry, git and built-in packages)" :class="{ on: prefs.packages }" @click="prefs.packages = !prefs.packages">
+        <button
+          v-if="packages"
+          :title="`${prefs.packages ? 'Hide' : 'Show'} the ${packages} package projects (Unity's registry, git and built-in packages)`"
+          :class="{ on: prefs.packages }"
+          @click="prefs.packages = !prefs.packages"
+        >
           <i class="codicon codicon-package" />
         </button>
         <button title="Refresh" @click="loadSolution()"><i class="codicon codicon-refresh" :class="{ 'codicon-modifier-spin': store.busy.solution }" /></button>
@@ -280,7 +291,7 @@ async function create() {
           class="row"
           :class="[r.node.kind, { selected: selected === r.node.id }]"
           :style="{ paddingLeft: 6 + r.depth * 14 + 'px' }"
-          :title="r.node.path || r.node.dir || r.node.label"
+          :title="r.node.title || r.node.path || r.node.dir || r.node.label"
           @click="click(r.node)"
           @contextmenu.prevent.stop="openMenu(r.node, $event)"
         >
@@ -369,16 +380,25 @@ button.primary.danger {
 }
 .side .bar {
   flex-wrap: wrap;
-  padding: 2px 8px 6px;
+  gap: 2px;
+  padding: 0 8px 6px;
+  border-bottom: none;
+}
+.side .bar > button {
+  padding: 3px 5px;
 }
 .side .filter {
-  order: 1;
-  flex-basis: 100%;
+  order: -1;
+  flex: 1;
+  min-width: 90px;
   max-width: none;
+  margin-right: 4px;
 }
 .side select {
-  flex: 1;
+  order: -2;
+  flex-basis: 100%;
   min-width: 0;
+  margin-bottom: 4px;
 }
 .tabs button.on {
   background: var(--bg-active);

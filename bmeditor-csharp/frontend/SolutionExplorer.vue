@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { api } from './api'
+import Graph from './Graph.vue'
 import Inspector from './Inspector.vue'
 import SolutionPanel from './SolutionPanel.vue'
 
-// The Explorer of a C# project, as Visual Studio lays it out: the Solution
-// Explorer, and under it the properties of the open assembly definition or
-// package (the Inspector), which the bottom panel no longer holds.
+// The Explorer's Solution and Assemblies views of a C# project, as Rider
+// offers them beside the files: the Solution Explorer or the assembly
+// graph, and under it the properties of the open assembly definition or
+// package (the Inspector), as Visual Studio has them under its Solution
+// Explorer.
+const props = defineProps<{ graph?: boolean }>()
 
 const inspectable = computed(() => {
   const path = (api.ide.activeId ? api.session.tab(api.ide.activeId)?.path : '') ?? ''
@@ -17,7 +21,8 @@ const folded = ref(false)
 
 <template>
   <div class="solution-explorer">
-    <SolutionPanel side class="tree-part" />
+    <Graph v-if="props.graph" narrow class="tree-part" />
+    <SolutionPanel v-else side class="tree-part" />
     <section v-if="inspectable" class="properties" :class="{ folded }">
       <button class="properties-head" @click="folded = !folded">
         <i class="codicon" :class="folded ? 'codicon-chevron-right' : 'codicon-chevron-down'" />

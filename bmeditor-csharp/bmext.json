@@ -77,7 +77,7 @@
     {
       "key": "explorerShowGenerated",
       "label": "Show Unity's generated files in the Explorer",
-      "description": "Unity writes a .csproj per assembly, the .sln and a .meta per asset. Like Visual Studio, the Explorer leaves them out; the Solution Explorer shows the projects either way.",
+      "description": "Unity writes a .csproj per assembly, the .sln, a .meta per asset, and Library, Temp, Logs, obj and UserSettings at the project's root. Like Rider, the Explorer's Files view leaves them out; this shows them.",
       "type": "boolean",
       "default": "false"
     },

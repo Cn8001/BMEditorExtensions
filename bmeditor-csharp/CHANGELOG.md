@@ -7,13 +7,22 @@ has a section here.
 ## 0.1.5
 
 - In a C# project (Unity, a UPM package, a folder with a solution) the
-  Explorer is the Solution Explorer, as in Visual Studio, with the
-  Inspector under it as Properties when an assembly definition or a
-  package's package.json is open. Its Folder View button shows every file
-  of the folder, and the Explorer's button goes back. The bottom panel
-  keeps the assembly graph (Assemblies) and Unity. An editor before 0.1.5
-  keeps the panels as they were.
+  Explorer has a Files | Solution | Assemblies switch, as Rider has. Files
+  is the folder, without what Unity writes for itself: Library, Temp,
+  Logs, obj, UserSettings at the root, and the .csproj, .sln and .meta
+  files. Solution is the Solution Explorer, Assemblies the assembly graph,
+  each with the Inspector under it as Properties when an assembly
+  definition or a package's package.json is open. The bottom panel keeps
+  Unity. An editor before 0.1.5 keeps the panels as they were.
+- The Solution Explorer opens on the solution with the open file
+  selected, has one row of tools, joins a chain of folders that each hold
+  only the next into one row (Assets/Scripts/Gameplay), shows a project's
+  framework on hover only, and groups references into Projects, Packages
+  and Assemblies, each closed, so a hundred of them stay out of the way.
 - A .sln is highlighted: its projects, sections, GUIDs and settings.
+- The assembly graph stays readable with many assemblies: a layer wider
+  than the panel wraps onto more rows, and Fit zooms out no further than
+  readable, starting at the graph's top.
 
 ## 0.1.4
 

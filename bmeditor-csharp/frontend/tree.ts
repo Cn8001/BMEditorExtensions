@@ -11,6 +11,7 @@ export interface Node {
   path?: string // a file to open
   dir?: string // a folder New Script can write in
   detail?: string
+  title?: string // on hover, where the path is not enough
   children?: Node[]
 }
 
@@ -63,13 +64,19 @@ function projectNode(item: SolutionItem, sep: string): Node {
   }
   const p: Project = item.project
   const dir = dirOf(p.path)
-  const refs: Node[] = [
-    ...(p.projectReferences ?? []).map((r) => ({ id: id + ':pr:' + r, label: baseOf(r).replace(/\.csproj$/i, ''), icon: 'project', kind: 'ref' as const, path: r })),
-    ...(p.packageReferences ?? []).map((r) => ({ id: id + ':pk:' + r.name, label: r.name, icon: 'package', kind: 'ref' as const, detail: r.version })),
-    ...(p.references ?? []).map((r) => ({ id: id + ':r:' + r.name, label: r.name, icon: 'library', kind: 'ref' as const, detail: r.path ? baseOf(dirOf(r.path)) : undefined })),
-  ]
-  const root: Node = { id, label: p.name, icon: 'project', kind: 'project', dir, detail: [p.targetFramework, p.sdk ? 'SDK' : ''].filter(Boolean).join(' · '), children: [] }
-  if (refs.length) root.children!.push({ id: id + ':refs', label: 'References', icon: 'references', kind: 'refs', detail: String(refs.length), children: refs })
+  // References by kind, each group closed: a Unity project has a hundred
+  // assemblies of the engine and the framework, which nobody reads through.
+  const groups: Node[] = [
+    { id: id + ':refs:p', label: 'Projects', icon: 'project', kind: 'refs' as const, children: (p.projectReferences ?? []).map((r) => ({ id: id + ':pr:' + r, label: baseOf(r).replace(/\.csproj$/i, ''), icon: 'project', kind: 'ref' as const, path: r })) },
+    { id: id + ':refs:k', label: 'Packages', icon: 'package', kind: 'refs' as const, children: (p.packageReferences ?? []).map((r) => ({ id: id + ':pk:' + r.name, label: r.name, icon: 'package', kind: 'ref' as const, detail: r.version })) },
+    { id: id + ':refs:a', label: 'Assemblies', icon: 'library', kind: 'refs' as const, children: (p.references ?? []).map((r) => ({ id: id + ':r:' + r.name, label: r.name, icon: 'library', kind: 'ref' as const, detail: r.path ? baseOf(dirOf(r.path)) : undefined })) },
+  ].filter((g) => g.children!.length)
+  for (const g of groups) g.detail = String(g.children!.length)
+  const refs = groups.length === 1 ? groups[0].children! : groups
+  const refCount = groups.reduce((n, g) => n + g.children!.length, 0)
+  // The framework only on hover: on every row it crowded the names out.
+  const root: Node = { id, label: p.name, icon: 'project', kind: 'project', dir, title: [p.name, p.targetFramework, p.sdk ? 'SDK-style' : ''].filter(Boolean).join(' · '), children: [] }
+  if (refs.length) root.children!.push({ id: id + ':refs', label: 'References', icon: 'references', kind: 'refs', detail: String(refCount), children: refs })
   const folders = new Map<string, Node>()
   const folder = (relDir: string): Node => {
     if (!relDir) return root
@@ -97,7 +104,22 @@ function projectNode(item: SolutionItem, sep: string): Node {
     n.children.forEach(sort)
   }
   sort(root)
+  compact(root)
   return root
+}
+
+// compact joins a chain of folders that each hold only the next into one
+// row, Assets/Scripts/Gameplay, as Rider and VS Code show them.
+function compact(n: Node) {
+  for (const [i, c] of (n.children ?? []).entries()) {
+    let f = c
+    while (f.kind === 'folder' && f.children?.length === 1 && f.children[0].kind === 'folder') {
+      const next = f.children[0]
+      f = { ...next, label: f.label + '/' + next.label }
+    }
+    n.children![i] = f
+    compact(f)
+  }
 }
 
 function itemNode(item: SolutionItem, sep: string): Node {
@@ -158,9 +180,15 @@ export function solutionTree(s: Solution, sep: string, showPackages: boolean): N
     children.push({ id: 's:packages', label: 'Packages', icon: 'package', kind: 'sfolder', detail: String(packages.length), children: packages.map((it) => itemNode(it, sep)) })
   }
   // As Visual Studio says it: (3 of 4 projects) when one did not load.
-  let detail = n.read === n.all ? `${n.all} project${n.all === 1 ? '' : 's'}` : `${n.read} of ${n.all} projects`
-  if (packages.length && !showPackages) detail += ` · ${packages.length} package projects hidden`
+  const detail = n.read === n.all ? `${n.all} project${n.all === 1 ? '' : 's'}` : `${n.read} of ${n.all} projects`
   return { id: 'solution:' + s.path, label: `Solution '${s.name}'`, icon: 'repo', kind: 'solution', path: s.path, dir: dirOf(s.path), detail, children }
+}
+
+// packageCount is how many package projects a solution has.
+export function packageCount(s: Solution): number {
+  const packages: SolutionItem[] = []
+  withoutPackages(s.items, packages)
+  return packages.length
 }
 
 // pathTo is the ids from root down to the node of a file, or null when the

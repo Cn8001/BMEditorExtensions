@@ -6,6 +6,10 @@ import { loadAssemblies, openPath, rel, store, type Assembly } from './api'
 // sits above those it references. A click focuses one: what it needs and
 // what needs it stay lit. Loops are red; references to nothing are amber.
 
+// narrow is the Solution Explorer's Assemblies tab in the sidebar: rows
+// wrap sooner, and the focused assembly's details go under the graph.
+const props = defineProps<{ narrow?: boolean }>()
+
 const showExternal = ref(false)
 const showTests = ref(true)
 const find = ref('')
@@ -24,10 +28,10 @@ interface GNode {
 const H = 22
 const ROW = 70
 const GAP = 14
-// A layer wider than this wraps onto more rows, SUBROW apart: a project
+// A layer wider than maxRow wraps onto more rows, SUBROW apart: a project
 // with dozens of assemblies that reference nothing would otherwise be one
 // line, shrunk to unreadable to fit the panel.
-const MAX_ROW = 1200
+const maxRow = props.narrow ? 480 : 1200
 const SUBROW = 34
 
 const graph = computed(() => {
@@ -81,7 +85,7 @@ const graph = computed(() => {
       let used = -GAP
       for (const i of l) {
         const w = width(as.assemblies[i])
-        if (rows[rows.length - 1].length && used + GAP + w > MAX_ROW) {
+        if (rows[rows.length - 1].length && used + GAP + w > maxRow) {
           rows.push([])
           used = -GAP
         }
@@ -255,12 +259,18 @@ function refLabel(r: { raw: string; name?: string; status: string }) {
 </script>
 
 <template>
-  <div class="graph">
+  <div class="graph" :class="{ narrow: props.narrow }">
     <div class="bar">
       <input v-model="find" placeholder="Find assembly" spellcheck="false" />
-      <label><input v-model="showTests" type="checkbox" /> Tests</label>
-      <label><input v-model="showExternal" type="checkbox" /> Packages</label>
-      <span v-if="store.assemblies" class="facts">
+      <template v-if="props.narrow">
+        <button :class="{ on: showTests }" title="Show test assemblies" @click="showTests = !showTests"><i class="codicon codicon-beaker" /></button>
+        <button :class="{ on: showExternal }" title="Show packages' assemblies" @click="showExternal = !showExternal"><i class="codicon codicon-package" /></button>
+      </template>
+      <template v-else>
+        <label><input v-model="showTests" type="checkbox" /> Tests</label>
+        <label><input v-model="showExternal" type="checkbox" /> Packages</label>
+      </template>
+      <span v-if="store.assemblies && !props.narrow" class="facts">
         {{ graph.nodes.length }} assemblies · {{ graph.edges.length }} references
         <span v-if="store.assemblies.cycles.length" class="bad">· {{ store.assemblies.cycles.length }} loop(s)</span>
       </span>
@@ -286,6 +296,7 @@ function refLabel(r: { raw: string; name?: string; status: string }) {
           </g>
         </svg>
         <div class="legend">
+          <span v-if="props.narrow && store.assemblies" class="count">{{ graph.nodes.length }} assemblies · {{ graph.edges.length }} references</span>
           <span><i class="sw editor" /> Editor only</span>
           <span><i class="sw test" /> Tests</span>
           <span><i class="sw loop" /> Loop</span>
@@ -319,6 +330,7 @@ function refLabel(r: { raw: string; name?: string; status: string }) {
   display: flex;
   flex-direction: column;
   flex: 1;
+  height: 100%;
   min-height: 0;
 }
 .bar {
@@ -510,5 +522,45 @@ li.faint {
 }
 li.unresolved {
   color: var(--warning, #d7a14a);
+}
+.narrow .bar {
+  gap: 2px;
+  padding: 0 8px 6px;
+  border-bottom: none;
+}
+.narrow .bar input:not([type]) {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin-right: 4px;
+}
+.narrow .bar button {
+  padding: 3px 5px;
+}
+.narrow .bar button.on {
+  background: var(--bg-active);
+  color: var(--accent);
+}
+.narrow .legend .count {
+  flex-basis: 100%;
+}
+.narrow .body {
+  flex-direction: column;
+}
+.narrow .canvas {
+  min-height: 160px;
+}
+.narrow .side {
+  width: auto;
+  max-height: 45%;
+  border-left: none;
+  border-top: 1px solid var(--border);
+}
+.narrow .legend {
+  flex-wrap: wrap;
+  right: 8px;
+}
+.narrow .legend .hint {
+  display: none;
 }
 </style>

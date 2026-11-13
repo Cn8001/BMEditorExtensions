@@ -5,7 +5,7 @@ import { languages } from './languages'
 import Inspector from './Inspector.vue'
 import SolutionPanel from './SolutionPanel.vue'
 import SolutionExplorer from './SolutionExplorer.vue'
-import AssembliesPanel from './AssembliesPanel.vue'
+import AssembliesExplorer from './AssembliesExplorer.vue'
 import UnityPanel from './UnityPanel.vue'
 
 // C# for Unity and UPM packages: a Solution Explorer with the assembly
@@ -26,6 +26,20 @@ function guidAtCursor(): string {
     if (m.index! <= at && at <= m.index! + 32) return m[0]
   }
   return ''
+}
+
+// Unity's caches and build output at the project's root, as Rider's Unity
+// view leaves them out.
+const unityFolders = new Set(['library', 'temp', 'logs', 'obj', 'usersettings', '.vs', '.idea', '.utmp'])
+
+// generated says whether Unity wrote a file or folder for the IDE or for
+// itself: nobody edits it by hand.
+function generated(e: { name: string; path: string; isDir: boolean }): boolean {
+  const w = store.workspace
+  if (!w || (w.kind !== 'unity' && w.kind !== 'upm')) return false
+  if (!e.isDir) return /\.(csproj|sln|slnx|meta)$/i.test(e.name)
+  const parent = e.path.slice(0, e.path.length - e.name.length - 1)
+  return w.kind === 'unity' && parent.toLowerCase() === w.root.toLowerCase() && unityFolders.has(e.name.toLowerCase())
 }
 
 export default function activate(a: ExtensionAPI) {
@@ -53,18 +67,21 @@ export default function activate(a: ExtensionAPI) {
     api.ui.showPanel(id)
   }
   // An editor with a sidebar for extensions (0.1.5, which brought DropMenu
-  // too) has the Solution Explorer and the Inspector there, as Visual
-  // Studio does; an older one has them in the bottom panel.
+  // too) has the Solution Explorer, its assembly graph and the Inspector
+  // there, as Visual Studio does; an older one has them in the bottom panel.
   const sidebar = !!api.components.DropMenu
-  // In a C# project the Explorer is the Solution Explorer, as in Visual
-  // Studio; its Folder View shows every file of the folder.
+  // In a C# project the Explorer offers the solution, and where there are
+  // assembly definitions the assemblies, beside the files, as Rider does:
+  // its Files | Solution | Assemblies switch.
+  const views = { solution: 'csharp-solution-explorer', assemblies: 'csharp-assemblies' }
   const csharpProject = () => !!store.workspace && (store.workspace.kind !== 'folder' || store.solutions.length > 0)
-  const showExplorer = () => {
-    store.ui.solutionTab = 'solution'
+  const unityProject = () => store.workspace?.kind === 'unity' || store.workspace?.kind === 'upm'
+  const showExplorer = (view = views.solution) => {
+    store.ui.solutionTab = view === views.assemblies ? 'graph' : 'solution'
     if (sidebar) {
       api.ide.sidebarOpen = true
       api.ide.sidebarView = 'explorer'
-      api.ide.folderView = false
+      api.ide.explorerAlt = view
     } else show(panels.solution)
   }
 
@@ -72,15 +89,13 @@ export default function activate(a: ExtensionAPI) {
 
   api.register({
     languages,
-    // Unity writes these for the IDE; nobody edits them by hand.
-    explorerHide: (e) =>
-      !store.showGenerated && !e.isDir && (store.workspace?.kind === 'unity' || store.workspace?.kind === 'upm') && /\.(csproj|sln|slnx|meta)$/i.test(e.name),
-    sidebar: [{ id: 'csharp-solution-explorer', label: 'Solution Explorer', icon: 'list-tree', component: SolutionExplorer, replaces: 'explorer', when: csharpProject }],
+    explorerHide: (e) => !store.showGenerated && generated(e),
+    sidebar: [
+      { id: views.solution, label: 'Solution Explorer', icon: 'list-tree', component: SolutionExplorer, replaces: 'explorer', when: csharpProject },
+      { id: views.assemblies, label: 'Assemblies', icon: 'type-hierarchy', component: AssembliesExplorer, replaces: 'explorer', when: unityProject },
+    ],
     panels: sidebar
-      ? [
-          { id: panels.assemblies, label: 'Assemblies', component: AssembliesPanel, busy: () => store.busy.assemblies },
-          { id: panels.unity, label: 'Unity', component: UnityPanel, busy: () => store.busy.meta },
-        ]
+      ? [{ id: panels.unity, label: 'Unity', component: UnityPanel, busy: () => store.busy.meta }]
       : [
           { id: panels.solution, label: 'Solution', component: SolutionPanel, busy: () => store.busy.solution || store.busy.assemblies },
           { id: panels.inspector, label: 'Inspector', component: Inspector },
@@ -92,16 +107,13 @@ export default function activate(a: ExtensionAPI) {
         label: 'C#: Solution Explorer',
         icon: 'list-tree',
         kbd: 'Ctrl+Alt+L',
-        run: showExplorer,
+        run: () => showExplorer(),
       },
       {
         id: 'csharp-assemblies',
         label: 'C#: Assembly Graph',
         icon: 'type-hierarchy',
-        run: () => {
-          store.ui.solutionTab = 'graph'
-          show(sidebar ? panels.assemblies : panels.solution)
-        },
+        run: () => showExplorer(views.assemblies),
       },
       {
         id: 'csharp-show-solution',
