@@ -45,6 +45,7 @@ for (const dir of readdirSync('.').filter((d) => existsSync(join(d, 'bmext.json'
     version: m.version,
     icon,
     install: `${repo}/releases/download/${name}/latest/${name}.zip`,
+    engine: m.engines?.bmeditor || '',
     homepage: `${repo}/tree/master/${dir}`,
   })
 }
