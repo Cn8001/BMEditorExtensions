@@ -49,6 +49,9 @@ export interface Contributions {
   keydown?: (e: KeyboardEvent) => boolean // true when handled
   shortcuts?: [label: string, keys: string][]
   reset?: () => void // the project closed or another opened
+  // explorerHide leaves a file or folder out of the Explorer (BMEditor 0.1.5
+  // and later): one the project's tools generate, which nobody edits.
+  explorerHide?: (entry: { name: string; path: string; isDir: boolean }) => boolean
 }
 
 export interface MenuItem {
@@ -60,6 +63,9 @@ export interface MenuItem {
   disabled?: boolean
   separator?: boolean
   heading?: boolean
+  // action is a button at the row's end, such as delete, chosen by its own
+  // id (BMEditor 0.1.5 and later).
+  action?: { id: string; icon: string; title: string }
 }
 
 export type CancellablePromise<T> = Promise<T> & { cancel: () => void }
