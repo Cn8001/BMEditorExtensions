@@ -1,8 +1,8 @@
 {
   "name": "hex",
   "displayName": "Hex Editor",
-  "version": "0.1.0",
-  "description": "Files that are not text, in hex as Bless shows them: offsets, sixteen bytes a row, the same bytes as characters, and what the selected bytes read as. Type over a byte to change it; Ctrl+S saves. Images open in the editor itself.",
+  "version": "0.1.1",
+  "description": "Files that are not text, in hex: offsets, sixteen bytes a row, the same bytes as characters, and what the selected bytes read as. Type over a byte to change it; Ctrl+S saves. Images open in the editor itself.",
   "icon": "icon.svg",
   "engines": {
     "bmeditor": ">=0.1.5"

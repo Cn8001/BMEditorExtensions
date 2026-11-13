@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowReactive, w
 import type { Tab } from '../bmext/bmeditor'
 import { api, editsOf, fromBase64, set, undo } from './state'
 
-// A file that is not text, as Bless shows one: offsets, sixteen bytes a row
+// A file that is not text: offsets, sixteen bytes a row
 // in hex, the same bytes as characters, and what the selected bytes read
 // as. Only the rows on screen are read, a page at a time, so a file of any
 // size opens at once. Typing overwrites the selected byte, two hex digits
@@ -117,7 +117,7 @@ const decodeUTF8 = new TextDecoder('utf-8')
 const decodeUTF16 = new TextDecoder('utf-16le')
 const visibleText = (s: string) => s.replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '·')
 
-// What the selected bytes read as, Bless's conversion table; a selection of
+// What the selected bytes read as, a conversion table; a selection of
 // more than one byte reads as text too, for a string inside the file.
 const reading = computed(() => {
   void pages.size

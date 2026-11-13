@@ -1,8 +1,7 @@
 # Hex Editor
 
 A [BMEditor](https://github.com/Cn8001/BMEditor-Releases) extension that
-opens the files that are not text, as [Bless](https://github.com/afrantzis/bless)
-shows them. Images open in the editor itself.
+opens the files that are not text in hex. Images open in the editor itself.
 
 - Offsets, sixteen bytes a row in two groups of eight, the same bytes as
   characters. Zero bytes are dim.
