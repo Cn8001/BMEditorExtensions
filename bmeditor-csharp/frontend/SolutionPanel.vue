@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, shallowRef, triggerRef, watch } from 'vue'
 import { api, basename, call, fail, loadAssemblies, loadSolution, openPath, rel, sep, setShowGenerated, store } from './api'
-import { expandable, packageCount, pathTo, rows, solutionTree, type Node } from './tree'
+import { expandable, packageCount, pathTo, solutionTree, walk, type Node, type Row } from './tree'
 import Graph from './Graph.vue'
 
 // The Solution Explorer: the solution as Visual Studio shows it, the
@@ -15,7 +15,6 @@ const open = reactive(new Set<string>())
 const filter = ref('')
 const selected = ref('')
 const treeEl = ref<HTMLElement>()
-const most = 3000
 
 // Track Active Item and package projects, as Visual Studio's toolbar has
 // them, kept between sessions.
@@ -44,8 +43,94 @@ watch(filter, (f) => {
   window.clearTimeout(filterTimer)
   filterTimer = window.setTimeout(() => (filtering.value = f), f ? 150 : 0)
 })
-const visible = computed(() => (tree.value ? rows(tree.value, open, filtering.value) : []))
-const shown = computed(() => visible.value.slice(0, most))
+// The rows are made a page at a time as the list scrolls, and only those
+// on screen are drawn: a solution of any size, and a filter that matches
+// most of it, shows every row without the wait.
+const PAGE = 400
+const ROW = 22
+const scrollTop = ref(0)
+const viewHeight = ref(window.innerHeight)
+const loaded = shallowRef<Row[]>([])
+const done = ref(true)
+let rowsLeft: Generator<Row> | null = null
+
+function pull(n: number) {
+  if (!rowsLeft) return
+  for (let i = 0; i < n; i++) {
+    const r = rowsLeft.next()
+    if (r.done) {
+      done.value = true
+      rowsLeft = null
+      break
+    }
+    loaded.value.push(r.value)
+  }
+  triggerRef(loaded)
+}
+
+// restart makes the rows again, as many as were there, so a folder opened
+// or closed keeps the list where it was.
+function restart(keep = 0) {
+  rowsLeft = tree.value ? walk(tree.value, open, filtering.value) : null
+  loaded.value = []
+  done.value = !rowsLeft
+  pull(Math.max(PAGE, keep))
+  // Other rows, such as a new filter's, start at the top.
+  if (!keep && treeEl.value) {
+    treeEl.value.scrollTop = 0
+    scrollTop.value = 0
+  }
+}
+watch([tree, filtering], () => restart(), { immediate: true })
+watch(
+  () => open.size,
+  () => {
+    if (!filtering.value.trim()) restart(loaded.value.length)
+  },
+)
+
+const range = computed(() => {
+  const from = Math.min(loaded.value.length, Math.max(0, Math.floor(scrollTop.value / ROW) - 10))
+  const to = Math.min(loaded.value.length, Math.ceil((scrollTop.value + viewHeight.value) / ROW) + 10)
+  return { from, to }
+})
+const shown = computed(() => loaded.value.slice(range.value.from, range.value.to))
+watch(
+  () => range.value.to >= loaded.value.length - 10,
+  (near) => {
+    if (near && !done.value) pull(PAGE)
+  },
+)
+function onScroll() {
+  scrollTop.value = treeEl.value?.scrollTop ?? 0
+  if (!done.value && range.value.to >= loaded.value.length - 10) pull(PAGE)
+}
+let resize: ResizeObserver | undefined
+watch(treeEl, (el) => {
+  resize?.disconnect()
+  if (!el) return
+  const measure = () => (viewHeight.value = Math.min(el.clientHeight || window.innerHeight, window.innerHeight))
+  measure()
+  resize = new ResizeObserver(measure)
+  resize.observe(el)
+})
+onBeforeUnmount(() => resize?.disconnect())
+
+// scrollToRow brings a row into view, making rows up to it if need be.
+function scrollToRow(id: string) {
+  let i = loaded.value.findIndex((r) => r.node.id === id)
+  while (i < 0 && !done.value) {
+    const from = loaded.value.length
+    pull(PAGE)
+    i = loaded.value.findIndex((r, k) => k >= from && r.node.id === id)
+  }
+  const el = treeEl.value
+  if (i < 0 || !el) return
+  const y = i * ROW
+  if (y < el.scrollTop) el.scrollTop = y
+  else if (y + ROW > el.scrollTop + el.clientHeight) el.scrollTop = y + ROW - el.clientHeight
+  onScroll()
+}
 
 // A new solution opens on its folders and projects.
 watch(
@@ -89,7 +174,7 @@ async function reveal() {
   selected.value = ids[ids.length - 1]
   store.ui.selectedProject = null
   await nextTick()
-  treeEl.value?.querySelector('.row.selected')?.scrollIntoView({ block: 'nearest' })
+  scrollToRow(selected.value)
 }
 watch(() => [api.ide.activeId, tree.value, prefs.track], () => void reveal(), { immediate: true })
 
@@ -285,7 +370,7 @@ async function create() {
     </form>
 
     <Graph v-if="!props.side && store.ui.solutionTab === 'graph'" />
-    <div v-else ref="treeEl" class="tree">
+    <div v-else ref="treeEl" class="tree" @scroll="onScroll">
       <p v-if="!store.workspace" class="empty">Open a folder to see its solution.</p>
       <p v-else-if="store.busy.solution && !store.solution" class="empty">Reading the solution…</p>
       <div v-else-if="!store.solution" class="empty">
@@ -296,6 +381,7 @@ async function create() {
         </p>
       </div>
       <template v-else>
+        <div :style="{ height: range.from * ROW + 'px' }" />
         <div
           v-for="r in shown"
           :key="r.node.id"
@@ -312,7 +398,7 @@ async function create() {
           <span v-if="r.node.detail" class="detail">{{ r.node.detail }}</span>
           <button v-if="r.node.dir" class="add" title="New Script here" @click.stop="store.ui.newScriptDir = r.node.dir!"><i class="codicon codicon-new-file" /></button>
         </div>
-        <p v-if="visible.length > most" class="empty">{{ visible.length - most }} more rows: filter to narrow them.</p>
+        <div :style="{ height: (loaded.length - range.to) * ROW + 'px' }" />
       </template>
     </div>
 

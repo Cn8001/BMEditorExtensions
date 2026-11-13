@@ -69,9 +69,13 @@ function fileIcon(name: string): string {
   return fileIcons[name.split('.').pop()!.toLowerCase()] ?? 'file'
 }
 
+// A collator made once compares many times faster than localeCompare,
+// which a project of thousands of files sorts with.
+const collator = new Intl.Collator(undefined, { sensitivity: 'base' })
+
 function byLabel(a: Node, b: Node) {
   const folder = (n: Node) => (n.kind === 'folder' || n.kind === 'sfolder' ? 0 : 1)
-  return folder(a) - folder(b) || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+  return folder(a) - folder(b) || collator.compare(a.label, b.label)
 }
 
 function projectNode(item: SolutionItem, sep: string): Node {
@@ -232,15 +236,36 @@ export function pathTo(root: Node, path: string): string[] | null {
   return visit(root, [])
 }
 
+// A project's file and reference names, lower case, one a line: made once,
+// then every filter text is one search of it.
+const namesOf = new WeakMap<Project, string>()
+
 function mentions(p: Project, f: string): boolean {
-  const names = [...p.files.map((x) => baseOf(x.rel)), ...(p.projectReferences ?? []).map(baseOf), ...(p.packageReferences ?? []).map((r) => r.name), ...(p.references ?? []).map((r) => r.name)]
-  return names.some((n) => n.toLowerCase().includes(f))
+  let names = namesOf.get(p)
+  if (names === undefined) {
+    names = [...p.files.map((x) => baseOf(x.rel)), ...(p.projectReferences ?? []).map(baseOf), ...(p.packageReferences ?? []).map((r) => r.name), ...(p.references ?? []).map((r) => r.name)]
+      .join('\n')
+      .toLowerCase()
+    namesOf.set(p, names)
+  }
+  return names.includes(f)
 }
 
 // rows are the visible rows: open nodes' children, or with a filter, the
 // files whose name has it and the nodes above them, all open.
-export function rows(root: Node, open: Set<string>, filter: string): Row[] {
+export function rows(root: Node, open: Set<string>, filter: string, limit = Infinity): Row[] {
   const out: Row[] = []
+  for (const r of walk(root, open, filter)) {
+    if (out.length >= limit) break
+    out.push(r)
+  }
+  return out
+}
+
+// walk makes the rows one at a time, as they are asked for: the list takes
+// a page more as it scrolls, so a filter most files match costs only the
+// rows seen, and nothing is left out.
+export function* walk(root: Node, open: Set<string>, filter: string): Generator<Row> {
   const f = filter.trim().toLowerCase()
   const keep = new Map<Node, boolean>()
   const matches = (n: Node): boolean => {
@@ -256,12 +281,11 @@ export function rows(root: Node, open: Set<string>, filter: string): Row[] {
     keep.set(n, any)
     return any
   }
-  const visit = (n: Node, depth: number) => {
+  function* visit(n: Node, depth: number): Generator<Row> {
     if (f && !matches(n)) return
     const isOpen = f ? expandable(n) : open.has(n.id)
-    out.push({ node: n, depth, open: isOpen })
-    if (isOpen) for (const c of kids(n)) visit(c, depth + 1)
+    yield { node: n, depth, open: isOpen }
+    if (isOpen) for (const c of kids(n)) yield* visit(c, depth + 1)
   }
-  visit(root, 0)
-  return out
+  yield* visit(root, 0)
 }
