@@ -51,8 +51,13 @@ export default function activate(a: ExtensionAPI) {
     api.ui.showPanel(id)
   }
 
+  void api.settings().then((s) => (store.showGenerated = s.values.explorerShowGenerated === 'true'))
+
   api.register({
     languages,
+    // Unity writes these for the IDE; nobody edits them by hand.
+    explorerHide: (e) =>
+      !store.showGenerated && !e.isDir && (store.workspace?.kind === 'unity' || store.workspace?.kind === 'upm') && /\.(csproj|sln|slnx|meta)$/i.test(e.name),
     panels: [
       { id: panels.solution, label: 'Solution', component: SolutionPanel, busy: () => store.busy.solution || store.busy.assemblies },
       { id: panels.inspector, label: 'Inspector', component: Inspector },

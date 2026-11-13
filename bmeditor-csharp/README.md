@@ -12,6 +12,11 @@ C# in BMEditor, made for Unity projects and UPM packages.
   filter. Click a file to open it. Next to a folder, New Script makes a
   MonoBehaviour, ScriptableObject, Custom Editor, Editor Window, class,
   interface, struct, enum or NUnit test, in the namespace of its assembly.
+  A right click renames, deletes or makes a folder, an asset's .meta going
+  along. Track Active Item selects the open file. In a Unity project only
+  the project's own projects show, as in Visual Studio; the package button
+  shows those of packages too, and the Explorer leaves out the .csproj, .sln
+  and .meta files Unity writes.
 - **Assembly graph** (Solution panel, Assemblies): every `.asmdef` and what it
   references, in layers. Loops are red. A reference to an assembly that is
   nowhere, such as a stale GUID, is marked. Click an assembly to see what it

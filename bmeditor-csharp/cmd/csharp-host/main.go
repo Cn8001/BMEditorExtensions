@@ -163,6 +163,37 @@ func register(s *host.Server, st *state) {
 		return res, nil
 	}))
 
+	// The Solution Explorer's file operations, an asset's .meta going along.
+	s.Handle("asset.newFolder", handler(s, func(_ context.Context, root string, p struct{ Dir, Name string }) (any, error) {
+		meta := s.Context().Setting("createMeta") != "false"
+		path, err := unity.NewFolder(unity.Detect(root), p.Dir, strings.TrimSpace(p.Name), meta)
+		if err != nil && path == "" {
+			return nil, &host.Error{Code: "NEW_FOLDER", Message: err.Error()}
+		}
+		res := map[string]string{"path": path}
+		if err != nil {
+			res["warning"] = err.Error()
+		}
+		return res, nil
+	}))
+	s.Handle("asset.rename", handler(s, func(_ context.Context, root string, p struct{ Path, Name string }) (any, error) {
+		to, err := unity.RenameAsset(unity.Detect(root), p.Path, strings.TrimSpace(p.Name))
+		if err != nil && to == "" {
+			return nil, &host.Error{Code: "RENAME", Message: err.Error()}
+		}
+		res := map[string]string{"path": to}
+		if err != nil {
+			res["warning"] = err.Error()
+		}
+		return res, nil
+	}))
+	s.Handle("asset.delete", handler(s, func(_ context.Context, root string, p struct{ Path string }) (any, error) {
+		if err := unity.DeleteAsset(unity.Detect(root), p.Path); err != nil {
+			return nil, &host.Error{Code: "DELETE", Message: err.Error()}
+		}
+		return nil, nil
+	}))
+
 	s.Handle("unity.watch", handler(s, func(_ context.Context, root string, _ none) (any, error) {
 		st.mu.Lock()
 		start := !st.watching

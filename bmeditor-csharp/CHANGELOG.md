@@ -4,6 +4,19 @@ Each version of the C# extension, newest first. The section of a version
 becomes the notes of its release, and a version is published only when it
 has a section here.
 
+## 0.1.4
+
+- The Solution Explorer shows the project's own projects, as Visual Studio
+  does for Unity: those of registry, git and built-in packages are hidden,
+  and the package button shows them in a Packages folder.
+- A right click on a row: New Script, New Folder, Rename, Delete, Copy Path,
+  Open Project File. Renaming or deleting an asset takes its .meta along,
+  so its GUID stays.
+- Track Active Item selects the open file in the tree; Collapse All.
+- In a Unity project the Explorer leaves out the .csproj, .sln and .meta
+  files Unity writes. Settings › C# › Show Unity's generated files, or the
+  solution's right-click menu, brings them back. Needs BMEditor 0.1.5.
+
 ## 0.1.3
 
 - Unity packages, generated projects and Roslyn's logs go in BMEditor's

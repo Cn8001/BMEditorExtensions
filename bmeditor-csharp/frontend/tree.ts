@@ -125,19 +125,57 @@ function countProjects(items: SolutionItem[]): { all: number; read: number } {
   return { all, read }
 }
 
-export function solutionTree(s: Solution, sep: string): Node {
-  const n = countProjects(s.items)
-  return {
-    id: 'solution:' + s.path,
-    label: `Solution '${s.name}'`,
-    icon: 'repo',
-    kind: 'solution',
-    path: s.path,
-    dir: dirOf(s.path),
-    // As Visual Studio says it: (3 of 4 projects) when one did not load.
-    detail: n.read === n.all ? `${n.all} project${n.all === 1 ? '' : 's'}` : `${n.read} of ${n.all} projects`,
-    children: s.items.map((it) => itemNode(it, sep)),
+// isPackageProject says whether every file of a project is in Unity's
+// package cache: a registry, git or built-in package, which Visual Studio
+// leaves out of a Unity solution by default. An embedded or a local
+// package is the project's own and stays.
+export function isPackageProject(p: Project): boolean {
+  return p.files.length > 0 && p.files.every((f) => /[\\/]Library[\\/]PackageCache[\\/]/i.test(f.path))
+}
+
+// withoutPackages takes package projects out of items, into packages, and
+// drops the solution folders that held nothing else.
+function withoutPackages(items: SolutionItem[], packages: SolutionItem[]): SolutionItem[] {
+  const out: SolutionItem[] = []
+  for (const it of items) {
+    if (it.kind === 'project') {
+      if (it.project && isPackageProject(it.project)) packages.push(it)
+      else out.push(it)
+      continue
+    }
+    const children = withoutPackages(it.children ?? [], packages)
+    if (children.length || it.files?.length) out.push({ ...it, children })
   }
+  return out
+}
+
+export function solutionTree(s: Solution, sep: string, showPackages: boolean): Node {
+  const packages: SolutionItem[] = []
+  const own = withoutPackages(s.items, packages)
+  const n = countProjects(own)
+  const children = own.map((it) => itemNode(it, sep))
+  if (showPackages && packages.length) {
+    children.push({ id: 's:packages', label: 'Packages', icon: 'package', kind: 'sfolder', detail: String(packages.length), children: packages.map((it) => itemNode(it, sep)) })
+  }
+  // As Visual Studio says it: (3 of 4 projects) when one did not load.
+  let detail = n.read === n.all ? `${n.all} project${n.all === 1 ? '' : 's'}` : `${n.read} of ${n.all} projects`
+  if (packages.length && !showPackages) detail += ` · ${packages.length} package projects hidden`
+  return { id: 'solution:' + s.path, label: `Solution '${s.name}'`, icon: 'repo', kind: 'solution', path: s.path, dir: dirOf(s.path), detail, children }
+}
+
+// pathTo is the ids from root down to the node of a file, or null when the
+// solution does not have it.
+export function pathTo(root: Node, path: string): string[] | null {
+  const want = path.toLowerCase()
+  const visit = (n: Node, above: string[]): string[] | null => {
+    if (n.kind === 'file' && n.path?.toLowerCase() === want) return [...above, n.id]
+    for (const c of n.children ?? []) {
+      const found = visit(c, [...above, n.id])
+      if (found) return found
+    }
+    return null
+  }
+  return visit(root, [])
 }
 
 // rows are the visible rows: open nodes' children, or with a filter, the

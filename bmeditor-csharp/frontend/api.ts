@@ -142,9 +142,16 @@ export const store = reactive({
   log: null as LogState | null,
   logLines: [] as string[],
   busy: { solution: false, assemblies: false, meta: false },
+  // Unity's .csproj, .sln and .meta in the Explorer: hidden, as in Visual Studio.
+  showGenerated: false,
   // Which tab each panel shows, and the folder New Script is open for.
   ui: { solutionTab: 'solution' as 'solution' | 'graph', unityTab: 'console' as 'console' | 'meta', newScriptDir: '' },
 })
+
+export function setShowGenerated(show: boolean) {
+  store.showGenerated = show
+  void api.saveSettings?.({ explorerShowGenerated: String(show) })
+}
 
 export function call<T>(method: string, params?: unknown): Promise<T> {
   return api.call<T>(method, params)

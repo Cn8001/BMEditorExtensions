@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { api, basename, call, fail, loadAssemblies, loadSolution, openPath, rel, sep, store } from './api'
-import { rows, solutionTree, type Node } from './tree'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { api, basename, call, fail, loadAssemblies, loadSolution, openPath, rel, sep, setShowGenerated, store } from './api'
+import { pathTo, rows, solutionTree, type Node } from './tree'
 import Graph from './Graph.vue'
 
 // The Solution Explorer: the solution as Visual Studio shows it, the
@@ -10,9 +10,27 @@ import Graph from './Graph.vue'
 const open = reactive(new Set<string>())
 const filter = ref('')
 const selected = ref('')
+const treeEl = ref<HTMLElement>()
 const most = 3000
 
-const tree = computed(() => (store.solution ? solutionTree(store.solution, sep()) : null))
+// Track Active Item and package projects, as Visual Studio's toolbar has
+// them, kept between sessions.
+const prefsKey = 'bmeditor-csharp.solution'
+const prefs = reactive({ track: true, packages: false })
+try {
+  Object.assign(prefs, JSON.parse(localStorage.getItem(prefsKey) ?? '{}'))
+} catch {
+  // the defaults then
+}
+watch(prefs, () => {
+  try {
+    localStorage.setItem(prefsKey, JSON.stringify(prefs))
+  } catch {
+    // only for this session
+  }
+})
+
+const tree = computed(() => (store.solution ? solutionTree(store.solution, sep(), prefs.packages) : null))
 const visible = computed(() => (tree.value ? rows(tree.value, open, filter.value) : []))
 const shown = computed(() => visible.value.slice(0, most))
 
@@ -37,6 +55,113 @@ watch(
   () => store.solutionPath,
   () => store.workspace && loadSolution(),
 )
+
+function collapseAll() {
+  open.clear()
+  if (tree.value) open.add(tree.value.id)
+}
+
+// reveal opens the folders above the active tab's file and selects it.
+async function reveal() {
+  const t = tree.value
+  const tab = api.session.tab(api.ide.activeId)
+  if (!prefs.track || !t || !tab?.path) return
+  const ids = pathTo(t, tab.path)
+  if (!ids) return
+  for (const id of ids.slice(0, -1)) open.add(id)
+  selected.value = ids[ids.length - 1]
+  await nextTick()
+  treeEl.value?.querySelector('.row.selected')?.scrollIntoView({ block: 'nearest' })
+}
+watch(() => [api.ide.activeId, tree.value, prefs.track], () => void reveal())
+
+// The context menu, and the bar that asks for a name or a yes.
+const menu = ref<{ node: Node; x: number; y: number } | null>(null)
+const asking = ref<{ kind: 'rename' | 'folder' | 'delete'; node: Node; value: string } | null>(null)
+const askInput = ref<HTMLInputElement>()
+
+interface MenuEntry {
+  label: string
+  icon: string
+  run: () => unknown
+  danger?: boolean
+  checked?: boolean
+}
+
+function entries(n: Node): MenuEntry[] {
+  const out: MenuEntry[] = []
+  const folder = n.dir
+  if (n.kind === 'file' && n.path) out.push({ label: 'Open', icon: 'go-to-file', run: () => openPath(n.path!) })
+  if (folder) {
+    out.push({ label: 'New Script…', icon: 'new-file', run: () => (store.ui.newScriptDir = folder) })
+    out.push({ label: 'New Folder…', icon: 'new-folder', run: () => ask('folder', n, '') })
+  }
+  if ((n.kind === 'project' || n.kind === 'solution') && n.path) out.push({ label: n.kind === 'project' ? 'Open Project File' : 'Open Solution File', icon: 'file-code', run: () => openPath(n.path!) })
+  if (n.kind === 'file' || (n.kind === 'folder' && folder)) {
+    out.push({ label: 'Rename…', icon: 'edit', run: () => ask('rename', n, n.label) })
+    out.push({ label: 'Delete', icon: 'trash', danger: true, run: () => ask('delete', n, '') })
+  }
+  const path = n.path ?? folder
+  if (path) out.push({ label: 'Copy Path', icon: 'copy', run: () => navigator.clipboard?.writeText(path) })
+  if (n.kind === 'solution') {
+    out.push({ label: 'Collapse All', icon: 'collapse-all', run: collapseAll })
+    if (store.workspace?.kind === 'unity') {
+      out.push({ label: "Show Unity's Generated Files in Explorer", icon: 'eye', checked: store.showGenerated, run: () => setShowGenerated(!store.showGenerated) })
+    }
+  }
+  return out
+}
+
+function openMenu(n: Node, e: MouseEvent) {
+  selected.value = n.id
+  if (!entries(n).length) return
+  menu.value = { node: n, x: Math.min(e.clientX, window.innerWidth - 260), y: Math.min(e.clientY, window.innerHeight - 260) }
+}
+
+function pick(entry: MenuEntry) {
+  menu.value = null
+  void entry.run()
+}
+
+async function ask(kind: 'rename' | 'folder' | 'delete', node: Node, value: string) {
+  asking.value = { kind, node, value }
+  await nextTick()
+  const input = askInput.value
+  if (!input) return
+  input.focus()
+  // The name without its extension selected, as Visual Studio does.
+  const dot = value.lastIndexOf('.')
+  input.setSelectionRange(0, kind === 'rename' && dot > 0 ? dot : value.length)
+}
+
+async function answer() {
+  const a = asking.value
+  if (!a) return
+  const target = a.node.path ?? a.node.dir
+  try {
+    if (a.kind === 'delete') await call('asset.delete', { path: target })
+    else if (a.kind === 'rename') {
+      if (!a.value.trim() || a.value === a.node.label) return void (asking.value = null)
+      const r = await call<{ path: string; warning?: string }>('asset.rename', { path: target, name: a.value })
+      if (r.warning) api.ui.toast('info', 'Renamed', r.warning)
+      if (a.node.kind === 'file') void openPath(r.path)
+    } else {
+      if (!a.value.trim()) return
+      const r = await call<{ path: string; warning?: string }>('asset.newFolder', { dir: a.node.dir, name: a.value })
+      if (r.warning) api.ui.toast('info', 'Folder created', r.warning)
+    }
+    asking.value = null
+    void loadSolution()
+  } catch (err) {
+    fail(a.kind === 'delete' ? 'Delete' : a.kind === 'rename' ? 'Rename' : 'New Folder', err)
+  }
+}
+
+function closeMenu() {
+  menu.value = null
+}
+onMounted(() => window.addEventListener('click', closeMenu))
+onBeforeUnmount(() => window.removeEventListener('click', closeMenu))
 
 function click(n: Node) {
   selected.value = n.id
@@ -102,6 +227,11 @@ async function create() {
         </select>
         <input v-model="filter" class="filter" placeholder="Filter files" spellcheck="false" />
         <button title="New Script in the solution's folder" :disabled="!store.workspace" @click="store.ui.newScriptDir = store.workspace!.root"><i class="codicon codicon-new-file" /></button>
+        <button title="Track Active Item" :class="{ on: prefs.track }" @click="prefs.track = !prefs.track"><i class="codicon codicon-target" /></button>
+        <button title="Collapse All" @click="collapseAll"><i class="codicon codicon-collapse-all" /></button>
+        <button title="Show package projects (Unity's registry, git and built-in packages)" :class="{ on: prefs.packages }" @click="prefs.packages = !prefs.packages">
+          <i class="codicon codicon-package" />
+        </button>
         <button title="Refresh" @click="loadSolution()"><i class="codicon codicon-refresh" :class="{ 'codicon-modifier-spin': store.busy.solution }" /></button>
       </template>
     </div>
@@ -116,8 +246,21 @@ async function create() {
       <button type="button" @click="store.ui.newScriptDir = ''">Cancel</button>
     </form>
 
+    <form v-if="asking" class="new" @submit.prevent="answer">
+      <template v-if="asking.kind === 'delete'">
+        <span class="where">Delete {{ asking.node.label }}{{ asking.node.kind === 'folder' ? ' and everything in it' : '' }}, with its .meta?</span>
+        <button type="submit" class="primary danger">Delete</button>
+      </template>
+      <template v-else>
+        <span class="where">{{ asking.kind === 'rename' ? 'Rename ' + asking.node.label + ' to' : 'New folder in ' + asking.node.label }}</span>
+        <input ref="askInput" v-model="asking.value" placeholder="Name" spellcheck="false" @keydown.esc="asking = null" />
+        <button type="submit" class="primary" :disabled="!asking.value.trim()">{{ asking.kind === 'rename' ? 'Rename' : 'Create' }}</button>
+      </template>
+      <button type="button" @click="asking = null">Cancel</button>
+    </form>
+
     <Graph v-if="store.ui.solutionTab === 'graph'" />
-    <div v-else class="tree">
+    <div v-else ref="treeEl" class="tree">
       <p v-if="!store.workspace" class="empty">Open a folder to see its solution.</p>
       <p v-else-if="store.busy.solution && !store.solution" class="empty">Reading the solution…</p>
       <div v-else-if="!store.solution" class="empty">
@@ -136,6 +279,7 @@ async function create() {
           :style="{ paddingLeft: 6 + r.depth * 14 + 'px' }"
           :title="r.node.path || r.node.dir || r.node.label"
           @click="click(r.node)"
+          @contextmenu.prevent.stop="openMenu(r.node, $event)"
         >
           <i class="chevron codicon" :class="r.node.children?.length ? (r.open ? 'codicon-chevron-down' : 'codicon-chevron-right') : ''" />
           <i class="codicon" :class="'codicon-' + r.node.icon" />
@@ -145,6 +289,12 @@ async function create() {
         </div>
         <p v-if="visible.length > most" class="empty">{{ visible.length - most }} more rows: filter to narrow them.</p>
       </template>
+    </div>
+
+    <div v-if="menu" class="menu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }" @click.stop>
+      <button v-for="e in entries(menu.node)" :key="e.label" :class="{ danger: e.danger }" @click="pick(e)">
+        <i class="codicon" :class="'codicon-' + (e.checked === undefined ? e.icon : e.checked ? 'check' : 'blank')" />{{ e.label }}
+      </button>
     </div>
   </div>
 </template>
@@ -184,6 +334,35 @@ button:hover:not(:disabled) {
 }
 button:disabled {
   opacity: 0.5;
+}
+.bar > button.on {
+  background: var(--bg-active);
+  color: var(--accent);
+}
+.menu {
+  position: fixed;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+.menu button {
+  gap: 8px;
+  padding: 5px 9px;
+  color: var(--text);
+  text-align: left;
+}
+.menu button.danger:hover {
+  color: var(--error, #e06c6c);
+}
+button.primary.danger {
+  background: var(--error, #e06c6c);
+  color: #fff;
 }
 .tabs button.on {
   background: var(--bg-active);
