@@ -9,3 +9,6 @@ when it has a section here.
 - Files that are not text open in hex, as Bless shows them, with what the
   selected bytes read as. Typing overwrites a byte, Ctrl+Z undoes, Ctrl+S
   saves; a file of any size opens at once. Needs BMEditor 0.1.5.
+- A drag, Shift and Ctrl+A select bytes; a selection reads as UTF-8 and
+  UTF-16 text too, for a string inside the file, and Ctrl+C copies it as
+  hex or as characters.

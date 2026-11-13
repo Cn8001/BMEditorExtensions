@@ -28,7 +28,9 @@ const asked = new Set<number>()
 const scroller = ref<HTMLDivElement>()
 const scrollTop = ref(0)
 const viewHeight = ref(400)
-const selected = ref(-1)
+const selected = ref(-1) // the caret: where typing goes
+const anchor = ref(-1) // where the selection started; it runs to the caret
+const dragging = ref(false)
 const hovered = ref(-1)
 const target = ref('')
 
@@ -89,9 +91,38 @@ const visible = computed(() => {
 
 const offsetWidth = computed(() => Math.max(8, hex(Math.max(0, size.value)).length))
 
-// What the selected bytes read as, Bless's conversion table.
+const range = computed(() => {
+  if (selected.value < 0) return null
+  const a = anchor.value < 0 ? selected.value : anchor.value
+  return { from: Math.min(a, selected.value), to: Math.max(a, selected.value) }
+})
+const inRange = (offset: number) => !!range.value && offset >= range.value.from && offset <= range.value.to
+const rangeLength = computed(() => (range.value ? range.value.to - range.value.from + 1 : 0))
+
+// The bytes of the selection that are read already, a few hundred at most:
+// enough to read a string in it.
+const SHOWN_TEXT = 512
+function selectedBytes(limit: number): number[] {
+  const out: number[] = []
+  if (!range.value) return out
+  for (let o = range.value.from; o <= range.value.to && out.length < limit; o++) {
+    const b = byteAt(o)
+    if (b === undefined) break
+    out.push(b)
+  }
+  return out
+}
+
+const decodeUTF8 = new TextDecoder('utf-8')
+const decodeUTF16 = new TextDecoder('utf-16le')
+const visibleText = (s: string) => s.replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '·')
+
+// What the selected bytes read as, Bless's conversion table; a selection of
+// more than one byte reads as text too, for a string inside the file.
 const reading = computed(() => {
-  const at = selected.value
+  void pages.size
+  void edits.changed.size
+  const at = range.value?.from ?? -1
   if (at < 0) return null
   const raw: number[] = []
   for (let i = 0; i < 8; i++) {
@@ -110,8 +141,19 @@ const reading = computed(() => {
     ...(has(2) ? [['Int16 LE / BE', `${view.getInt16(0, true)} / ${view.getInt16(0, false)}`], ['UInt16 LE / BE', `${view.getUint16(0, true)} / ${view.getUint16(0, false)}`]] : []),
     ...(has(4) ? [['Int32 LE / BE', `${view.getInt32(0, true)} / ${view.getInt32(0, false)}`], ['UInt32 LE / BE', `${view.getUint32(0, true)} / ${view.getUint32(0, false)}`], ['Float32 LE', `${view.getFloat32(0, true)}`]] : []),
     ...(has(8) ? [['Int64 LE', `${view.getBigInt64(0, true)}`], ['Float64 LE', `${view.getFloat64(0, true)}`]] : []),
+    ...(rangeLength.value > 1 ? textRows() : []),
   ] as [string, string][]
 })
+
+function textRows(): [string, string][] {
+  const bytes = new Uint8Array(selectedBytes(SHOWN_TEXT))
+  const more = rangeLength.value > bytes.length ? '…' : ''
+  return [
+    ['Selection', `${rangeLength.value.toLocaleString()} bytes, 0x${hex(range.value!.from, offsetWidth.value)} to 0x${hex(range.value!.to, offsetWidth.value)}`],
+    ['Text (UTF-8)', visibleText(decodeUTF8.decode(bytes)) + more],
+    ['Text (UTF-16 LE)', visibleText(decodeUTF16.decode(bytes.subarray(0, bytes.length & ~1))) + more],
+  ]
+}
 
 function onScroll() {
   scrollTop.value = scroller.value?.scrollTop ?? 0
@@ -130,18 +172,78 @@ async function reveal(offset: number) {
   onScroll()
 }
 
-function select(offset: number, where?: 'hex' | 'text') {
+// select moves the caret; extend keeps where the selection started, as
+// Shift and a drag do.
+function select(offset: number, where?: 'hex' | 'text', extend = false) {
   if (size.value <= 0) return
   selected.value = Math.max(0, Math.min(size.value - 1, offset))
+  if (!extend || anchor.value < 0) anchor.value = selected.value
   if (where) column.value = where
   high.value = null
   void reveal(selected.value)
+}
+
+// While a drag is held above or below the rows, they scroll and the
+// selection follows, faster the further out the pointer is.
+let pointerY = 0
+let autoScroll = 0
+function follow(e: MouseEvent) {
+  pointerY = e.clientY
+}
+function scrollStep() {
+  const el = scroller.value
+  if (!el || !dragging.value) return
+  const box = el.getBoundingClientRect()
+  const out = pointerY < box.top ? pointerY - box.top : pointerY > box.bottom ? pointerY - box.bottom : 0
+  if (!out) return
+  const rowsBy = Math.sign(out) * Math.max(1, Math.round(Math.abs(out) / 10))
+  select(selected.value + rowsBy * WIDTH, undefined, true)
+}
+
+function press(e: MouseEvent, offset: number, where: 'hex' | 'text') {
+  if (e.button !== 0) return
+  select(offset, where, e.shiftKey)
+  dragging.value = true
+  scroller.value?.focus()
+  window.addEventListener('mousemove', follow)
+  autoScroll = window.setInterval(scrollStep, 50)
+  window.addEventListener(
+    'mouseup',
+    () => {
+      dragging.value = false
+      window.removeEventListener('mousemove', follow)
+      window.clearInterval(autoScroll)
+    },
+    { once: true },
+  )
+}
+
+function enter(offset: number) {
+  hovered.value = offset
+  if (dragging.value) select(offset, undefined, true)
+}
+
+// copy puts the selection on the clipboard: hex digits from the hex
+// column, characters from the other. Pages not read yet are read first.
+const MAX_COPY = 16 << 20
+async function copy() {
+  const r = range.value
+  if (!r) return
+  if (r.to - r.from + 1 > MAX_COPY) {
+    api.ui.toast('error', 'The selection is too large to copy', 'Select 16 MB or less.')
+    return
+  }
+  for (let p = Math.floor(r.from / PAGE); p <= Math.floor(r.to / PAGE); p++) await load(p)
+  const bytes = selectedBytes(r.to - r.from + 1)
+  const text = column.value === 'hex' ? bytes.map((b) => hex(b)).join(' ') : bytes.map(printable).join('')
+  await navigator.clipboard.writeText(text)
 }
 
 // type overwrites the selected byte: two hex digits in the hex column, a
 // character in the other, then moves on.
 function type(key: string): boolean {
   const at = selected.value
+  anchor.value = at
   const current = byteAt(at)
   if (at < 0 || current === undefined) return false
   if (column.value === 'text') {
@@ -170,6 +272,19 @@ function go() {
 }
 
 function onKey(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+    void copy()
+    e.preventDefault()
+    return
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+    if (size.value > 0) {
+      anchor.value = 0
+      selected.value = size.value - 1
+    }
+    e.preventDefault()
+    return
+  }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
     const at = undo(props.tab)
     if (at !== undefined) select(at)
@@ -187,9 +302,9 @@ function onKey(e: KeyboardEvent) {
     return
   }
   const step: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -WIDTH, ArrowDown: WIDTH, PageUp: -WIDTH * (shown.value - 2), PageDown: WIDTH * (shown.value - 2) }
-  if (e.key in step) select(Math.max(0, selected.value) + step[e.key])
-  else if (e.key === 'Home') select(e.ctrlKey ? 0 : selected.value - (selected.value % WIDTH))
-  else if (e.key === 'End') select(e.ctrlKey ? size.value - 1 : selected.value - (selected.value % WIDTH) + WIDTH - 1)
+  if (e.key in step) select(Math.max(0, selected.value) + step[e.key], undefined, e.shiftKey)
+  else if (e.key === 'Home') select(e.ctrlKey ? 0 : selected.value - (selected.value % WIDTH), undefined, e.shiftKey)
+  else if (e.key === 'End') select(e.ctrlKey ? size.value - 1 : selected.value - (selected.value % WIDTH) + WIDTH - 1, undefined, e.shiftKey)
   else return
   e.preventDefault()
 }
@@ -202,7 +317,11 @@ onMounted(() => {
   ro = new ResizeObserver(([e]) => (viewHeight.value = Math.min(e.contentRect.height, window.innerHeight)))
   if (scroller.value) ro.observe(scroller.value)
 })
-onBeforeUnmount(() => ro?.disconnect())
+onBeforeUnmount(() => {
+  ro?.disconnect()
+  window.clearInterval(autoScroll)
+  window.removeEventListener('mousemove', follow)
+})
 
 // The file changed on disk: read what is on screen again.
 watch(
@@ -232,8 +351,9 @@ function human(n: number) {
     <div class="bar">
       <i class="codicon codicon-file-binary" />
       <span class="what">{{ size >= 0 ? human(size) : 'Reading…' }}</span>
+      <span v-if="rangeLength > 1" class="picked">{{ rangeLength.toLocaleString() }} bytes selected · Ctrl+C copies</span>
       <span v-if="edits.changed.size" class="changed">{{ edits.changed.size }} byte{{ edits.changed.size === 1 ? '' : 's' }} changed · Ctrl+S saves, Ctrl+Z undoes</span>
-      <span v-else class="hint">Type over a byte: hex digits, or a character in the right column (Tab switches)</span>
+      <span v-else-if="rangeLength <= 1" class="hint">Type over a byte: hex digits, or a character in the right column (Tab switches)</span>
       <div class="spacer" />
       <form class="goto" @submit.prevent="go">
         <input v-model="target" placeholder="Go to offset (0x1F0 or 496)" spellcheck="false" />
@@ -250,9 +370,9 @@ function human(n: number) {
                 v-for="(b, i) in r.bytes"
                 :key="i"
                 class="b"
-                :class="{ sel: r.offset + i === selected, active: column === 'hex', hov: r.offset + i === hovered, gap: i === 8, zero: b === 0, edited: edits.changed.has(r.offset + i) }"
-                @mousedown.prevent="select(r.offset + i, 'hex')"
-                @mouseenter="hovered = r.offset + i"
+                :class="{ sel: inRange(r.offset + i), caret: r.offset + i === selected, active: column === 'hex', hov: r.offset + i === hovered, gap: i === 8, zero: b === 0, edited: edits.changed.has(r.offset + i) }"
+                @mousedown.prevent="press($event, r.offset + i, 'hex')"
+                @mouseenter="enter(r.offset + i)"
                 >{{ b === undefined ? '··' : hex(b) }}</span
               >
             </span>
@@ -261,9 +381,9 @@ function human(n: number) {
                 v-for="(b, i) in r.bytes"
                 :key="i"
                 class="c"
-                :class="{ sel: r.offset + i === selected, active: column === 'text', hov: r.offset + i === hovered, dot: b === undefined || b < 0x20 || b >= 0x7f, edited: edits.changed.has(r.offset + i) }"
-                @mousedown.prevent="select(r.offset + i, 'text')"
-                @mouseenter="hovered = r.offset + i"
+                :class="{ sel: inRange(r.offset + i), caret: r.offset + i === selected, active: column === 'text', hov: r.offset + i === hovered, dot: b === undefined || b < 0x20 || b >= 0x7f, edited: edits.changed.has(r.offset + i) }"
+                @mousedown.prevent="press($event, r.offset + i, 'text')"
+                @mouseenter="enter(r.offset + i)"
                 >{{ b === undefined ? ' ' : printable(b) }}</span
               >
             </span>
@@ -385,12 +505,15 @@ function human(n: number) {
 }
 .sel {
   background: var(--accent-dim);
-  border-radius: 2px;
 }
-/* The column typing goes to shows the selection strongly. */
-.sel.active {
+/* The column typing goes to shows the caret strongly. */
+.caret.active {
   outline: 1px solid var(--accent);
+  border-radius: 2px;
   color: var(--accent);
+}
+.picked {
+  color: var(--text);
 }
 .changed {
   color: var(--warning, #e5c07b);
