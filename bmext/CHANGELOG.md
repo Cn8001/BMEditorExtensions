@@ -7,6 +7,10 @@ is released only when it has one.
 
 ## 0.2.7
 
+- `binaryEditor` shows a file that is not text, an image aside, which
+  the editor shows itself: its component gets the tab, and its `save`
+  runs on Ctrl+S. A tab's `binary` says it is such a file. Needs BMEditor
+  0.1.5.
 - `sidebar` adds views to the sidebar, each with a button in its switch;
   one with `replaces: 'explorer'` is another view of the Explorer while
   its `when` holds, beside the files, as the C# extension's solution is.

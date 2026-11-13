@@ -16,8 +16,9 @@ export interface Tab {
   path: string
   name: string
   language: string
-  version: number // rises with every edit
-  dirty: boolean
+  version: number // rises with every edit, and when a binary file changes on disk
+  dirty: boolean // a binary editor sets it for what it has not saved
+  binary?: boolean // not text: shown by an extension's binaryEditor (BMEditor 0.1.5 and later)
 }
 
 export interface Failure {
@@ -54,6 +55,11 @@ export interface Contributions {
   keydown?: (e: KeyboardEvent) => boolean // true when handled
   shortcuts?: [label: string, keys: string][]
   reset?: () => void // the project closed or another opened
+  // binaryEditor shows a file that is not text (BMEditor 0.1.5 and later;
+  // images the editor shows itself): its component gets the tab as a
+  // prop, and save, when there is one, runs on Ctrl+S and answers whether
+  // it saved. A hex editor.
+  binaryEditor?: { component: Component; save?: (tab: Tab) => Promise<boolean> }
   // explorerHide leaves a file or folder out of the Explorer (BMEditor 0.1.5
   // and later): one the project's tools generate, which nobody edits.
   explorerHide?: (entry: { name: string; path: string; isDir: boolean }) => boolean
