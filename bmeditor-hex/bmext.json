@@ -8,7 +8,8 @@
     "bmeditor": ">=0.1.5"
   },
   "frontend": {
-    "script": "frontend/index.js"
+    "script": "frontend/index.js",
+    "style": "frontend/style.css"
   },
   "backend": {
     "command": "bin/hex-host"

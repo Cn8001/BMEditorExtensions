@@ -197,7 +197,9 @@ function onKey(e: KeyboardEvent) {
 let ro: ResizeObserver | undefined
 onMounted(() => {
   void load(0)
-  ro = new ResizeObserver(([e]) => (viewHeight.value = e.contentRect.height))
+  // Never more rows than a window holds: were the scroller to grow with
+  // its content, every row of the file would be drawn at once.
+  ro = new ResizeObserver(([e]) => (viewHeight.value = Math.min(e.contentRect.height, window.innerHeight)))
   if (scroller.value) ro.observe(scroller.value)
 })
 onBeforeUnmount(() => ro?.disconnect())
