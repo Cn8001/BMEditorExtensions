@@ -4,6 +4,17 @@ Each version of the C# extension, newest first. The section of a version
 becomes the notes of its release, and a version is published only when it
 has a section here.
 
+## 0.1.5
+
+- In a C# project (Unity, a UPM package, a folder with a solution) the
+  Explorer is the Solution Explorer, as in Visual Studio, with the
+  Inspector under it as Properties when an assembly definition or a
+  package's package.json is open. Its Folder View button shows every file
+  of the folder, and the Explorer's button goes back. The bottom panel
+  keeps the assembly graph (Assemblies) and Unity. An editor before 0.1.5
+  keeps the panels as they were.
+- A .sln is highlighted: its projects, sections, GUIDs and settings.
+
 ## 0.1.4
 
 - The Solution Explorer shows the project's own projects, as Visual Studio

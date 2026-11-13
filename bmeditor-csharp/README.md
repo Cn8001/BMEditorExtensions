@@ -7,7 +7,7 @@ C# in BMEditor, made for Unity projects and UPM packages.
 - **C# language server**: completion, errors, go to definition, usages,
   rename and quick fixes, through `csharp-ls` (or Roslyn's or OmniSharp's,
   whichever is installed) on the folder's solution.
-- **Solution Explorer** (Solution panel): the solution as Visual Studio shows
+- **Solution Explorer** (the Explorer of a C# project; Folder View shows every file): the solution as Visual Studio shows
   it. You get solution folders, projects, their references and files, and a
   filter. Click a file to open it. Next to a folder, New Script makes a
   MonoBehaviour, ScriptableObject, Custom Editor, Editor Window, class,
@@ -17,11 +17,11 @@ C# in BMEditor, made for Unity projects and UPM packages.
   the project's own projects show, as in Visual Studio; the package button
   shows those of packages too, and the Explorer leaves out the .csproj, .sln
   and .meta files Unity writes.
-- **Assembly graph** (Solution panel, Assemblies): every `.asmdef` and what it
+- **Assembly graph** (Assemblies, in the bottom panel): every `.asmdef` and what it
   references, in layers. Loops are red. A reference to an assembly that is
   nowhere, such as a stale GUID, is marked. Click an assembly to see what it
   needs and what needs it; double-click to open it.
-- **Inspector** (Inspector panel): the open `.asmdef`, `.asmref` or UPM
+- **Inspector** (Properties, under the Solution Explorer): the open `.asmdef`, `.asmref` or UPM
   `package.json` as a form. You can edit references (by name or by GUID),
   platforms, define constraints and version defines, or the package's
   name, version, Unity version, author, dependencies and samples. Each

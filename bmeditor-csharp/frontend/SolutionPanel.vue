@@ -7,6 +7,9 @@ import Graph from './Graph.vue'
 // The Solution Explorer: the solution as Visual Studio shows it, the
 // assembly graph, and New Script for a folder.
 
+// side is the sidebar's narrow Solution Explorer, without the graph.
+const props = defineProps<{ side?: boolean }>()
+
 const open = reactive(new Set<string>())
 const filter = ref('')
 const selected = ref('')
@@ -215,13 +218,13 @@ async function create() {
 </script>
 
 <template>
-  <div class="panel">
+  <div class="panel" :class="{ side: props.side }">
     <div class="bar">
-      <div class="tabs">
+      <div v-if="!props.side" class="tabs">
         <button :class="{ on: store.ui.solutionTab === 'solution' }" @click="store.ui.solutionTab = 'solution'"><i class="codicon codicon-list-tree" /> Solution</button>
         <button :class="{ on: store.ui.solutionTab === 'graph' }" @click="store.ui.solutionTab = 'graph'"><i class="codicon codicon-type-hierarchy" /> Assemblies</button>
       </div>
-      <template v-if="store.ui.solutionTab === 'solution'">
+      <template v-if="props.side || store.ui.solutionTab === 'solution'">
         <select v-if="store.solutions.length > 1" v-model="store.solutionPath" title="Solution">
           <option v-for="s in store.solutions" :key="s" :value="s">{{ rel(s) || basename(s) }}</option>
         </select>
@@ -259,7 +262,7 @@ async function create() {
       <button type="button" @click="asking = null">Cancel</button>
     </form>
 
-    <Graph v-if="store.ui.solutionTab === 'graph'" />
+    <Graph v-if="!props.side && store.ui.solutionTab === 'graph'" />
     <div v-else ref="treeEl" class="tree">
       <p v-if="!store.workspace" class="empty">Open a folder to see its solution.</p>
       <p v-else-if="store.busy.solution && !store.solution" class="empty">Reading the solution…</p>
@@ -363,6 +366,19 @@ button:disabled {
 button.primary.danger {
   background: var(--error, #e06c6c);
   color: #fff;
+}
+.side .bar {
+  flex-wrap: wrap;
+  padding: 2px 8px 6px;
+}
+.side .filter {
+  order: 1;
+  flex-basis: 100%;
+  max-width: none;
+}
+.side select {
+  flex: 1;
+  min-width: 0;
 }
 .tabs button.on {
   background: var(--bg-active);

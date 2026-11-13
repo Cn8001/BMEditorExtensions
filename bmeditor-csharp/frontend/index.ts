@@ -4,6 +4,8 @@ import { api, call, checkMeta, clear, dirname, fail, loadWorkspace, log as say, 
 import { languages } from './languages'
 import Inspector from './Inspector.vue'
 import SolutionPanel from './SolutionPanel.vue'
+import SolutionExplorer from './SolutionExplorer.vue'
+import AssembliesPanel from './AssembliesPanel.vue'
 import UnityPanel from './UnityPanel.vue'
 
 // C# for Unity and UPM packages: a Solution Explorer with the assembly
@@ -50,6 +52,21 @@ export default function activate(a: ExtensionAPI) {
   const show = (id: string) => {
     api.ui.showPanel(id)
   }
+  // An editor with a sidebar for extensions (0.1.5, which brought DropMenu
+  // too) has the Solution Explorer and the Inspector there, as Visual
+  // Studio does; an older one has them in the bottom panel.
+  const sidebar = !!api.components.DropMenu
+  // In a C# project the Explorer is the Solution Explorer, as in Visual
+  // Studio; its Folder View shows every file of the folder.
+  const csharpProject = () => !!store.workspace && (store.workspace.kind !== 'folder' || store.solutions.length > 0)
+  const showExplorer = () => {
+    store.ui.solutionTab = 'solution'
+    if (sidebar) {
+      api.ide.sidebarOpen = true
+      api.ide.sidebarView = 'explorer'
+      api.ide.folderView = false
+    } else show(panels.solution)
+  }
 
   void api.settings().then((s) => (store.showGenerated = s.values.explorerShowGenerated === 'true'))
 
@@ -58,21 +75,24 @@ export default function activate(a: ExtensionAPI) {
     // Unity writes these for the IDE; nobody edits them by hand.
     explorerHide: (e) =>
       !store.showGenerated && !e.isDir && (store.workspace?.kind === 'unity' || store.workspace?.kind === 'upm') && /\.(csproj|sln|slnx|meta)$/i.test(e.name),
-    panels: [
-      { id: panels.solution, label: 'Solution', component: SolutionPanel, busy: () => store.busy.solution || store.busy.assemblies },
-      { id: panels.inspector, label: 'Inspector', component: Inspector },
-      { id: panels.unity, label: 'Unity', component: UnityPanel, busy: () => store.busy.meta },
-    ],
+    sidebar: [{ id: 'csharp-solution-explorer', label: 'Solution Explorer', icon: 'list-tree', component: SolutionExplorer, replaces: 'explorer', when: csharpProject }],
+    panels: sidebar
+      ? [
+          { id: panels.assemblies, label: 'Assemblies', component: AssembliesPanel, busy: () => store.busy.assemblies },
+          { id: panels.unity, label: 'Unity', component: UnityPanel, busy: () => store.busy.meta },
+        ]
+      : [
+          { id: panels.solution, label: 'Solution', component: SolutionPanel, busy: () => store.busy.solution || store.busy.assemblies },
+          { id: panels.inspector, label: 'Inspector', component: Inspector },
+          { id: panels.unity, label: 'Unity', component: UnityPanel, busy: () => store.busy.meta },
+        ],
     commands: [
       {
         id: 'csharp-solution',
         label: 'C#: Solution Explorer',
         icon: 'list-tree',
         kbd: 'Ctrl+Alt+L',
-        run: () => {
-          store.ui.solutionTab = 'solution'
-          show(panels.solution)
-        },
+        run: showExplorer,
       },
       {
         id: 'csharp-assemblies',
@@ -80,7 +100,7 @@ export default function activate(a: ExtensionAPI) {
         icon: 'type-hierarchy',
         run: () => {
           store.ui.solutionTab = 'graph'
-          show(panels.solution)
+          show(sidebar ? panels.assemblies : panels.solution)
         },
       },
       {
@@ -92,11 +112,10 @@ export default function activate(a: ExtensionAPI) {
           const path = api.ui.activeTab()!.path
           if (!store.solutions.includes(path)) store.solutions.unshift(path)
           store.solutionPath = path
-          store.ui.solutionTab = 'solution'
-          show(panels.solution)
+          showExplorer()
         },
       },
-      { id: 'csharp-inspector', label: 'C#: Inspector', icon: 'settings', run: () => show(panels.inspector) },
+      { id: 'csharp-inspector', label: 'C#: Inspector', icon: 'settings', run: () => (sidebar ? showExplorer() : show(panels.inspector)) },
       { id: 'csharp-output', label: 'C#: Show Output', icon: 'output', when: () => !!api.ui.showOutput, run: () => api.ui.showOutput() },
       {
         id: 'csharp-new-script',
@@ -106,7 +125,7 @@ export default function activate(a: ExtensionAPI) {
         run: () => {
           const tab = api.ui.activeTab()
           store.ui.newScriptDir = tab ? dirname(tab.path) : store.workspace!.root
-          show(panels.solution)
+          showExplorer()
         },
       },
       {

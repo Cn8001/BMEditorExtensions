@@ -9,6 +9,9 @@ import { api, basename, loadAssemblies, openPath, store, type Assembly } from '.
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// narrow is the sidebar's Properties: labels above their fields.
+const props = defineProps<{ narrow?: boolean }>()
+
 const tab = computed(() => (api.ide.activeId ? api.session.tab(api.ide.activeId) : undefined))
 const text = computed(() => {
   const t = tab.value
@@ -213,7 +216,7 @@ function setSample(i: number | string, key: string, value: string) {
 </script>
 
 <template>
-  <div class="inspector">
+  <div class="inspector" :class="{ narrow: props.narrow }">
     <p v-if="!kind" class="empty">Open an assembly definition (.asmdef, .asmref) or a UPM package's package.json to edit it here.</p>
     <p v-else-if="parsed.error" class="empty bad">{{ basename(tab!.path) }} is not valid JSON ({{ parsed.error }}). Fix it in the text to edit it here.</p>
 
@@ -541,5 +544,11 @@ button:hover {
 .empty {
   color: var(--text-dim);
   padding: 12px;
+}
+.narrow .grid {
+  grid-template-columns: 1fr;
+}
+.narrow .form {
+  padding: 4px 10px 12px;
 }
 </style>

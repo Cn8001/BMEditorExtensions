@@ -9,7 +9,7 @@ export function setApi(a: ExtensionAPI) {
   api = a
 }
 
-export const panels = { solution: 'csharp-solution', inspector: 'csharp-inspector', unity: 'csharp-unity' }
+export const panels = { solution: 'csharp-solution', inspector: 'csharp-inspector', unity: 'csharp-unity', assemblies: 'csharp-assemblies' }
 
 export interface Package {
   name: string
