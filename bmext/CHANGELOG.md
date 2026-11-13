@@ -7,6 +7,11 @@ is released only when it has one.
 
 ## 0.2.7
 
+- `bmx check` notes an extension's older copy of the SDK's frontend types
+  rather than failing: an extension updates them (bmx init) when it needs
+  something new, so a change to them touches bmext alone. Its copy of the
+  backend's host package, code the editor talks to, must still be this
+  one.
 - `binaryEditor` shows a file that is not text, an image aside, which
   the editor shows itself: its component gets the tab, and its `save`
   runs on Ctrl+S. A tab's `binary` says it is such a file. Needs BMEditor

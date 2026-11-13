@@ -22,7 +22,9 @@ var targets = []string{"linux-amd64", "linux-arm64", "windows-amd64", "darwin-am
 // cmdCheck installs the extension the way the editor installs it from its
 // git repository, from a clone of only its own files, into a throwaway
 // extensions folder, and checks that what was installed has every file its
-// manifest names. That covers the zip as well: it is the same output.
+// manifest names. That covers the zip as well: it is the same output. A
+// copy of the SDK's host package must be this bmx's; older frontend types
+// are only noted.
 func cmdCheck(args []string) error {
 	if err := flags("check", args, func(*flag.FlagSet) {}); err != nil {
 		return err
@@ -35,7 +37,16 @@ func cmdCheck(args []string) error {
 		return err
 	}
 	var problems []string
-	problems = append(problems, sdkDrift(dir)...)
+	// Older types are the extension's to update when it needs something
+	// new, so a change to them does not touch every extension; the host
+	// package is code the editor talks to, and must be this one.
+	for _, d := range sdkDrift(dir) {
+		if strings.HasPrefix(d, "bmext/host/") {
+			problems = append(problems, d)
+		} else {
+			fmt.Println("! " + d)
+		}
+	}
 
 	tmp, err := os.MkdirTemp("", "bmx-check-")
 	if err != nil {

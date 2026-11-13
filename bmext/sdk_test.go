@@ -10,9 +10,11 @@ import (
 	"testing"
 )
 
-// The extensions in this repository keep copies of the SDK, and bmx check
-// fails on a stale one, at publish. Caught here first, when the SDK
-// changes: run bmx init in each extension to update its copy.
+// The extensions in this repository keep copies of the SDK. Their copies
+// of the backend's host package, code the editor talks to, must be this
+// one, and bmx check fails on a stale one at publish: caught here first.
+// The frontend's types may be older, an extension updating them when it
+// needs something new, so a change there touches only bmext.
 func TestSDKCopiesInThisRepository(t *testing.T) {
 	// The extensions git has: not a folder of one's own beside them.
 	out, err := exec.Command("git", "-C", "..", "ls-files", "*/bmext.json").Output()
@@ -28,6 +30,9 @@ func TestSDKCopiesInThisRepository(t *testing.T) {
 	_ = fs.WalkDir(SDK, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
+		}
+		if !strings.HasPrefix(path, "host/") {
+			return nil
 		}
 		want, _ := SDK.ReadFile(path)
 		// frontend/x lands as bmext/x; host/x as bmext/host/x.
