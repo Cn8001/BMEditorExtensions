@@ -5,6 +5,17 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.6
+
+- A menu row can carry a button at its end (`MenuItem.action`), such as
+  delete, chosen by its own id.
+- `explorerHide` leaves a file or folder out of the Explorer: one the
+  project's tools generate, which nobody edits.
+- `bmx check` keeps every system's programs when it installs, so it finds
+  them all again (`Manager.AllSystems`).
+
+Both SDK additions need BMEditor 0.1.5.
+
 ## 0.2.5
 
 - Update installs only something newer: a zip asked for with its ETag
