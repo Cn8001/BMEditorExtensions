@@ -1,0 +1,82 @@
+{
+  "name": "ascdii",
+  "displayName": "ASCDII Engine",
+  "version": "0.1.0",
+  "description": "Games made with the ASCDII Engine: an Explorer view of the project's assets by kind, with the objects that use each script; Lua with the engine's API in completion and on hover, and syntax errors as you type; Play in the game's window or the ASCDII editor, Stop and Build, with script errors in Problems.",
+  "icon": "icon.svg",
+  "engines": {
+    "bmeditor": ">=0.1.5"
+  },
+  "languages": [
+    {
+      "id": "lua",
+      "label": "Lua",
+      "extensions": [
+        ".lua"
+      ],
+      "codicon": "file-code",
+      "color": "#8fa6d6",
+      "lineComment": "--",
+      "blockComment": [
+        "--[[",
+        "]]"
+      ],
+      "grammar": "lua"
+    },
+    {
+      "id": "ascdiiproj",
+      "label": "ASCDII Project",
+      "extensions": [
+        ".ascdiiproj"
+      ],
+      "icon": "icon.svg",
+      "color": "#efe3cb"
+    }
+  ],
+  "settings": [
+    {
+      "key": "engine",
+      "label": "ascdii program",
+      "description": "The ASCDII Engine's ascdii program, or the folder it is in, such as ~/ascii-engine/bin/linux. Empty: ascdii on the PATH. The engine is at github.com/Cn8001/ASCDII-Engine.",
+      "type": "path",
+      "placeholder": "ascdii"
+    },
+    {
+      "key": "playTarget",
+      "label": "Play in",
+      "description": "Where Play opens the game. The menu beside Play picks it too.",
+      "default": "window",
+      "options": [
+        {
+          "value": "window",
+          "label": "The game's window"
+        },
+        {
+          "value": "editor",
+          "label": "The ASCDII editor"
+        }
+      ]
+    },
+    {
+      "key": "filesShowAssets",
+      "label": "Show assets in Files",
+      "description": "Images, models, sounds and .meta files in the Explorer's Files view too. They are always in the Game view.",
+      "type": "boolean",
+      "default": "false"
+    }
+  ],
+  "frontend": {
+    "script": "frontend/index.js",
+    "style": "frontend/style.css"
+  },
+  "backend": {
+    "command": "bin/ascdii-host"
+  },
+  "build": {
+    "command": [
+      "make",
+      "dist"
+    ],
+    "output": "dist"
+  }
+}
