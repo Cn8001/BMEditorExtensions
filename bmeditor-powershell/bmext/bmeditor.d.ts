@@ -45,9 +45,9 @@ export interface Contributions {
   editor?: (tab: Tab) => Extension
   panels?: { id: string; label: string; component: Component; busy?: () => boolean }[]
   // sidebar adds views to the sidebar, each with a button in its switch
-  // (BMEditor 0.1.5 and later). One with replaces: 'explorer' is the
-  // Explorer itself while when holds, as a Solution Explorer is for a C#
-  // project; Folder View turns it back into the files.
+  // (BMEditor 0.1.5 and later). One with replaces: 'explorer' is another
+  // view of the Explorer while when holds, beside its files, as Rider
+  // offers a C# project's solution.
   sidebar?: { id: string; label: string; icon: string; component: Component; replaces?: 'explorer'; when?: () => boolean }[]
   toolbar?: Component // gets `compact` (0 to 3) as the top bar narrows
   commands?: { id: string; label: string; kbd?: string; icon?: string; run: () => unknown; when?: () => boolean }[]

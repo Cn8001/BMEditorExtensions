@@ -8,9 +8,9 @@ is released only when it has one.
 ## 0.2.7
 
 - `sidebar` adds views to the sidebar, each with a button in its switch;
-  one with `replaces: 'explorer'` is the Explorer itself while its `when`
-  holds, as the C# extension's Solution Explorer is for a C# project. Needs
-  BMEditor 0.1.5.
+  one with `replaces: 'explorer'` is another view of the Explorer while
+  its `when` holds, beside the files, as the C# extension's solution is.
+  Needs BMEditor 0.1.5.
 
 ## 0.2.6
 
