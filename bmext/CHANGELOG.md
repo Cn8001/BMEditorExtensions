@@ -5,6 +5,14 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.8
+
+- `project` is the top bar's Run and Debug group for a project the
+  extension serves, by kind or by its own `when`: its buttons, its menu,
+  Stop and its logo, in place of Go's. Debug left out keeps the editor's
+  debugger; `false` hides it. While it matches, the extension's `toolbar`
+  is hidden, so that can stay for older editors. Needs BMEditor 0.1.6.
+
 ## 0.2.7
 
 - `bmx check` notes an extension's older copy of the SDK's frontend types
