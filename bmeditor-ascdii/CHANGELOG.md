@@ -4,6 +4,13 @@ Each version of the ASCDII Engine extension, newest first. The section of a
 version becomes the notes of its release, and a version is published only
 when it has a section here.
 
+## 0.1.1
+
+- From BMEditor 0.1.6, Play, Build and Stop take the top bar's Run and
+  Debug group in an ASCDII project, with the engine's logo in place of
+  Go's; Ctrl+F5 plays and Ctrl+Shift+B builds. The menu beside them picks
+  where Play opens the game. An older editor keeps the Play bar.
+
 ## 0.1.0
 
 - An Explorer view of an ASCDII project's assets by kind, with the objects

@@ -1,6 +1,6 @@
 import { watch } from 'vue'
 import type { ExtensionAPI, Problem, Tab } from '../bmext/bmeditor'
-import { addRunProblem, api, build, hiddenInFiles, isGame, loadIndex, log, play, refresh, setApi, setFilesAssets, stop, store } from './api'
+import { addRunProblem, api, build, hiddenInFiles, isGame, loadIndex, log, play, refresh, setApi, setFilesAssets, setTarget, stop, store, target } from './api'
 import Console from './Console.vue'
 import { lens, refreshLens } from './lens'
 import GameExplorer from './GameExplorer.vue'
@@ -77,6 +77,28 @@ export default function activate(a: ExtensionAPI) {
     panels: [{ id: 'ascdii-console', label: 'Console', component: Console, busy: () => !!store.running }],
     sidebar: [{ id: 'ascdii-game', label: 'Game', icon: 'game', component: GameExplorer, replaces: 'explorer', when: isGame }],
     toolbar: PlayBar,
+    // Editors from 0.1.6 put Play in the Run and Debug group, in place of Go's.
+    project: {
+      when: isGame,
+      label: 'ASCDII',
+      logo: api.base + 'icon.svg',
+      run: {
+        label: () => (target() === 'editor' ? 'ASCDII Editor' : 'Play'),
+        icon: () => (target() === 'editor' ? 'game' : 'play'),
+        title: () => (target() === 'editor' ? 'Open the project in the ASCDII editor (Ctrl+F5)' : 'Play the game in its window (Ctrl+F5)'),
+        run: () => play(),
+        enabled: () => !store.running,
+      },
+      debug: false,
+      build: { label: 'Build', icon: 'package', title: 'ascdii build (Ctrl+Shift+B)', run: () => build(), enabled: () => !store.building },
+      menu: [
+        { label: 'Play in Window', icon: () => (target() === 'window' ? 'check' : 'blank'), title: 'The game in its own window', run: () => setTarget('window') },
+        { label: 'Play in ASCDII Editor', icon: () => (target() === 'editor' ? 'check' : 'blank'), title: "The engine's editor, on this project", run: () => setTarget('editor') },
+        { label: 'Show Output', icon: 'output', run: () => api.ui.showOutput() },
+        { label: 'Settings', icon: 'settings-gear', run: () => api.ui.openSettings() },
+      ],
+      stop: { run: () => stop(), enabled: () => !!store.running },
+    },
     explorerHide: hiddenInFiles,
     commands: [
       { id: 'ascdii-play', label: 'ASCDII: Play', icon: 'play', when: () => isGame() && !store.running, run: () => play() },

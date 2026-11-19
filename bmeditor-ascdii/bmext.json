@@ -1,7 +1,7 @@
 {
   "name": "ascdii",
   "displayName": "ASCDII Engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Games made with the ASCDII Engine: an Explorer view of the project's assets by kind, with the objects that use each script; Lua with the engine's API in completion and on hover, and syntax errors as you type; Play in the game's window or the ASCDII editor, Stop and Build, with script errors in Problems.",
   "icon": "icon.svg",
   "engines": {
