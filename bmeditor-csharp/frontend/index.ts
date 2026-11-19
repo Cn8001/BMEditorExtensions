@@ -2,6 +2,7 @@ import { watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
 import { api, call, checkMeta, clear, dirname, fail, loadWorkspace, log as say, openPath, panels, setApi, store, type LogState } from './api'
 import { languages } from './languages'
+import { dotnetToolbar, listenDotnet, resetDotnet } from './dotnet'
 import Inspector from './Inspector.vue'
 import SolutionPanel from './SolutionPanel.vue'
 import SolutionExplorer from './SolutionExplorer.vue'
@@ -44,6 +45,7 @@ function generated(e: { name: string; path: string; isDir: boolean }): boolean {
 
 export default function activate(a: ExtensionAPI) {
   setApi(a)
+  listenDotnet()
 
   let logNote = ''
   const problems = (log: LogState) => {
@@ -194,8 +196,10 @@ export default function activate(a: ExtensionAPI) {
         },
       },
     ],
+    project: dotnetToolbar(),
     reset: () => {
       clear()
+      resetDotnet()
       api.ui.setProblems('unity', [])
     },
   })

@@ -4,6 +4,15 @@ Each version of the C# extension, newest first. The section of a version
 becomes the notes of its release, and a version is published only when it
 has a section here.
 
+## 0.1.6
+
+- From BMEditor 0.1.6, a folder with a .NET solution or project has Run,
+  Build, Test and Stop in the top bar's Run and Debug group, with the C#
+  logo in place of Go's: dotnet run, build and test on the chosen
+  solution, its output in Output and its compiler messages in Problems.
+  Run starts the solution's first program. Ctrl+F5 runs, Ctrl+Shift+B
+  builds. A Unity project or package keeps the editor's group.
+
 ## 0.1.5
 
 - In a C# project (Unity, a UPM package, a folder with a solution) the

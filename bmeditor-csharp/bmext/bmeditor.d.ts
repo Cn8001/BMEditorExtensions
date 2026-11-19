@@ -16,8 +16,9 @@ export interface Tab {
   path: string
   name: string
   language: string
-  version: number // rises with every edit
-  dirty: boolean
+  version: number // rises with every edit, and when a binary file changes on disk
+  dirty: boolean // a binary editor sets it for what it has not saved
+  binary?: boolean // not text: shown by an extension's binaryEditor (BMEditor 0.1.5 and later)
 }
 
 export interface Failure {
@@ -50,13 +51,51 @@ export interface Contributions {
   // offers a C# project's solution.
   sidebar?: { id: string; label: string; icon: string; component: Component; replaces?: 'explorer'; when?: () => boolean }[]
   toolbar?: Component // gets `compact` (0 to 3) as the top bar narrows
+  // project is the top bar's Run and Debug group for a project the
+  // extension serves, in place of Go's (BMEditor 0.1.6 and later). While it
+  // matches, the extension's toolbar is not shown, so toolbar can stay for
+  // older editors.
+  project?: ProjectToolbar
   commands?: { id: string; label: string; kbd?: string; icon?: string; run: () => unknown; when?: () => boolean }[]
   keydown?: (e: KeyboardEvent) => boolean // true when handled
   shortcuts?: [label: string, keys: string][]
   reset?: () => void // the project closed or another opened
+  // binaryEditor shows a file that is not text (BMEditor 0.1.5 and later;
+  // images the editor shows itself): its component gets the tab as a
+  // prop, and save, when there is one, runs on Ctrl+S and answers whether
+  // it saved. A hex editor.
+  binaryEditor?: { component: Component; save?: (tab: Tab) => Promise<boolean> }
   // explorerHide leaves a file or folder out of the Explorer (BMEditor 0.1.5
   // and later): one the project's tools generate, which nobody edits.
   explorerHide?: (entry: { name: string; path: string; isDir: boolean }) => boolean
+}
+
+type Text = string | (() => string) // a getter follows the extension's state
+
+// ProjectAction is a button of the project's group, or a row of its menu.
+export interface ProjectAction {
+  label: Text
+  icon: Text // a codicon name
+  title?: Text // the tooltip, or the row's detail in the menu
+  run: () => unknown
+  enabled?: () => boolean
+}
+
+// ProjectToolbar matches the open project by kind, when, or both.
+export interface ProjectToolbar {
+  kind?: string // a project kind, such as one the manifest declares
+  when?: () => boolean
+  label?: string // names the group, beside its logo
+  logo?: string // a URL (base + file); the kind's icon when left out
+  run?: ProjectAction // Ctrl+F5
+  // debug left out keeps the editor's debugger, which picks one by the
+  // file's language; false hides Debug.
+  debug?: ProjectAction | false
+  build?: ProjectAction // Ctrl+Shift+B
+  test?: ProjectAction
+  more?: ProjectAction[] // further buttons after Test
+  menu?: ProjectAction[] // the arrow beside Debug
+  stop?: { run: () => unknown; enabled: () => boolean } // the Stop button, Shift+F5
 }
 
 export interface MenuItem {

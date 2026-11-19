@@ -1,6 +1,7 @@
 // Command csharp-host is the C# extension's backend: the window cannot read
 // files, so the Solution Explorer, the assembly graph, the .meta tools,
-// new scripts and Unity's compile errors all come from here.
+// new scripts, Unity's compile errors and dotnet's Run, Build and Test all
+// come from here.
 package main
 
 import (
@@ -32,6 +33,8 @@ type state struct {
 	indexAt   time.Time
 
 	watching bool
+
+	dotnet dotnet.Runner
 }
 
 // root is the folder the extension works in: the open folder, else the
@@ -76,6 +79,7 @@ func handler[T any](s *host.Server, fn func(ctx context.Context, root string, p 
 type none struct{}
 
 func register(s *host.Server, st *state) {
+	registerDotnet(s, st)
 	s.Handle("workspace", handler(s, func(_ context.Context, root string, _ none) (any, error) {
 		w := unity.Detect(root)
 		sln := dotnet.Candidates(root, projectRelative(s, s.Context().Setting("solution")))
