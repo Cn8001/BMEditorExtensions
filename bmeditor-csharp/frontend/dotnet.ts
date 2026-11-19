@@ -1,10 +1,11 @@
 import { reactive } from 'vue'
-import type { Problem, ProjectToolbar } from '../bmext/bmeditor'
+import type { Contributions, Problem, ProjectToolbar } from '../bmext/bmeditor'
 import { api, basename, call, fail, log, store } from './api'
 
-// Run, Build and Test of a .NET solution in the top bar's Run and Debug
-// group (BMEditor 0.1.6 and later), by dotnet in the backend. Unity builds
-// its own projects, so a Unity project or package keeps the editor's group.
+// Run, Build and Test of a .NET solution, by dotnet in the backend: in the
+// command palette, and in the top bar's Run and Debug group from BMEditor
+// 0.1.6. Unity builds its own projects, so a Unity project or package keeps
+// the editor's group.
 
 type Verb = 'run' | 'build' | 'test'
 
@@ -80,4 +81,14 @@ export function dotnetToolbar(): ProjectToolbar {
     menu: [{ label: 'Show Output', icon: 'output', run: () => api.ui.showOutput?.() }],
     stop: { run: stop, enabled: () => !!dotnet.running },
   }
+}
+
+// The palette's, for an editor whose top bar has no group for extensions.
+export function dotnetCommands(): NonNullable<Contributions['commands']> {
+  return [
+    { id: 'csharp-dotnet-run', label: 'C#: Run (dotnet run)', icon: 'play', when: idle, run: () => start('run') },
+    { id: 'csharp-dotnet-build', label: 'C#: Build (dotnet build)', icon: 'package', when: idle, run: () => start('build') },
+    { id: 'csharp-dotnet-test', label: 'C#: Test (dotnet test)', icon: 'beaker', when: idle, run: () => start('test') },
+    { id: 'csharp-dotnet-stop', label: 'C#: Stop', icon: 'debug-stop', when: () => !!dotnet.running, run: stop },
+  ]
 }

@@ -2,7 +2,7 @@ import { watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
 import { api, call, checkMeta, clear, dirname, fail, loadWorkspace, log as say, openPath, panels, setApi, store, type LogState } from './api'
 import { languages } from './languages'
-import { dotnetToolbar, listenDotnet, resetDotnet } from './dotnet'
+import { dotnetCommands, dotnetToolbar, listenDotnet, resetDotnet } from './dotnet'
 import Inspector from './Inspector.vue'
 import SolutionPanel from './SolutionPanel.vue'
 import SolutionExplorer from './SolutionExplorer.vue'
@@ -104,6 +104,7 @@ export default function activate(a: ExtensionAPI) {
           { id: panels.unity, label: 'Unity', component: UnityPanel, busy: () => store.busy.meta },
         ],
     commands: [
+      ...dotnetCommands(),
       {
         id: 'csharp-solution',
         label: 'C#: Solution Explorer',

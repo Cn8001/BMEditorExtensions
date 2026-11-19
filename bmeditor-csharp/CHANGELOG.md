@@ -4,6 +4,13 @@ Each version of the C# extension, newest first. The section of a version
 becomes the notes of its release, and a version is published only when it
 has a section here.
 
+## 0.1.7
+
+- C#: Run, C#: Build, C#: Test and C#: Stop in the command palette run
+  dotnet on a .NET solution in BMEditor 0.1.5 too, whose top bar has no
+  group for extensions.
+- Needs BMEditor 0.1.5.
+
 ## 0.1.6
 
 - From BMEditor 0.1.6, a folder with a .NET solution or project has Run,
