@@ -24,16 +24,16 @@ export default function activate(a: ExtensionAPI) {
     lastState = st.state
   })
 
-  // When the agent stops at a plan or a checkpoint, show it: it waits
-  // until the developer answers.
+  // When the agent stops at a plan or a checkpoint, say so: it waits until
+  // the developer answers. Mentor does not take the sidebar or the panel by
+  // itself; it shows the Changes tab when the developer opens it.
   api.on('mentor/agent', (st: AgentState) => {
     const was = store.agent?.waiting
     store.agent = st
     if (st.waiting && st.waiting !== was) {
-      show()
       store.tab = 'changes'
       void loadChanges()
-      api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`)
+      api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`, 'Mentor: Open shows it.')
     }
   })
 
@@ -72,7 +72,9 @@ export default function activate(a: ExtensionAPI) {
     if (where !== 'sidebar' && ide.sidebarView === view) ide.sidebarView = 'explorer'
     if (where !== 'window') store.windowOpen = false
   }
-  place('sidebar')
+  // Until the settings are read Mentor takes no place in the sidebar or the
+  // panel, so its button does not show there unless it is chosen.
+  place('window')
   createApp(Window).mount(document.body.appendChild(document.createElement('div')))
 
   api.register({
@@ -112,7 +114,7 @@ export default function activate(a: ExtensionAPI) {
   let started = false
   const readSettings = () =>
     api.settings().then((s) => {
-      const where = (['sidebar', 'panel', 'window'] as const).find((p) => p === s.values.openIn) ?? 'sidebar'
+      const where = (['sidebar', 'panel', 'window'] as const).find((p) => p === s.values.openIn) ?? 'window'
       if (where !== store.place) {
         const open = started && where === 'window'
         place(where)

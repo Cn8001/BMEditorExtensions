@@ -11,21 +11,21 @@
     {
       "key": "openIn",
       "label": "Open Mentor in",
-      "description": "The sidebar, a tab of the bottom panel, or a window you can move.",
+      "description": "A window you can move, a tab of the bottom panel, or the sidebar, where its button then stays.",
       "type": "string",
-      "default": "sidebar",
+      "default": "window",
       "options": [
         {
-          "value": "sidebar",
-          "label": "Sidebar"
+          "value": "window",
+          "label": "Floating window"
         },
         {
           "value": "panel",
           "label": "Bottom panel"
         },
         {
-          "value": "window",
-          "label": "Floating window"
+          "value": "sidebar",
+          "label": "Sidebar"
         }
       ]
     },

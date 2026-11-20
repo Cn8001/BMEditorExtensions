@@ -41,9 +41,11 @@ where it is and what uses what, without asking the agent.
   seem to be, each with what it imports.
 - **Uses above the code.** One line over each type and function: how many
   things use it, how many tests reach it. A click shows its card.
-- **Where you want it.** Mentor opens in the sidebar, as a tab of the
-  bottom panel, or in a window of its own that you move and size over the
-  editor, as Open Mentor in says. **Mentor: Open** shows it there.
+- **Where you want it.** Mentor opens in a window of its own that you
+  move and size over the editor, as a tab of the bottom panel, or in the
+  sidebar, as Open Mentor in says; its button is in the sidebar only when
+  you choose the sidebar. **Mentor: Open** shows it. It does not open by
+  itself: when the agent waits for you, a notice says so.
 
 Everything comes from the compiler's view of the code, read on your
 machine and kept up to date as files change; nothing is guessed, and a

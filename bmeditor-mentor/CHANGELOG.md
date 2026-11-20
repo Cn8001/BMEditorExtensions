@@ -22,6 +22,6 @@ when it has a section here.
   a function and the package map. Explain This (Ctrl+Alt+U) shows the card
   of the declaration at the cursor, and a line above each declaration
   counts its uses. Search by meaning with a local Ollama is optional.
-- Mentor opens in the sidebar, the bottom panel or a floating window, as
-  the setting Open Mentor in says.
+- Mentor opens in a floating window, the bottom panel or the sidebar, as
+  the setting Open Mentor in says, and does not open by itself.
 - Reads Go code, with Go on the PATH. Needs BMEditor 0.1.6.
