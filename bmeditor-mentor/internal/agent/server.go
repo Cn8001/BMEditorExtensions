@@ -152,7 +152,9 @@ func (g *Gate) Tool(ctx context.Context, name string, args json.RawMessage) (str
 	case "mentor_answer":
 		return g.Answer(a.Answer), nil
 	case "mentor_wait":
-		return g.Wait(ctx, 50*time.Second), nil
+		// The developer may read a milestone for a while; it returns at once
+		// when they answer or ask.
+		return g.Wait(ctx, 10*time.Minute), nil
 	case "mentor_status":
 		return g.Status(), nil
 	}

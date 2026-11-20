@@ -177,7 +177,8 @@ func callTool(params json.RawMessage) map[string]any {
 		text = "Mentor is not running in the editor for this folder; carry on as the developer told you."
 	} else {
 		body, _ := json.Marshal(gateproto.ToolCall{Root: reg.Root, Tool: p.Name, Args: p.Arguments})
-		out, err := post(reg, "/tool", body, 90*time.Second)
+		// Longer than mentor_wait waits, which is ten minutes.
+		out, err := post(reg, "/tool", body, 11*time.Minute)
 		var r gateproto.ToolResult
 		switch {
 		case err != nil:
