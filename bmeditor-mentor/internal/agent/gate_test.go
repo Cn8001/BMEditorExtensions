@@ -332,3 +332,31 @@ func TestGate_ACommandsChangesAreTheAgents(t *testing.T) {
 		t.Errorf("touched = %s", got)
 	}
 }
+
+func TestReadOnly(t *testing.T) {
+	cases := map[string]bool{
+		`ls -la`:                             true,
+		`grep -n '"create"\|NewWindow' a.go`: true, // a | inside quotes
+		`grep -rn "x|y" . 2>/dev/null`:       true,
+		`go test ./... 2>&1`:                 true,
+		`cd /tmp/x && git status --short`:    true,
+		"git diff HEAD | head -20":           true,
+		`grep a b.go > out.txt`:              false,
+		`echo hi >> notes`:                   false,
+		`ls; rm -rf build`:                   false,
+		`cd x && rm a.go`:                    false,
+		`cat $(rm a.go)`:                     false,
+		"echo `touch x`":                     false,
+		`find . -name '*.tmp' -delete`:       false,
+		`find . -exec rm {} \;`:              false,
+		`find . -name '*.go'`:                true,
+		`sed -i 's/a/b/' x.go`:               false,
+		`grep -e '>' x.go`:                   true, // > inside quotes
+		`W=1 grep x y`:                       false,
+	}
+	for cmd, want := range cases {
+		if got := readOnly(cmd); got != want {
+			t.Errorf("readOnly(%q) = %v, want %v", cmd, got, want)
+		}
+	}
+}

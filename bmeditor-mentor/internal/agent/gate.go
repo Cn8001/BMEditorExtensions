@@ -419,16 +419,68 @@ func (g *Gate) stop(call HookCall) Decision {
 // readOnlyBash are commands that look and do not change.
 var readOnlyBash = regexp.MustCompile(`^\s*(ls|cat|head|tail|wc|grep|rg|find|fd|tree|pwd|echo|which|file|stat|du|df|diff|sort|uniq|jq|go\s+(build|vet|test|list|doc|env|version)|gofmt\s+-l|git\s+(status|diff|log|show|blame|branch|rev-parse|ls-files)|make\s+(test|check|lint))\b`)
 
+// quiet are redirections that write nothing: errors to nowhere, one stream
+// into the other.
+var quiet = regexp.MustCompile(`\d?>\s*/dev/null|\d?>&\d`)
+
+// writesFiles are find's actions that change or run things.
+var writesFiles = regexp.MustCompile(`(^|\s)-(delete|exec|execdir|ok|okdir|fprint\w*)\b`)
+
+// readOnly says whether a shell command only looks: each command of its
+// chain (split on ; & | and new lines outside quotes) is one that looks,
+// or cd, and nothing is written to a file or run from a substitution.
 func readOnly(cmd string) bool {
-	for _, part := range strings.FieldsFunc(cmd, func(r rune) bool { return r == ';' || r == '&' || r == '|' || r == '\n' }) {
-		if part = strings.TrimSpace(part); part == "" {
+	parts, ok := splitShell(quiet.ReplaceAllString(cmd, " "))
+	if !ok {
+		return false
+	}
+	for _, part := range parts {
+		if part = strings.TrimSpace(part); part == "" || part == "cd" || strings.HasPrefix(part, "cd ") {
 			continue
 		}
-		if !readOnlyBash.MatchString(part) || strings.ContainsAny(part, ">") {
+		if !readOnlyBash.MatchString(part) || (strings.HasPrefix(part, "find") && writesFiles.MatchString(part)) {
 			return false
 		}
 	}
 	return true
+}
+
+// splitShell splits a command line into its commands at ; & | and new
+// lines outside quotes. It answers false for what it cannot tell is
+// harmless: a redirection into a file, or a command substitution.
+func splitShell(cmd string) ([]string, bool) {
+	var parts []string
+	var cur strings.Builder
+	var quote rune // ' or ", while inside one
+	escaped := false
+	for i, r := range cmd {
+		switch {
+		case escaped:
+			escaped = false
+		case r == '\\' && quote != '\'':
+			escaped = true
+		case quote == '\'':
+			if r == '\'' {
+				quote = 0
+			}
+		case r == '`' || r == '$' && i+1 < len(cmd) && cmd[i+1] == '(':
+			return nil, false
+		case quote == '"':
+			if r == '"' {
+				quote = 0
+			}
+		case r == '\'' || r == '"':
+			quote = r
+		case r == '>':
+			return nil, false
+		case r == ';' || r == '&' || r == '|' || r == '\n':
+			parts = append(parts, cur.String())
+			cur.Reset()
+			continue
+		}
+		cur.WriteRune(r)
+	}
+	return append(parts, cur.String()), true
 }
 
 // The MCP tools: what the agent says.
