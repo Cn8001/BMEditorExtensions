@@ -21,6 +21,8 @@ func TestValidate_SettingOptionsAndWhen(t *testing.T) {
 		{"an option without a value", base(Setting{Key: "m", Label: "M", Options: []Option{{Label: "none"}}}), false},
 		{"when names no setting", base(Setting{Key: "url", Label: "URL", When: map[string]string{"server": "ollama"}}), false},
 		{"when names itself", base(Setting{Key: "url", Label: "URL", When: map[string]string{"url": "x"}}), false},
+		{"a switch", base(Setting{Key: "on", Label: "On", Type: "boolean", Style: "switch"}), true},
+		{"a style this version does not know", base(Setting{Key: "on", Label: "On", Type: "boolean", Style: "dial"}), true},
 	}
 	for _, c := range cases {
 		// Act

@@ -151,7 +151,8 @@ the repository itself is the extension.
 - `settings`: `type` is string, secret, boolean or path; `scope` is global
   (Settings, Ctrl+,), project (Project Settings) or both, the project's
   value winning. Secrets stay in Go: the backend gets them, the window
-  never does.
+  never does. `style: "switch"` shows a boolean as an On/Off button with a
+  dot, green when on (BMEditor 0.1.7; older ones show a checkbox).
 - `projectKinds[].template`: a folder copied into a new project; `{{name}}`
   in a file becomes the project's name. `settings` are the new project's.
 - Every path stays inside the extension; a manifest that points outside it

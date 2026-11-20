@@ -34,7 +34,8 @@
       "label": "Pause the agent at each step",
       "description": "The agent stops after each step of its plan until you approve it. Off: the agent works without Mentor.",
       "type": "boolean",
-      "default": "true"
+      "default": "true",
+      "style": "switch"
     },
     {
       "key": "requirePlan",

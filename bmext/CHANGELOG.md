@@ -5,6 +5,14 @@ manager, the SDKs and bmx. The version is in VERSION; its section here
 becomes the notes of its release (scripts/release-bmext.sh), and a version
 is released only when it has one.
 
+## 0.2.9
+
+- A setting's `style` says how Settings shows it: `"switch"` shows a
+  boolean as an On/Off button with a dot, green when on, with its
+  description, for a setting that turns a whole part of the extension on
+  or off. It is a hint: an editor that does not know it, 0.1.6 and older,
+  shows a checkbox, so an extension needs no newer editor for it.
+
 ## 0.2.8
 
 - `project` is the top bar's Run and Debug group for a project the

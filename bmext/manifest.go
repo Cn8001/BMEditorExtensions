@@ -113,6 +113,11 @@ type Setting struct {
 	// When shows the setting only while other settings have these values,
 	// such as {"provider": "ollama"}.
 	When map[string]string `json:"when,omitempty"`
+	// Style is how Settings shows it, a hint an editor that does not know
+	// it passes over: "switch" shows a boolean as an On/Off button with a
+	// dot, green when on, for a setting that turns a whole part on or off
+	// (BMEditor 0.1.7 and later; older ones show a checkbox).
+	Style string `json:"style,omitempty"`
 }
 
 // Option is one value a dropdown setting offers.
