@@ -9,6 +9,27 @@
   },
   "settings": [
     {
+      "key": "openIn",
+      "label": "Open Mentor in",
+      "description": "The sidebar, a tab of the bottom panel, or a window you can move.",
+      "type": "string",
+      "default": "sidebar",
+      "options": [
+        {
+          "value": "sidebar",
+          "label": "Sidebar"
+        },
+        {
+          "value": "panel",
+          "label": "Bottom panel"
+        },
+        {
+          "value": "window",
+          "label": "Floating window"
+        }
+      ]
+    },
+    {
       "key": "lens",
       "label": "Show uses above declarations",
       "description": "One line above each Go type and function: how many things use it, how many tests reach it, how many types implement it. A click shows its card.",

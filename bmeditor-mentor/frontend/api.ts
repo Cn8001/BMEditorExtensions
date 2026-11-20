@@ -312,6 +312,8 @@ export const store = reactive({
   loading: false,
   error: '',
   lens: true,
+  place: 'sidebar' as Place,
+  windowOpen: false,
 })
 
 export function page(): Page {
@@ -344,9 +346,19 @@ export function rel(path: string): string {
   return api.ide.folder ? api.paths.relativeTo(api.ide.folder, path) : path
 }
 
-export function showSidebar() {
-  api.ide.sidebarOpen = true
-  api.ide.sidebarView = view
+// Where Mentor opens, as the setting Open Mentor in says: a view in the
+// sidebar, a tab of the bottom panel, or a window of its own over the
+// editor.
+export type Place = 'sidebar' | 'panel' | 'window'
+
+// show opens Mentor where it lives.
+export function show() {
+  if (store.place === 'panel') api.ui.showPanel(view)
+  else if (store.place === 'window') store.windowOpen = true
+  else {
+    api.ide.sidebarOpen = true
+    api.ide.sidebarView = view
+  }
 }
 
 // The untyped parts of the editor's store this extension reads: where the

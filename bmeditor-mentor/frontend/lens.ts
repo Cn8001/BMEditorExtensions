@@ -1,7 +1,7 @@
 import { StateEffect, StateField, type Extension, type Range } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 import type { Tab } from '../bmext/bmeditor'
-import { api, call, go, plural, showSidebar, store } from './api'
+import { api, call, go, plural, show, store } from './api'
 
 // One line above each type and function of a Go file: how many things use
 // it, how many tests reach it, how many types implement it. A click shows
@@ -45,7 +45,7 @@ class Lens extends WidgetType {
     link.title = 'Mentor: what it is and who uses it'
     link.onmousedown = (e) => {
       e.preventDefault()
-      showSidebar()
+      show()
       void go({ kind: 'card', key: this.item.key })
     }
     div.appendChild(link)

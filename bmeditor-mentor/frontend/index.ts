@@ -1,13 +1,14 @@
-import { watch } from 'vue'
+import { createApp, watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
-import { agent, api, call, clear, connect, cursor, fail, go, loadChanges, refreshStatus, setApi, showSidebar, store, view, type AgentState, type Ref, type Status } from './api'
+import { agent, api, call, clear, connect, cursor, fail, go, loadChanges, refreshStatus, setApi, show, store, view, type AgentState, type Place, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import Sidebar from './Sidebar.vue'
+import Window from './Window.vue'
 import './style.css'
 
 // Mentor: understand what a coding agent did to your code, and keep it in
-// check. Its view in the sidebar answers questions about the code from an
-// index the backend keeps of it.
+// check. Its view, in the sidebar, the bottom panel or a window of its own,
+// answers questions about the code from an index the backend keeps of it.
 export default function activate(a: ExtensionAPI) {
   setApi(a)
 
@@ -29,7 +30,7 @@ export default function activate(a: ExtensionAPI) {
     const was = store.agent?.waiting
     store.agent = st
     if (st.waiting && st.waiting !== was) {
-      showSidebar()
+      show()
       store.tab = 'changes'
       void loadChanges()
       api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`)
@@ -38,7 +39,7 @@ export default function activate(a: ExtensionAPI) {
 
   async function explainThis() {
     const tab = api.ui.activeTab()
-    showSidebar()
+    show()
     if (!tab) return
     const { line } = cursor()
     try {
@@ -50,16 +51,34 @@ export default function activate(a: ExtensionAPI) {
   }
 
   function askFocus() {
-    showSidebar()
+    show()
     store.tab = 'explore'
-    // The view mounts when the sidebar shows it.
+    // The view mounts when it is shown.
     setTimeout(() => (document.querySelector('.mentor .q') as HTMLInputElement | null)?.focus(), 50)
   }
 
+  // place puts Mentor's view where the setting says, and takes it from
+  // the other places.
+  function place(where: Place) {
+    store.place = where
+    api.register({
+      sidebar: where === 'sidebar' ? [{ id: view, label: 'Mentor', icon: 'mortar-board', component: Sidebar }] : [],
+      panels: where === 'panel' ? [{ id: view, label: 'Mentor', component: Sidebar, busy: () => store.reportBusy || store.status?.state === 'indexing' }] : [],
+    })
+    const ide = api.ide as typeof api.ide & { panelOrder?: string[]; panel?: { tab: string } }
+    // The editor lists extensions' panels once, at start.
+    if (where === 'panel' && ide.panelOrder && !ide.panelOrder.includes(view)) ide.panelOrder.push(view)
+    if (where !== 'panel' && ide.panel?.tab === view) ide.panel.tab = 'problems'
+    if (where !== 'sidebar' && ide.sidebarView === view) ide.sidebarView = 'explorer'
+    if (where !== 'window') store.windowOpen = false
+  }
+  place('sidebar')
+  createApp(Window).mount(document.body.appendChild(document.createElement('div')))
+
   api.register({
-    sidebar: [{ id: view, label: 'Mentor', icon: 'mortar-board', component: Sidebar }],
     editor: lens,
     commands: [
+      { id: 'mentor-open', label: 'Mentor: Open', icon: 'mortar-board', run: show },
       { id: 'mentor-explain', label: 'Mentor: Explain This', icon: 'mortar-board', kbd: 'Ctrl+Alt+U', run: explainThis, when: () => !!api.ui.activeTab()?.path.endsWith('.go') },
       { id: 'mentor-ask', label: 'Mentor: Ask About the Code', icon: 'search', run: askFocus, when: () => !!api.ide.folder },
       {
@@ -67,7 +86,7 @@ export default function activate(a: ExtensionAPI) {
         label: 'Mentor: Connect the Agent',
         icon: 'hubot',
         run: async () => {
-          showSidebar()
+          show()
           store.tab = 'changes'
           await connect(true)
         },
@@ -78,7 +97,7 @@ export default function activate(a: ExtensionAPI) {
         label: 'Mentor: What Changed',
         icon: 'diff',
         run: () => {
-          showSidebar()
+          show()
           store.tab = 'changes'
           void loadChanges()
         },
@@ -89,8 +108,17 @@ export default function activate(a: ExtensionAPI) {
     reset: clear,
   })
 
+  // At start Mentor waits to be opened; a change of place opens its window.
+  let started = false
   const readSettings = () =>
     api.settings().then((s) => {
+      const where = (['sidebar', 'panel', 'window'] as const).find((p) => p === s.values.openIn) ?? 'sidebar'
+      if (where !== store.place) {
+        const open = started && where === 'window'
+        place(where)
+        if (open) show()
+      }
+      started = true
       const on = s.values.lens !== 'false'
       if (on !== store.lens) {
         store.lens = on
