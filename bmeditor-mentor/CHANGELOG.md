@@ -4,6 +4,13 @@ Each version of the Mentor extension, newest first. The section of a
 version becomes the notes of its release, and a version is published only
 when it has a section here.
 
+## 0.0.2
+
+- With several editors open on one folder, the agent stays with one
+  Mentor, and when that editor closes or opens another folder, the other
+  editor's Mentor takes the agent over within a few seconds. Before, the
+  agent could be left talking to a Mentor that had gone.
+
 ## 0.0.1
 
 - First version. The coding agent proposes its plan in steps of one

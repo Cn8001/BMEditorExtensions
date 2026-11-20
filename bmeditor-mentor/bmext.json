@@ -1,7 +1,7 @@
 {
   "name": "mentor",
   "displayName": "Mentor",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Keep hold of what a coding agent does to your code. It works on its own, and stops at the end of each step of its plan until you have seen what the step changed, where it fits and what it can break. Ask which type or function to use in plain words, and get any symbol's card, the package map and the path a call takes, all from the compiler's view of the code, on your machine.",
   "icon": "icon.svg",
   "engines": {
