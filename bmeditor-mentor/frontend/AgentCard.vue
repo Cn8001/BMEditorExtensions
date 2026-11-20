@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, markRaw, ref, watch } from 'vue'
-import { agent, call, connect, go, icons, name, store, type SearchResult } from './api'
+import { agent, api, call, go, icons, name, store, type SearchResult } from './api'
 import Section from './Section.vue'
 import UnitCard from './UnitCard.vue'
 
@@ -10,7 +10,6 @@ import UnitCard from './UnitCard.vue'
 const st = computed(() => store.agent)
 const note = ref('')
 const related = ref<SearchResult | null>(null)
-const showSetup = ref(false)
 
 const level = computed(() => {
   switch (st.value?.level) {
@@ -21,7 +20,7 @@ const level = computed(() => {
     case 'cooperative':
       return { label: 'Checkpoints, not held', title: 'The agent has the tools but not the hooks: it can go on without waiting.' }
   }
-  return { label: 'Watching changes only', title: 'No agent is connected: Mentor shows what changed, and does not pause anything.' }
+  return { label: 'Not connected', title: 'Connect the agent is off in Settings, or connecting did not work: Mentor shows what changed, and does not pause anything.' }
 })
 
 const step = computed(() => (st.value?.plan && st.value.step ? st.value.plan.steps[st.value.step - 1] : null))
@@ -66,14 +65,11 @@ function time(at: string) {
     <div class="line" :title="level.title">
       <i class="codicon codicon-hubot" />
       <span>Agent: {{ level.label }}</span>
-      <button v-if="st?.level === 'enforced'" class="link" @click="connect(false)">Disconnect</button>
-      <button v-else class="link" @click="(showSetup = true), connect(true)">Connect</button>
+      <button v-if="st?.level !== 'enforced'" class="link" title="Connect the agent, in Mentor's settings" @click="api.ui.openSettings()">Settings</button>
     </div>
-    <div v-if="showSetup && store.setup" class="setup">
-      <div v-if="store.setup.hooks">Hooks in {{ store.setup.hooksFile }}.</div>
-      <div v-if="store.setup.detail" class="warn">{{ store.setup.detail }}</div>
-      <code v-if="!store.setup.mcp" class="cmd">{{ store.setup.mcpCommand }}</code>
-      <div class="dim">Start the agent again in the folder for it to pick them up.</div>
+    <div v-if="st?.problem" class="setup">
+      <div class="warn">{{ st.problem.split('\n')[0] }}</div>
+      <code v-for="cmd in st.problem.split('\n').slice(1)" :key="cmd" class="cmd">{{ cmd }}</code>
     </div>
 
     <!-- The plan waits. -->

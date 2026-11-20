@@ -61,14 +61,12 @@ Other languages come through their language servers.
 
 ## Connecting the agent
 
-When a folder opens, Mentor connects the agent by itself: it adds its MCP
-server, through which the agent proposes its plan and opens checkpoints,
-and its hooks to the agent's local settings for the folder, which stay on
-this machine. An agent already running picks them up when it starts
-again. Disconnect in the Changes tab takes both out and keeps them out
-for the folder; **Mentor: Connect the Agent** puts them back. The setting
-Connect the agent automatically turns this off, and Pause the agent at
-each step turns Mentor's hold on the agent off altogether.
+Mentor connects the agent while the settings Pause the agent at each
+step and Connect the agent are both on: for the open folder it adds its
+MCP server, through which the agent proposes its plan and opens
+checkpoints, and its hooks to the agent's local settings, which stay on
+this machine. Turn either off and Mentor takes both out. An agent already
+running picks the change up when it starts again.
 
 Mentor says how far a stop holds: with the hooks, the agent waits; with
 the MCP server alone, it follows the steps but nothing makes it wait; with

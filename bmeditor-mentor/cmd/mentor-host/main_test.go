@@ -236,3 +236,24 @@ func TestMethods_WithoutGoCode(t *testing.T) {
 		t.Errorf("status = %+v", st)
 	}
 }
+
+func TestLinkAction_FollowsTheSettings(t *testing.T) {
+	cases := []struct {
+		name                    string
+		want, first, hooks, mcp bool
+		action                  string
+	}{
+		{"opens, wanted, all there", true, true, true, true, ""},
+		{"opens, wanted, hooks missing", true, true, false, true, "connect"},
+		{"opens, wanted, mcp missing", true, true, true, false, "connect"},
+		{"opens, not wanted, nothing there", false, true, false, false, ""},
+		{"opens, not wanted, hooks left", false, true, true, false, "disconnect"},
+		{"turned on", true, false, true, true, "connect"},
+		{"turned off", false, false, false, false, "disconnect"},
+	}
+	for _, c := range cases {
+		if got := linkAction(c.want, c.first, c.hooks, c.mcp); got != c.action {
+			t.Errorf("%s: %q, want %q", c.name, got, c.action)
+		}
+	}
+}

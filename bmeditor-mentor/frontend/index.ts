@@ -1,6 +1,6 @@
 import { createApp, watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
-import { agent, api, call, clear, connect, cursor, fail, go, loadChanges, refreshStatus, setApi, show, store, view, type AgentState, type Place, type Ref, type Status } from './api'
+import { agent, api, call, clear, cursor, fail, go, loadChanges, refreshStatus, setApi, show, store, view, type AgentState, type Place, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import Sidebar from './Sidebar.vue'
 import Window from './Window.vue'
@@ -83,17 +83,6 @@ export default function activate(a: ExtensionAPI) {
       { id: 'mentor-open', label: 'Mentor: Open', icon: 'mortar-board', run: show },
       { id: 'mentor-explain', label: 'Mentor: Explain This', icon: 'mortar-board', kbd: 'Ctrl+Alt+U', run: explainThis, when: () => !!api.ui.activeTab()?.path.endsWith('.go') },
       { id: 'mentor-ask', label: 'Mentor: Ask About the Code', icon: 'search', run: askFocus, when: () => !!api.ide.folder },
-      {
-        id: 'mentor-connect',
-        label: 'Mentor: Connect the Agent',
-        icon: 'hubot',
-        run: async () => {
-          show()
-          store.tab = 'changes'
-          await connect(true)
-        },
-        when: () => !!api.ide.folder,
-      },
       {
         id: 'mentor-changes',
         label: 'Mentor: What Changed',

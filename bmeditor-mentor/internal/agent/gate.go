@@ -88,9 +88,12 @@ type Event struct {
 type State struct {
 	// Level is how far the pause holds: enforced with the hooks,
 	// cooperative with the MCP tools only, observe with neither.
-	Level      string      `json:"level"`
-	Hooks      bool        `json:"hooks"`
-	MCP        bool        `json:"mcp"`
+	Level string `json:"level"`
+	Hooks bool   `json:"hooks"`
+	MCP   bool   `json:"mcp"`
+	// Problem is why connecting the agent did not work, with what to run
+	// by hand.
+	Problem    string      `json:"problem,omitempty"`
 	LastSeen   time.Time   `json:"lastSeen,omitzero"`
 	Plan       *Plan       `json:"plan"`
 	Step       int         `json:"step"` // 1-based; 0 when no step is under way
@@ -116,6 +119,7 @@ type Gate struct {
 	policy   Policy
 	hooks    bool
 	mcp      bool
+	problem  string
 	lastSeen time.Time
 	plan     *Plan
 	step     int
@@ -155,9 +159,9 @@ func (g *Gate) SetPolicy(p Policy) {
 }
 
 // SetConnection says what is set up in the agent.
-func (g *Gate) SetConnection(hooks, mcp bool) {
+func (g *Gate) SetConnection(hooks, mcp bool, problem string) {
 	g.mu.Lock()
-	g.hooks, g.mcp = hooks, mcp
+	g.hooks, g.mcp, g.problem = hooks, mcp, problem
 	g.mu.Unlock()
 	g.notify()
 }
@@ -187,7 +191,7 @@ func (g *Gate) State() State {
 }
 
 func (g *Gate) state() State {
-	st := State{Hooks: g.hooks, MCP: g.mcp, LastSeen: g.lastSeen, Plan: g.plan, Step: g.step, Checkpoint: g.cp,
+	st := State{Hooks: g.hooks, MCP: g.mcp, Problem: g.problem, LastSeen: g.lastSeen, Plan: g.plan, Step: g.step, Checkpoint: g.cp,
 		Files: []string{}, Events: append([]Event{}, g.events...), Policy: g.policy}
 	for f := range g.files {
 		st.Files = append(st.Files, f)

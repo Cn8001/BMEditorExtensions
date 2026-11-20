@@ -11,8 +11,9 @@ when it has a section here.
   changed beside what the agent says it did and why, and the agent goes on
   when you approve, or makes the changes you ask for. Its plan waits for
   you first. The agent's hooks make the stops hold in any permission mode,
-  auto mode included. Mentor connects the agent by itself when a folder
-  opens, adding its MCP server and hooks; Disconnect keeps them out.
+  auto mode included. Mentor connects the agent while the setting Connect
+  the agent is on, adding its MCP server and hooks, and takes them out
+  when it is off.
 - The Changes tab lists what the agent changed that still differs from
   HEAD: the files it edited, added or removed, by its tools or its
   commands, each with the declarations added, changed and removed in it. The check marks a file reviewed; a later change to it

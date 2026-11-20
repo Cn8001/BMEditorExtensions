@@ -290,14 +290,7 @@ export interface AgentState {
   files: string[]
   events: AgentEvent[] | null
   policy: { requirePlan: boolean; maxFiles: number }
-}
-
-export interface Setup {
-  hooksFile: string
-  hooks: boolean
-  mcp: boolean
-  mcpCommand: string
-  detail?: string
+  problem?: string // why connecting the agent did not work; then the commands to run by hand, a line each
 }
 
 // A page of the Explore tab: the answer to a question, a symbol's card,
@@ -316,7 +309,6 @@ export const store = reactive({
   reportError: '',
   reportBusy: false,
   agent: null as AgentState | null,
-  setup: null as Setup | null,
   query: '',
   result: null as SearchResult | null,
   searching: false,
@@ -473,19 +465,6 @@ export async function agent(method: string, params?: unknown) {
   }
 }
 
-export async function connect(on: boolean) {
-  try {
-    if (on) store.setup = await call<Setup>('agent.connect')
-    else {
-      store.setup = null
-      await agent('disconnect')
-    }
-    await agent('state')
-  } catch (err) {
-    fail('Mentor', err)
-  }
-}
-
 // diff opens a file beside what HEAD has, in the editor's own review.
 export async function diff(path: string) {
   await api.session.openFile(path)
@@ -496,7 +475,6 @@ export async function diff(path: string) {
 
 export function clear() {
   store.agent = null
-  store.setup = null
   store.report = null
   store.reportError = ''
   store.status = null

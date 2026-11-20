@@ -40,6 +40,7 @@ type state struct {
 	eng    *engine.Engine
 	gate   *agent.Gate
 	server *agent.Server
+	linked string // "on" or "off": what the settings last said of connecting the agent to this folder
 }
 
 func (st *state) close() {
@@ -110,6 +111,7 @@ func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 	if st.eng != nil && st.eng.Root == r {
 		st.eng.Apply(set)
 		st.gate.SetPolicy(policy)
+		st.link(s, st.eng)
 		return st.eng, nil
 	}
 	st.closeFolder()
@@ -130,7 +132,7 @@ func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 		_ = g.Unmarshal([]byte(b))
 	}
 	g.Persist = func(b []byte) { _ = e.DB.SetMeta(context.Background(), "gate", string(b)) }
-	g.SetConnection(agent.HooksInstalled(r), e.DB.Meta(context.Background(), "mcp") == "1")
+	g.SetConnection(agent.HooksInstalled(r), e.DB.Meta(context.Background(), "mcp") == "1", "")
 	if st.server == nil {
 		if srv, err := agent.Listen(st.gateDir(), st.gateFor); err == nil {
 			st.server = srv
@@ -139,14 +141,43 @@ func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 	if st.server != nil {
 		_ = st.server.Register(r)
 	}
-	st.eng, st.gate = e, g
-	// The agent is connected by itself when the folder opens, unless the
-	// developer turned that off, or disconnected it here.
-	if s.Context().Setting("watchAgent") != "false" && s.Context().Setting("autoConnect") != "false" && e.DB.Meta(context.Background(), "disconnected") != "1" &&
-		(!agent.HooksInstalled(r) || e.DB.Meta(context.Background(), "mcp") != "1") {
-		go func() { _, _ = st.connect(context.Background(), e) }()
-	}
+	st.eng, st.gate, st.linked = e, g, ""
+	st.link(s, e)
 	return e, nil
+}
+
+// link connects the agent to the folder or takes it out, as the settings
+// say: connected while Mentor pauses the agent and Connect the agent is
+// on. It acts when the folder opens and when the settings change; a setup
+// already as the settings want is left alone. Call it with st.mu held.
+func (st *state) link(s *host.Server, e *engine.Engine) {
+	want := "off"
+	if s.Context().Setting("watchAgent") != "false" && s.Context().Setting("autoConnect") != "false" {
+		want = "on"
+	}
+	if want == st.linked {
+		return
+	}
+	first := st.linked == ""
+	st.linked = want
+	switch linkAction(want == "on", first, agent.HooksInstalled(e.Root), e.DB.Meta(context.Background(), "mcp") == "1") {
+	case "connect":
+		go func() { _ = st.connect(context.Background(), e) }()
+	case "disconnect":
+		go st.disconnect(context.Background(), e)
+	}
+}
+
+// linkAction is what link does: when the folder opens (first), only what
+// is not yet as the settings want; when the settings change, always.
+func linkAction(want, first, hooks, mcp bool) string {
+	switch {
+	case want && (!first || !hooks || !mcp):
+		return "connect"
+	case !want && (!first || hooks || mcp):
+		return "disconnect"
+	}
+	return ""
 }
 
 // gateOf is the gate of the folder the call is for.
@@ -480,40 +511,44 @@ func registerAgent(s *host.Server, st *state) {
 		g.EndPlan()
 		return nil
 	}))
-	s.Handle("agent.connect", handler(s, st, func(ctx context.Context, e *engine.Engine, _ none) (any, error) {
-		res, err := st.connect(ctx, e)
-		if err != nil {
-			return nil, &host.Error{Code: "AGENT", Message: err.Error()}
-		}
-		return res, nil
-	}))
-	s.Handle("agent.disconnect", gated(func(ctx context.Context, e *engine.Engine, g *agent.Gate, _ answer) error {
-		err := agent.Disconnect(ctx, e.Root)
-		_ = e.DB.SetMeta(ctx, "mcp", "")
-		_ = e.DB.SetMeta(ctx, "disconnected", "1") // not again by itself
-		g.SetConnection(false, false)
-		return err
-	}))
 }
 
 // connect sets the agent up for the folder: Mentor's MCP server and the
 // hooks that make a checkpoint hold.
-func (st *state) connect(ctx context.Context, e *engine.Engine) (agent.Setup, error) {
+func (st *state) connect(ctx context.Context, e *engine.Engine) error {
 	g := st.gateOf(e)
 	if g == nil {
-		return agent.Setup{}, errors.New("the folder changed; try again")
+		return errors.New("the folder changed")
 	}
 	gate, err := agent.InstallGate(st.gateDir())
 	if err != nil {
-		return agent.Setup{}, err
+		g.SetConnection(false, false, "Mentor could not connect the agent: "+err.Error())
+		return err
 	}
-	_ = e.DB.SetMeta(ctx, "disconnected", "")
 	res := agent.Connect(ctx, e.Root, gate)
 	if res.MCP {
 		_ = e.DB.SetMeta(ctx, "mcp", "1")
 	}
-	g.SetConnection(res.Hooks, res.MCP || e.DB.Meta(ctx, "mcp") == "1")
-	return res, nil
+	problem := res.Detail
+	if !res.MCP && res.MCPCommand != "" {
+		problem += "\n" + res.MCPCommand
+	}
+	g.SetConnection(res.Hooks, res.MCP || e.DB.Meta(ctx, "mcp") == "1", strings.TrimSpace(problem))
+	return nil
+}
+
+// disconnect takes Mentor's MCP server and hooks out of the agent for the
+// folder.
+func (st *state) disconnect(ctx context.Context, e *engine.Engine) {
+	err := agent.Disconnect(ctx, e.Root)
+	_ = e.DB.SetMeta(ctx, "mcp", "")
+	if g := st.gateOf(e); g != nil {
+		problem := ""
+		if err != nil {
+			problem = "Mentor could not take its hooks out of " + e.Root + ": " + err.Error()
+		}
+		g.SetConnection(false, false, problem)
+	}
 }
 
 // answer is the developer's answer from the checkpoint card.

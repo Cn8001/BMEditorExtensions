@@ -56,8 +56,8 @@
     },
     {
       "key": "autoConnect",
-      "label": "Connect the agent automatically",
-      "description": "Set the agent up for Mentor when a folder opens. Off: run Mentor: Connect the Agent.",
+      "label": "Connect the agent",
+      "description": "Add Mentor's MCP server and hooks to the agent for the open folder. Off: Mentor takes them out.",
       "type": "boolean",
       "default": "true",
       "when": {
