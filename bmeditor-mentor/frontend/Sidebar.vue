@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { agent, api, ask, back, call, loadChanges, openArchitecture, page, pages, plural, store, type Status, type Tab } from './api'
+import { api, ask, back, call, go, home, page, plural, store, type Status } from './api'
 import CardPage from './CardPage.vue'
 import ChangesView from './ChangesView.vue'
 import FlowPage from './FlowPage.vue'
 import MapPage from './MapPage.vue'
 import Results from './Results.vue'
 
-// Mentor's view, in three tabs. Architecture: the packages, their layers
-// and the ways in. Features: a question about a part of the project, or
-// something to do to it, answered from the code. Changes: what the agent
-// changed, and its plan and checkpoints. A card, a flow or a map opens in
-// the tab, and Back goes to the page before.
+// Mentor's one view. Home is the agent's work: its plan or milestone, the
+// project's shape with what it did, and its files. At the bottom, one box
+// for a question about the project, a part of it or something to do to it;
+// the answer, a card, a flow or a map opens in place, and Back goes to the
+// page before.
 const input = ref<HTMLInputElement>()
 const status = computed(() => store.status)
 const p = computed(() => page())
@@ -34,21 +34,6 @@ function line(st: Status | null): string {
   return s
 }
 
-function tab(t: Tab) {
-  if (t === 'architecture') return void openArchitecture()
-  store.tab = t
-  if (t === 'changes') {
-    void loadChanges()
-    void agent('state')
-  }
-}
-
-const browsing = computed(() => store.tab === 'architecture' || store.tab === 'explore')
-
-const changed = computed(() => {
-  return store.report?.files.length ?? 0
-})
-
 async function reindex() {
   store.status = await call<Status>('reindex')
 }
@@ -58,39 +43,30 @@ defineExpose({ focus: () => input.value?.focus() })
 
 <template>
   <div class="mentor">
-    <div class="tabs">
-      <button :class="{ on: store.tab === 'architecture' }" title="The packages, their layers and the ways in" @click="tab('architecture')">Architecture</button>
-      <button :class="{ on: store.tab === 'explore' }" title="A part of the project end to end, or what to do to it" @click="tab('explore')">Features</button>
-      <button :class="{ on: store.tab === 'changes' }" title="What the agent changed, its plan and checkpoints" @click="tab('changes')">
-        Changes<span v-if="store.agent?.waiting" class="badge wait" title="The agent waits for you">!</span><span v-else-if="changed" class="badge">{{ changed }}</span>
-      </button>
+    <div class="status" :class="status?.state" :title="status?.errors.join('\n')">
+      <i v-if="status?.state === 'indexing' || status?.state === 'stale'" class="codicon codicon-loading codicon-modifier-spin" />
+      <i v-else-if="status?.state === 'error' || status?.errors.length" class="codicon codicon-warning" />
+      <span>{{ line(status) }}</span>
+      <button title="The map of the packages" @click="go({ kind: 'map', focus: '' })"><i class="codicon codicon-type-hierarchy" /></button>
+      <button title="Read the code again" @click="reindex"><i class="codicon codicon-refresh" /></button>
     </div>
-    <div v-show="browsing" class="top">
-      <form v-show="store.tab === 'explore'" @submit.prevent="ask(store.query)">
-        <i class="codicon codicon-search" />
-        <input ref="input" v-model="store.query" class="q" placeholder="authentication · add a new provider · which struct…" spellcheck="false" />
-      </form>
-      <div class="status" :class="status?.state" :title="status?.errors.join('\n')">
-        <i v-if="status?.state === 'indexing' || status?.state === 'stale'" class="codicon codicon-loading codicon-modifier-spin" />
-        <i v-else-if="status?.state === 'error' || status?.errors.length" class="codicon codicon-warning" />
-        <span>{{ line(status) }}</span>
-        <button title="Read the code again" @click="reindex"><i class="codicon codicon-refresh" /></button>
-      </div>
-    </div>
-    <div v-if="store.tab === 'changes'" class="body">
-      <ChangesView />
-    </div>
-    <div v-if="browsing && pages() > 1" class="nav">
+    <div v-if="p.kind !== 'home'" class="nav">
       <button @click="back"><i class="codicon codicon-arrow-left" /> Back</button>
+      <button v-if="store.pages.length > 2" class="right" @click="home"><i class="codicon codicon-home" /> The agent's work</button>
     </div>
-    <div v-if="browsing" class="body">
-      <div v-if="store.error" class="error">{{ store.error }}</div>
+    <div class="body">
+      <ChangesView v-if="p.kind === 'home'" />
+      <div v-else-if="store.error" class="error">{{ store.error }}</div>
       <div v-else-if="store.loading" class="hint">Loading…</div>
       <Results v-else-if="p.kind === 'search'" />
       <CardPage v-else-if="p.kind === 'card' && p.card" :card="p.card" />
       <FlowPage v-else-if="p.kind === 'flow' && p.flow" :flow="p.flow" />
       <MapPage v-else-if="p.kind === 'map' && p.graph" :graph="p.graph" />
     </div>
+    <form class="ask" @submit.prevent="ask(store.query)">
+      <i class="codicon codicon-search" />
+      <input ref="input" v-model="store.query" class="q" placeholder="Ask about the project: authentication, add a provider…" spellcheck="false" />
+    </form>
   </div>
 </template>
 
@@ -137,6 +113,10 @@ defineExpose({ focus: () => input.value?.focus() })
   padding: 8px 8px 4px;
   border-bottom: 1px solid var(--border);
 }
+form.ask {
+  flex: none;
+  margin: 6px 8px;
+}
 form {
   display: flex;
   align-items: center;
@@ -162,10 +142,12 @@ form .codicon {
   font: inherit;
 }
 .status {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 5px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
   font-size: 11px;
   color: var(--text-faint);
   white-space: nowrap;
@@ -203,6 +185,12 @@ form .codicon {
   padding: 1px 5px;
   color: var(--text-dim);
   font-size: 12px;
+}
+.nav {
+  display: flex;
+}
+.nav .right {
+  margin-left: auto;
 }
 .nav button:hover {
   color: var(--text);

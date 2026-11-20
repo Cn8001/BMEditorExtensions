@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { name, openAt, store, type PkgChange } from './api'
+import { go, name, openAt, store, type PkgChange } from './api'
 
 // The project's shape with the agent's work on it: every package of the
 // project by layer, the ones it touched lit, what it added in them, and the
@@ -41,7 +41,7 @@ const warned = computed(() => (a.value?.edges ?? []).filter((e) => e.warn))
     <div v-for="row in rows" :key="row.layer" class="row">
       <span class="layer">{{ row.layer }}</span>
       <span class="pkgs">
-        <span v-for="p in row.pkgs" :key="p.path" class="pkg" :class="{ on: !!p.change, new: p.change?.new }" :title="p.path">
+        <span v-for="p in row.pkgs" :key="p.path" class="pkg" :class="{ on: !!p.change, new: p.change?.new }" :title="p.path + ': its map'" @click="go({ kind: 'map', focus: p.path })">
           {{ p.label }}
           <span v-if="p.change?.new" class="badge">new</span>
           <span v-else-if="p.change" class="n">+{{ p.change.added }}<template v-if="p.change.modified"> ~{{ p.change.modified }}</template><template v-if="p.change.removed"> −{{ p.change.removed }}</template></span>
@@ -90,6 +90,7 @@ const warned = computed(() => (a.value?.edges ?? []).filter((e) => e.warn))
   gap: 3px;
 }
 .pkg {
+  cursor: pointer;
   padding: 0 6px;
   border: 1px solid var(--border);
   border-radius: 3px;

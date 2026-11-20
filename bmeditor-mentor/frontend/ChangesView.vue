@@ -3,11 +3,13 @@ import { computed, onMounted } from 'vue'
 import { api, diff, go, icons, loadChanges, markReviewed, name, openAt, rel, store, type AgentFile, type Change } from './api'
 import AgentCard from './AgentCard.vue'
 import ArchView from './ArchView.vue'
+import Section from './Section.vue'
 
-// What the agent changed that still differs from HEAD, file by file, flat:
-// a file opens beside HEAD, a declaration opens where it is. The check
-// marks a file's declarations reviewed as they are now; a later change
-// shows again. A file leaves the list once it is committed or put back.
+// Home: the agent's work. Its plan or milestone, the project's shape with
+// what it did, and, folded, the files it changed that still differ from
+// HEAD: a file opens beside HEAD, a declaration where it is, and the check
+// marks a file reviewed as it is now. A file leaves the list once it is
+// committed or put back.
 onMounted(() => {
   if (!store.report) void loadChanges()
 })
@@ -52,19 +54,13 @@ function card(c: Change) {
       <div class="head"><span>The project's shape, with the agent's work</span></div>
       <ArchView />
     </div>
-    <div class="head">
-      <span>Agent's changes</span>
-      <span v-if="r?.files.length" class="dim">
-        {{ r.files.length }} file{{ r.files.length === 1 ? '' : 's' }} · <span class="add">+{{ r.lines[0] }}</span> <span class="del">−{{ r.lines[1] }}</span>
-      </span>
-      <button title="Read the changes again" @click="loadChanges"><i class="codicon codicon-refresh" :class="{ 'codicon-modifier-spin': store.reportBusy }" /></button>
-    </div>
     <div v-if="store.reportError" class="hint">{{ store.reportError }}</div>
     <div v-else-if="r?.warning" class="warn">{{ r.warning }}</div>
     <div v-if="r && !r.files.length" class="hint">
       {{ off ? 'Mentor is off, so it does not follow the agent.' : 'Nothing the agent changed differs from HEAD.' }}
     </div>
 
+    <Section v-if="r?.files.length" :title="`Files the agent changed · +${r.lines[0]} −${r.lines[1]}`" :count="r.files.length" :open="false">
     <div v-for="f in r?.files" :key="f.path" class="file" :class="{ done: reviewed(f) }">
       <div class="frow" :class="{ gone: f.status === 'D' }" :title="(f.status === 'A' ? 'New: ' : f.status === 'D' ? 'Deleted: ' : 'Beside HEAD: ') + rel(f.path)" @click="openFile(f)">
         <i class="codicon" :class="f.status === 'A' ? 'codicon-diff-added' : f.status === 'D' ? 'codicon-diff-removed' : 'codicon-diff'" />
@@ -86,6 +82,7 @@ function card(c: Change) {
         <button v-if="c.change !== 'removed'" class="info" title="Its card: who uses it, its tests" @click.stop="card(c)"><i class="codicon codicon-info" /></button>
       </div>
     </div>
+    </Section>
   </div>
 </template>
 

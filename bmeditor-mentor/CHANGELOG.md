@@ -6,47 +6,33 @@ when it has a section here.
 
 ## 0.0.1
 
-- First version. The coding agent the editor runs works on its own, in
-  steps of one behavior each, saying before each what it does, uses,
-  creates and leaves alone and when it is done; a step that strays or
-  grows ends. At the end of each it stops at a milestone and tells you
-  what it made, where it sits in the architecture and what to know to
-  carry on without it, beside the project's shape with its work on it:
-  packages touched, parts added, dependencies that came or went. Mentor
-  runs the tests. Ask it a question, which it answers without changing
-  anything, or tell it what to change; then Continue.
-  Its plan waits for you first. The agent's hooks make the stops hold in any permission mode,
-  auto mode included. One button, Connect the agent, turns it all on or
-  off: on, Mentor adds its MCP server and hooks for the folder and its dot
-  turns green; off, it takes them out.
-- Three tabs: Architecture, Features and Changes. Name a part of the
-  project in Features, such as authentication, and it is followed end to
-  end: where it starts, what runs in order, where its data lives, how it
-  fails, how to extend it, its tests and where to stop.
-- Say what you want to do, such as "add a new authentication provider",
-  and the Features tab answers from the code: the interface to implement,
-  the types that already do and how they differ, how it is wired in, what
-  to change and where, the tests, and where to stop when it breaks.
-- How it is used, in the code: a click on the line above a type or a
-  function shows, under it, the places that show best how the project
-  uses it, as they are written, a click away each.
-- The agent's code is painted in the editor, green where it added a
-  declaration and amber where it changed one.
-- Review in the code: a strip above each file the agent changed, with
-  what it changed there, Diff, Reviewed and the checkpoint's Approve; F7
-  and Shift+F7 go from one of its changes to the next, Alt+R marks a file
-  reviewed and goes on. Ctrl+Alt+U (Explain This) now works.
-- The Changes tab lists what the agent changed that still differs from
-  HEAD: the files it edited, added or removed, by its tools or its
-  commands, each with the declarations added, changed and removed in it. The check marks a file reviewed; a later change to it
-  shows again.
-- The Explore tab answers questions about the code in plain words with the
-  types and functions that fit, and shows any symbol's card, the flow from
-  a function and the package map. Explain This (Ctrl+Alt+U) shows the card
-  of the declaration at the cursor, and a line above each declaration
-  counts its uses. Search by meaning with a local Ollama is optional.
-- Mentor opens in a floating window, the bottom panel or the sidebar, as
-  the setting Open Mentor in says, and does not open by itself; its
+- First version. The coding agent proposes its plan in steps of one
+  behavior each, saying what each does, uses, creates and leaves alone and
+  when it is done, and waits for you to approve it. It then works on its
+  own; a step that strays or grows ends. At the end of each step, a
+  milestone, it stops and tells you what it made, where it sits in the
+  architecture and what to know to carry on without it, beside the
+  project's shape with its work on it: the packages it touched, the parts
+  it added, the dependencies that came or went. Mentor runs the tests. Ask
+  it a question, which it answers without changing anything, or tell it
+  what to change; then Continue. The agent's hooks make the stops hold in
+  any permission mode. One button, Connect the agent, turns it all on or
+  off.
+- One view: the agent's work, its plan or milestone and the project's
+  shape, with the files it changed folded below; and one box to ask about
+  the project. Name a part of it, such as authentication, and it is
+  followed end to end: where it starts, what runs in order, where its data
+  lives, how it fails, its tests and where to stop. Say what you want to
+  do, such as "add a new authentication provider", and the answer adds the
+  interface to implement, the types that already do and what to change.
+  Or ask which type or function fits, and open its card, its flow or the
+  package map.
+- In the code: the agent's declarations painted, green where it added one
+  and amber where it changed one; a strip above each file it changed, F7
+  to its next change and Alt+R to mark a file reviewed; a line above each
+  declaration counting its uses, which opens how the project uses it; and
+  Explain This (Ctrl+Alt+U).
+- Mentor opens in a floating window, the bottom panel or the sidebar; its
   button in the top bar shows it, with a dot that says whether the agent
   is connected.
 - Reads Go code, with Go on the PATH. Needs BMEditor 0.1.6.

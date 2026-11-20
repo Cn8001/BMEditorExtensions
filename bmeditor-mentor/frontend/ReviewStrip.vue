@@ -59,7 +59,7 @@ async function approve() {
       <span class="sep" />
       <span class="wait">Step {{ cp.step }} waits</span>
       <button class="primary" :disabled="busy" title="Approve the step: the agent goes on" @click="approve"><i class="codicon codicon-check-all" /> Approve</button>
-      <button title="Ask for changes, in Mentor" @click="reveal({ tab: 'changes' })">Changes…</button>
+      <button title="Ask for changes, in Mentor" @click="reveal({ home: true })">Changes…</button>
     </template>
   </div>
 </template>

@@ -22,8 +22,8 @@ where it is and what uses what, without asking the agent.
   agent a question, which it answers without changing anything, or tell it
   what to change; then Continue. The code is one click further, when you
   want it. The agent's hooks make the stops hold in any permission mode.
-- **What the agent changed.** Below the checkpoints, the Changes tab
-  lists the files the agent edited that still differ from HEAD, each with
+- **What the agent changed.** Below its plan or milestone and the
+  project's shape, folded, Mentor lists the files the agent edited that still differ from HEAD, each with
   the declarations added, changed and removed in it. A file opens beside
   HEAD, a declaration opens where it is, and its card shows who uses it
   and its tests. The check marks a file reviewed; a later change to it
@@ -43,16 +43,18 @@ where it is and what uses what, without asking the agent.
   to the agent's next change, file after file, **Shift+F7** to the one
   before, and **Alt+R** marks the file reviewed and goes to the next one,
   so a step is read without leaving the editor.
-- **Three tabs.** Architecture: the packages by layer, what imports what,
-  and the ways in. Features: a part of the project, or something to do to
-  it. Changes: what the agent changed, its plan and checkpoints.
-- **Understand a feature.** Name it, "authentication", and the Features
-  tab follows it end to end through the code: where it starts (the route
+- **One view.** The agent's work first: its plan or milestone, the
+  project's shape with what it did, its files. At the bottom, one box to
+  ask about the project; the answer, a card, a flow or the package map
+  open in place, and Back goes home. The map is also the button in the
+  status line, or a click on a package in the project's shape.
+- **Understand a feature.** Name it, "authentication", and Mentor follows
+  it end to end through the code: where it starts (the route
   or main), what runs in order (through interfaces too, marked), where its
   data lives, how it fails, how to extend it, its tests and where to stop
   in the debugger. Every line is a place in the code, a click away.
-- **Say what you want to do.** "Add a new authentication provider": the
-  Features tab answers from what the code says for certain. The interface
+- **Say what you want to do.** "Add a new authentication provider":
+  Mentor answers from what the code says for certain. The interface
   to implement and what it must have; the types that already do, how
   they differ, and the one to start from; how it is wired in, from the
   route down to the store; what to change and where, in order; the tests
@@ -60,7 +62,7 @@ where it is and what uses what, without asking the agent.
   line is a place in the code, a click away, and nothing is written by a
   model.
 - **Ask in plain words.** "Which struct holds a user's login?", "where is
-  the session made?": the Explore tab answers with the types and functions
+  the session made?": Mentor answers with the types and functions
   that fit, best first, each with what it is for, how much it is used and
   where, and what sets it apart from the look-alikes listed with it.
 - **Explain This (Ctrl+Alt+U).** The card of the declaration at the

@@ -37,7 +37,7 @@ import AnswerView from './AnswerView.vue'
     </template>
     <div v-else class="hint">
       Name a part of the project to follow it end to end, <em>authentication</em>; say what you want to do, <em>add a new authentication provider</em>;
-      or ask what you need, <em>which struct holds a user's login</em>. The answers come from the code, each a click from it.
+      or ask what you need, <em>which struct holds a user's login</em>, in the box below. The answers come from the code, each a click from it.
       Or put the cursor in a declaration and run <strong>Mentor: Explain This</strong> (Ctrl+Alt+U).
     </div>
   </div>

@@ -425,23 +425,19 @@ export interface AgentState {
   talk?: { q: string; a?: string; at: string }[] // the developer's questions about what waits, and the agent's answers
 }
 
-// Mentor's three tabs: the project's architecture, its features (and what
-// to do to them), and what the agent changed.
-export type Tab = 'architecture' | 'explore' | 'changes'
-
-// A page of the Architecture or the Features tab: the answer to a question,
-// a symbol's card, a flow or a map. Each tab keeps its own trail, and Back
-// goes to the page before in it.
-export type Page = (
+// A page of Mentor's one view. Home is the agent's work: its plan or
+// milestone, the project's shape and its files. Over it open the answer to
+// a question, a symbol's card, a flow or a map, and Back goes to the page
+// before.
+export type Page =
+  | { kind: 'home' }
   | { kind: 'search' }
   | { kind: 'card'; key: string; card?: Card }
   | { kind: 'flow'; key: string; flow?: Flow }
   | { kind: 'map'; focus: string; graph?: Graph }
-) & { from?: 'explore' | 'changes' } // the tab it was opened from, which Back returns to
 
 export const store = reactive({
   status: null as Status | null,
-  tab: 'explore' as Tab,
   report: null as AgentChanges | null,
   arch: null as ArchChange | null, // what the agent's changes did to the project's shape
   shape: null as Graph | null, // the project's packages, by layer
@@ -452,8 +448,7 @@ export const store = reactive({
   result: null as SearchResult | null,
   task: null as TaskAnswer | null,
   searching: false,
-  pages: [{ kind: 'search' }] as Page[],
-  archPages: [] as Page[], // the Architecture tab's trail, from the map of the packages
+  pages: [{ kind: 'home' }] as Page[],
   loading: false,
   error: '',
   lens: true,
@@ -461,26 +456,14 @@ export const store = reactive({
   windowOpen: false,
 })
 
-// stack is the trail of the tab shown: the Architecture tab's, or the
-// Features tab's, which the Changes tab opens pages on too.
-function stack(): Page[] {
-  return store.tab === 'architecture' ? store.archPages : store.pages
-}
-
 export function page(): Page {
-  const s = stack()
-  return s[s.length - 1] ?? { kind: 'search' }
+  return store.pages[store.pages.length - 1] ?? { kind: 'home' }
 }
 
-export function pages(): number {
-  return stack().length
-}
-
-// openArchitecture shows the Architecture tab, on the map of the packages
-// the first time.
-export async function openArchitecture() {
-  store.tab = 'architecture'
-  if (!store.archPages.length) await go({ kind: 'map', focus: '' })
+// home goes back to the agent's work, closing what was open over it.
+export function home() {
+  store.pages = [{ kind: 'home' }]
+  store.error = ''
 }
 
 export function call<T>(method: string, params?: unknown): Promise<T> {
@@ -534,10 +517,11 @@ export function show() {
   }
 }
 
-export type Go = { tab?: Tab; page?: Page }
+// Go is what to show: home, a page over it, or the question box.
+export type Go = { home?: boolean; page?: Page; ask?: boolean }
 
-// reveal shows Mentor on a tab or a page. A popup has its own state, so it
-// is asked through the backend, which every window hears (mentor/go).
+// reveal shows Mentor on what g says. A popup has its own state, so it is
+// asked through the backend, which every window hears (mentor/go).
 export async function reveal(g: Go) {
   if (popupMode()) {
     await api.ui.openPopup!(popup)
@@ -550,12 +534,12 @@ export async function reveal(g: Go) {
 
 // apply shows what reveal asked for, in this window.
 export async function apply(g: Go) {
-  if (g.tab === 'architecture') await openArchitecture()
-  else if (g.tab) {
-    store.tab = g.tab
-    if (g.tab === 'changes') void loadChanges()
+  if (g.home) {
+    home()
+    void loadChanges()
   }
   if (g.page) await go(g.page)
+  if (g.ask) setTimeout(() => (document.querySelector('.mentor .q') as HTMLInputElement | null)?.focus(), 50)
 }
 
 // The untyped parts of the editor's store this extension reads: where the
@@ -579,13 +563,13 @@ export async function refreshStatus() {
 
 export async function ask(q: string) {
   store.query = q
-  store.pages = [{ kind: 'search' }]
-  store.tab = 'explore'
   if (!q.trim()) {
     store.result = null
     store.task = null
+    home()
     return
   }
+  store.pages = [{ kind: 'home' }, { kind: 'search' }]
   store.searching = true
   store.error = ''
   store.task = null
@@ -604,14 +588,8 @@ export async function ask(q: string) {
 
 // go opens a page: a card, a flow or a map, loading what it shows.
 export async function go(p: Page) {
-  if (store.tab === 'changes') {
-    // From the Changes tab, a page starts a new trail that Back leaves.
-    p.from = 'changes'
-    store.pages = [{ kind: 'search' }]
-  }
-  if (store.tab !== 'architecture') store.tab = 'explore'
   store.error = ''
-  stack().push(p)
+  store.pages.push(p)
   store.loading = true
   try {
     if (p.kind === 'card') p.card = markRaw(await call<Card>('card', { key: p.key }))
@@ -625,9 +603,7 @@ export async function go(p: Page) {
 }
 
 export function back() {
-  const s = stack()
-  const top = s.length > 1 ? s.pop() : undefined
-  if (top?.from === 'changes' && s.length === 1) store.tab = 'changes'
+  if (store.pages.length > 1) store.pages.pop()
   store.error = ''
 }
 
@@ -689,8 +665,7 @@ export function clear() {
   store.result = null
   store.task = null
   store.query = ''
-  store.pages = [{ kind: 'search' }]
-  store.archPages = []
+  store.pages = [{ kind: 'home' }]
   store.error = ''
 }
 

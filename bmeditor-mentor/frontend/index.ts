@@ -1,6 +1,6 @@
 import { createApp, watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
-import { agent, api, apply, call, clear, cursor, fail, loadChanges, popup, refreshStatus, reveal, setApi, show, store, view, type AgentState, type Go, type Place, type Ref, type Status } from './api'
+import { agent, api, apply, call, clear, cursor, fail, home, loadChanges, popup, refreshStatus, reveal, setApi, show, store, view, type AgentState, type Go, type Place, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import { keydown, reviewAndNext, step } from './review'
 import { refreshStrips, strip } from './strip'
@@ -24,32 +24,31 @@ export default function activate(a: ExtensionAPI) {
     // The numbers above the code follow each read of the files.
     if (st.state === 'ready' && lastState !== 'ready') {
       refreshAll()
-      // What the agent changed follows the files too: the Changes tab and
-      // the strips above its files show it.
+      // What the agent changed follows the files too: the view and the
+      // strips above its files show it.
       if (api.ide.folder) void loadChanges()
     }
     lastState = st.state
   })
 
-  // When the agent stops at a plan or a checkpoint, say so: it waits until
+  // When the agent stops at its plan or a milestone, say so: it waits until
   // the developer answers. Mentor does not take the sidebar or the panel by
-  // itself; it shows the Changes tab when the developer opens it.
+  // itself; its view goes home, to the plan or the milestone, for when the
+  // developer opens it.
   api.on('mentor/agent', (st: AgentState) => {
     const was = store.agent?.waiting
     store.agent = st
     if (st.waiting && st.waiting !== was) {
-      store.tab = 'changes'
+      home()
       void loadChanges()
       // The main window says so; a popup only shows it.
-      if (!api.ui.inPopup) api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`, 'Mentor in the top bar shows it.')
+      if (!api.ui.inPopup) api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent reached a milestone: step ${st.checkpoint?.step}`, 'Mentor in the top bar shows it.')
     }
   })
 
   // What the main window asks Mentor to show reaches a popup here.
   const goHere = (g: Go | null) => {
-    if (!g) return
-    void apply(g)
-    if (g.tab === 'explore' && !g.page) setTimeout(() => (document.querySelector('.mentor .q') as HTMLInputElement | null)?.focus(), 50)
+    if (g) void apply(g)
   }
 
   // The agent's state comes as a notification with each change. It is also
@@ -69,7 +68,7 @@ export default function activate(a: ExtensionAPI) {
       if (seen) void loadChanges()
       seen = now
     }
-    if (st.waiting && st.waiting !== before) store.tab = 'changes'
+    if (st.waiting && st.waiting !== before) home()
   }
   setInterval(sync, 3000)
   window.addEventListener('focus', sync)
@@ -108,9 +107,7 @@ export default function activate(a: ExtensionAPI) {
   }
 
   function askFocus() {
-    void reveal({ tab: 'explore' })
-    // The view mounts when it is shown.
-    setTimeout(() => (document.querySelector('.mentor .q') as HTMLInputElement | null)?.focus(), 50)
+    void reveal({ ask: true })
   }
 
   // place puts Mentor's view where the setting says, and takes it from
@@ -155,7 +152,7 @@ export default function activate(a: ExtensionAPI) {
         id: 'mentor-changes',
         label: 'Mentor: What Changed',
         icon: 'diff',
-        run: () => reveal({ tab: 'changes' }),
+        run: () => reveal({ home: true }),
         when: () => !!api.ide.folder,
       },
       { id: 'mentor-reindex', label: 'Mentor: Read the Code Again', icon: 'refresh', run: () => call<Status>('reindex').then((s) => (store.status = s)), when: () => !!api.ide.folder },
