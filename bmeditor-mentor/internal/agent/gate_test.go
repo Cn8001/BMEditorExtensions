@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -587,5 +588,32 @@ func TestGate_AMilestoneShowsItsOwnChanges(t *testing.T) {
 	}
 	if strings.Join(edges, ",") != "store→api:Repository now depends on API, a layer above it" {
 		t.Errorf("edges = %v", edges)
+	}
+}
+
+// TestGate_NamesOutsideGoAreKnownByTheirFiles: a Vue component's name and a
+// TypeScript function the step changed are not flagged as missing, as the
+// Go index cannot know them; a name found nowhere still is.
+func TestGate_NamesOutsideGoAreKnownByTheirFiles(t *testing.T) {
+	g, _ := setup(t, DefaultPolicy())
+	ctx := t.Context()
+	init := exec.Command("git", "init", "-q")
+	init.Dir = g.Root
+	if out, err := init.CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, out)
+	}
+	_ = os.MkdirAll(filepath.Join(g.Root, "web"), 0o755)
+	_ = os.WriteFile(filepath.Join(g.Root, "web", "ArchView.vue"), []byte("<template><div/></template>\n"), 0o644)
+
+	g.Propose("Shape", []PlanStep{{Title: "Shape", Files: []string{"web/api.ts"}, Uses: []string{"ArchView", "Nowhere"}}})
+	if got := strings.Join(g.State().Plan.Steps[0].Unknown, ","); got != "Nowhere" {
+		t.Errorf("plan unknown = %q", got)
+	}
+	_ = g.AnswerPlan(ctx, true, "")
+	g.Hook(HookCall{Event: "PreToolUse", Tool: "Write", Input: map[string]any{"file_path": filepath.Join(g.Root, "web", "api.ts")}})
+	_ = os.WriteFile(filepath.Join(g.Root, "web", "api.ts"), []byte("export async function reveal(g: Go) {}\n"), 0o644)
+	g.OpenCheckpoint(ctx, "`ArchView` now opens through `reveal`, like `Bogus`.", "", "", "", "")
+	if got := strings.Join(g.State().Checkpoint.Unknown, ","); got != "Bogus" {
+		t.Errorf("checkpoint unknown = %q", got)
 	}
 }

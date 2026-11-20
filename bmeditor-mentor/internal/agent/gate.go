@@ -585,12 +585,19 @@ func (g *Gate) Propose(task string, steps []PlanStep) string {
 		return "A plan needs the task and at least one step."
 	}
 	ix := g.code.Peek()
+	// A name the Go index lacks may be in the files the step names, or be
+	// a file's own: code in other languages is checked so.
+	files := fileNames(context.Background(), g.Root)
+	known := make([]func(string) bool, len(steps))
+	for i, s := range steps {
+		known[i] = knownIn(files, readTexts(g.Root, clean(s.Files)))
+	}
 	g.mu.Lock()
 	p := &Plan{Task: task, Status: "proposed", Created: time.Now()}
 	for i, s := range steps {
 		st := Step{N: i + 1, Title: s.Title, Why: s.Why, Files: clean(s.Files), Packages: clean(s.Packages), Status: "todo",
 			Does: strings.TrimSpace(s.Does), Uses: trimmed(s.Uses), Creates: trimmed(s.Creates), Avoid: trimmed(s.Avoid), DoneWhen: strings.TrimSpace(s.DoneWhen)}
-		st.Unknown, st.Exists = namesCheck(ix, st.Uses, st.Creates)
+		st.Unknown, st.Exists = namesCheck(ix, st.Uses, st.Creates, known[i])
 		st.Budget = budgetOf(st)
 		p.Steps = append(p.Steps, st)
 	}
@@ -665,15 +672,17 @@ func (g *Gate) Refresh(ctx context.Context) {
 	list := changes.Diff(ix, *base)
 	rep := changes.Build(ix, *base, list, nil)
 	rep.Since = fmt.Sprintf("step %d began", cp.Step)
-	unknown := unknownNames(ix, cp.Made+"\n"+cp.Know+"\n"+cp.Fits+"\n"+cp.Summary+"\n"+cp.Why)
 	// What the step did to the shape: the files it changed, against what
-	// they were when it began.
+	// they were when it began. Names the Go index lacks are looked for in
+	// those files too.
 	g.mu.Lock()
-	var paths []string
+	var paths, rels []string
 	for f := range g.files {
+		rels = append(rels, f)
 		paths = append(paths, filepath.Join(g.Root, filepath.FromSlash(f)))
 	}
 	g.mu.Unlock()
+	unknown := unknownNames(ix, cp.Made+"\n"+cp.Know+"\n"+cp.Fits+"\n"+cp.Summary+"\n"+cp.Why, knownIn(fileNames(ctx, g.Root), readTexts(g.Root, rels)))
 	arch := changes.Arch(ctx, ix, changes.StepFiles(*base, list, paths), base.Before())
 	g.mu.Lock()
 	var avoid []string

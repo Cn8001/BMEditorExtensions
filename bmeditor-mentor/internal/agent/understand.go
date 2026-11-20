@@ -95,7 +95,7 @@ func avoidedNames(avoid []string, rep *changes.Report) []string {
 
 // namesCheck are the names in uses the code does not have, and those in
 // creates it already has.
-func namesCheck(ix *index.Index, uses, creates []string) (unknown, exists []string) {
+func namesCheck(ix *index.Index, uses, creates []string, known func(string) bool) (unknown, exists []string) {
 	unknown, exists = []string{}, []string{}
 	if ix == nil {
 		return
@@ -109,7 +109,7 @@ func namesCheck(ix *index.Index, uses, creates []string) (unknown, exists []stri
 		}
 	}
 	for _, u := range uses {
-		if u = strings.Trim(strings.TrimSpace(u), "`()"); u != "" && !pathLike.MatchString(u) && !have[u] {
+		if u = strings.Trim(strings.TrimSpace(u), "`()"); u != "" && !pathLike.MatchString(u) && !have[u] && (known == nil || !known(u)) {
 			unknown = append(unknown, u)
 		}
 	}
