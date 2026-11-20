@@ -137,3 +137,14 @@ func numstatPairs(out []byte, top string) map[string][2]int {
 	}
 	return m
 }
+
+// Show is a file's content at rev, such as HEAD; an error when it was not
+// there.
+func Show(ctx context.Context, dir, rev, path string) ([]byte, error) {
+	top := Top(ctx, dir)
+	rel, err := filepath.Rel(top, path)
+	if err != nil {
+		return nil, err
+	}
+	return git(ctx, dir, "show", rev+":"+filepath.ToSlash(rel))
+}
