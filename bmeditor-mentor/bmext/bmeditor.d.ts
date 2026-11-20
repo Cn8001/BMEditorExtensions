@@ -45,6 +45,12 @@ export interface Contributions {
   // 0.1.5 and later): inline completion, a gutter.
   editor?: (tab: Tab) => Extension
   panels?: { id: string; label: string; component: Component; busy?: () => boolean }[]
+  // popups are views in a window of their own, which ui.openPopup opens
+  // (BMEditor 0.1.7 and later): one the user moves anywhere, out of the
+  // editor's window too. The window runs only this extension, with its own
+  // state: what the view does to tabs, notices and Settings happens in the
+  // main window, and ui.inPopup is true there.
+  popups?: { id: string; title: string; component: Component; width?: number; height?: number }[]
   // sidebar adds views to the sidebar, each with a button in its switch
   // (BMEditor 0.1.5 and later). One with replaces: 'explorer' is another
   // view of the Explorer while when holds, beside its files, as Rider
@@ -153,6 +159,13 @@ export interface ExtensionAPI {
     // too; showOutput opens Output on that channel.
     output(text: string, stream?: 'info' | 'stdout' | 'stderr'): void
     showOutput(): void
+    // Popups (BMEditor 0.1.7 and later): openPopup opens one, or brings it
+    // to the front; popupOpen follows whether it is open. A reload of the
+    // main window closes them.
+    openPopup?(id: string): Promise<void>
+    closePopup?(id: string): Promise<void>
+    popupOpen?(id: string): boolean
+    inPopup?: boolean
   }
   paths: { relativeTo(root: string, path: string): string }
   components: {

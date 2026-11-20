@@ -1,6 +1,6 @@
 import { createApp, watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
-import { agent, api, call, clear, cursor, fail, go, loadChanges, refreshStatus, setApi, show, store, view, type AgentState, type Place, type Ref, type Status } from './api'
+import { agent, api, apply, call, clear, cursor, fail, loadChanges, popup, refreshStatus, reveal, setApi, show, store, view, type AgentState, type Go, type Place, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import { keydown, reviewAndNext, step } from './review'
 import { refreshStrips, strip } from './strip'
@@ -14,6 +14,8 @@ import './style.css'
 // answers questions about the code from an index the backend keeps of it.
 export default function activate(a: ExtensionAPI) {
   setApi(a)
+  // The view can be a popup, a window of its own (BMEditor 0.1.7 and later).
+  api.register({ popups: [{ id: popup, title: 'Mentor', component: Sidebar, width: 440, height: 720 }] })
 
   let lastState = ''
   api.on('mentor/index', (st: Status) => {
@@ -37,26 +39,64 @@ export default function activate(a: ExtensionAPI) {
     if (st.waiting && st.waiting !== was) {
       store.tab = 'changes'
       void loadChanges()
-      api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`, 'Mentor in the top bar shows it.')
+      // The main window says so; a popup only shows it.
+      if (!api.ui.inPopup) api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`, 'Mentor in the top bar shows it.')
     }
   })
 
+  // What the main window asks Mentor to show reaches a popup here.
+  const goHere = (g: Go | null) => {
+    if (!g) return
+    void apply(g)
+    if (g.tab === 'explore' && !g.page) setTimeout(() => (document.querySelector('.mentor .q') as HTMLInputElement | null)?.focus(), 50)
+  }
+
+  // The agent's state comes as a notification with each change. While the
+  // agent is connected it is also asked for every few seconds, and when the
+  // window comes back, so a notification that went astray cannot leave the
+  // panel behind.
+  const sync = () => {
+    const level = store.agent?.level
+    if (api.ide.folder && (level === 'enforced' || level === 'cooperative') && !document.hidden) void agent('state', undefined, true)
+  }
+  setInterval(sync, 3000)
+  window.addEventListener('focus', sync)
+
+  const follow = () =>
+    watch(
+      () => api.ide.folder,
+      () => {
+        clear()
+        lastState = ''
+        void refreshStatus()
+        if (api.ide.folder) void agent('state')
+      },
+      { immediate: true },
+    )
+
+  // A popup is only the view: the main window keeps the code's side, the
+  // lens, the strips, the keys and the commands.
+  if (api.ui.inPopup) {
+    api.on('mentor/go', goHere)
+    follow()
+    void call<Go | null>('ui.pending').then(goHere, () => {})
+    return
+  }
+
   async function explainThis() {
     const tab = api.ui.activeTab()
-    show()
-    if (!tab) return
+    if (!tab) return show()
     const { line } = cursor()
     try {
       const ref = await call<Ref>('at', { file: tab.path, line })
-      await go({ kind: 'card', key: ref.key })
+      await reveal({ page: { kind: 'card', key: ref.key } })
     } catch (err) {
       fail('Mentor', err)
     }
   }
 
   function askFocus() {
-    show()
-    store.tab = 'explore'
+    void reveal({ tab: 'explore' })
     // The view mounts when it is shown.
     setTimeout(() => (document.querySelector('.mentor .q') as HTMLInputElement | null)?.focus(), 50)
   }
@@ -74,7 +114,10 @@ export default function activate(a: ExtensionAPI) {
     if (where === 'panel' && ide.panelOrder && !ide.panelOrder.includes(view)) ide.panelOrder.push(view)
     if (where !== 'panel' && ide.panel?.tab === view) ide.panel.tab = 'problems'
     if (where !== 'sidebar' && ide.sidebarView === view) ide.sidebarView = 'explorer'
-    if (where !== 'window') store.windowOpen = false
+    if (where !== 'window') {
+      store.windowOpen = false
+      if (api.ui.popupOpen?.(popup)) void api.ui.closePopup?.(popup)
+    }
   }
   // Until the settings are read Mentor takes no place in the sidebar or the
   // panel, so its button does not show there unless it is chosen.
@@ -100,11 +143,7 @@ export default function activate(a: ExtensionAPI) {
         id: 'mentor-changes',
         label: 'Mentor: What Changed',
         icon: 'diff',
-        run: () => {
-          show()
-          store.tab = 'changes'
-          void loadChanges()
-        },
+        run: () => reveal({ tab: 'changes' }),
         when: () => !!api.ide.folder,
       },
       { id: 'mentor-reindex', label: 'Mentor: Read the Code Again', icon: 'refresh', run: () => call<Status>('reindex').then((s) => (store.status = s)), when: () => !!api.ide.folder },
@@ -130,16 +169,7 @@ export default function activate(a: ExtensionAPI) {
       }
     })
 
-  watch(
-    () => api.ide.folder,
-    () => {
-      clear()
-      lastState = ''
-      void refreshStatus()
-      if (api.ide.folder) void agent('state')
-    },
-    { immediate: true },
-  )
+  follow()
   watch(
     () => api.ide.settingsOpen,
     (open) => {
@@ -155,15 +185,4 @@ export default function activate(a: ExtensionAPI) {
   // Mentor is off.
   watch(() => [store.report, store.agent?.level], refreshStrips)
   watch(() => api.ide.tabs.length, refreshStrips)
-
-  // The agent's state comes as a notification with each change. While the
-  // agent is connected it is also asked for every few seconds, and when the
-  // window comes back, so a notification that went astray cannot leave the
-  // panel behind.
-  const sync = () => {
-    const level = store.agent?.level
-    if (api.ide.folder && (level === 'enforced' || level === 'cooperative') && !document.hidden) void agent('state', undefined, true)
-  }
-  setInterval(sync, 3000)
-  window.addEventListener('focus', sync)
 }

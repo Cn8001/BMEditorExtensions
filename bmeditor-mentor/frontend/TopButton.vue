@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { show, store } from './api'
+import { api, popup, popupMode, show, store } from './api'
 
 // Mentor's button in the top bar: it opens Mentor wherever it lives, or
 // closes its window, and its dot says whether the agent is connected.
@@ -20,14 +20,17 @@ const title = computed(() => {
   return 'Mentor: the agent is not connected'
 })
 
+const open = computed(() => (popupMode() ? !!api.ui.popupOpen?.(popup) : store.place === 'window' && store.windowOpen))
+
 function click() {
-  if (store.place === 'window' && store.windowOpen) store.windowOpen = false
-  else show()
+  if (!open.value) show()
+  else if (popupMode()) void api.ui.closePopup?.(popup)
+  else store.windowOpen = false
 }
 </script>
 
 <template>
-  <button class="mb" :class="{ on: store.place === 'window' && store.windowOpen }" :title="title" @click="click">
+  <button class="mb" :class="{ on: open }" :title="title" @click="click">
     <i class="codicon codicon-mortar-board" />
     <span v-if="!compact">Mentor</span>
     <span v-if="store.agent?.waiting" class="wait">!</span>

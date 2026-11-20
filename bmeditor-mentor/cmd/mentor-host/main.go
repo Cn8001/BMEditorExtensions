@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"bmeditor-mentor/bmext/host"
 	"bmeditor-mentor/internal/agent"
@@ -42,6 +43,10 @@ type state struct {
 	server *agent.Server
 	linked string // "on" or "off": what the settings last said of connecting the agent to this folder
 	manual bool   // tests: leave the agent's settings alone
+
+	goMu sync.Mutex
+	goTo json.RawMessage // what the main window last asked Mentor's popup to show
+	goAt time.Time
 }
 
 func (st *state) close() {
@@ -242,6 +247,26 @@ func notFound(what string) error {
 }
 
 func register(s *host.Server, st *state) {
+	// Mentor's view can live in a popup, a window with its own state: the
+	// main window asks it to show a tab or a page through here, as a
+	// notification every window hears. One just opening reads the last
+	// such ask with ui.pending.
+	s.Handle("ui.go", func(_ context.Context, raw json.RawMessage) (any, error) {
+		st.goMu.Lock()
+		st.goTo, st.goAt = raw, time.Now()
+		st.goMu.Unlock()
+		return nil, s.Notify("mentor/go", raw)
+	})
+	s.Handle("ui.pending", func(context.Context, json.RawMessage) (any, error) {
+		st.goMu.Lock()
+		defer st.goMu.Unlock()
+		raw := st.goTo
+		st.goTo = nil
+		if raw == nil || time.Since(st.goAt) > 10*time.Second {
+			return nil, nil
+		}
+		return raw, nil
+	})
 	s.Handle("status", handler(s, st, func(_ context.Context, e *engine.Engine, _ none) (any, error) {
 		return e.Status(), nil
 	}))

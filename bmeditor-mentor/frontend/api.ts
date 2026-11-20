@@ -355,14 +355,47 @@ export function rel(path: string): string {
 // editor.
 export type Place = 'sidebar' | 'panel' | 'window'
 
+// popupMode says whether Mentor's window is a popup of the editor's own,
+// which the user moves anywhere (BMEditor 0.1.7 and later), rather than one
+// drawn inside the editor's window.
+export function popupMode(): boolean {
+  return store.place === 'window' && !!api.ui.openPopup && !api.ui.inPopup
+}
+
+export const popup = 'main'
+
 // show opens Mentor where it lives.
 export function show() {
   if (store.place === 'panel') api.ui.showPanel(view)
+  else if (popupMode()) void api.ui.openPopup!(popup)
   else if (store.place === 'window') store.windowOpen = true
   else {
     api.ide.sidebarOpen = true
     api.ide.sidebarView = view
   }
+}
+
+export type Go = { tab?: 'explore' | 'changes'; page?: Page }
+
+// reveal shows Mentor on a tab or a page. A popup has its own state, so it
+// is asked through the backend, which every window hears (mentor/go).
+export async function reveal(g: Go) {
+  if (popupMode()) {
+    await api.ui.openPopup!(popup)
+    await call('ui.go', g)
+    return
+  }
+  show()
+  await apply(g)
+}
+
+// apply shows what reveal asked for, in this window.
+export async function apply(g: Go) {
+  if (g.tab) {
+    store.tab = g.tab
+    if (g.tab === 'changes') void loadChanges()
+  }
+  if (g.page) await go(g.page)
 }
 
 // The untyped parts of the editor's store this extension reads: where the
