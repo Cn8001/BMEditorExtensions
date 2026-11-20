@@ -88,13 +88,15 @@ type Checkpoint struct {
 	Summary string `json:"summary"`
 	Why     string `json:"why,omitempty"`
 	// Unknown are names the agent used that the code does not have.
-	Unknown []string        `json:"unknown"`
-	Tests   *TestRun        `json:"tests"`
-	Avoided []string        `json:"avoided"` // what the step said it would leave alone and changed
-	Report  *changes.Report `json:"report"`
-	Status  string          `json:"status"` // waiting, approved, changes_requested, skipped
-	Note    string          `json:"note,omitempty"`
-	Created time.Time       `json:"created"`
+	Unknown []string `json:"unknown"`
+	Tests   *TestRun `json:"tests"`
+	Avoided []string `json:"avoided"` // what the step said it would leave alone and changed
+	// Arch is what the step, and only it, did to the project's shape.
+	Arch    *changes.ArchChange `json:"arch"`
+	Report  *changes.Report     `json:"report"`
+	Status  string              `json:"status"` // waiting, approved, changes_requested, skipped
+	Note    string              `json:"note,omitempty"`
+	Created time.Time           `json:"created"`
 }
 
 // Event is one thing the agent did, or was held from doing.
@@ -638,9 +640,19 @@ func (g *Gate) Refresh(ctx context.Context) {
 	if cp == nil || cp.Status != "waiting" || base == nil || ix == nil {
 		return
 	}
-	rep := changes.Build(ix, *base, changes.Diff(ix, *base), nil)
+	list := changes.Diff(ix, *base)
+	rep := changes.Build(ix, *base, list, nil)
 	rep.Since = fmt.Sprintf("step %d began", cp.Step)
 	unknown := unknownNames(ix, cp.Made+"\n"+cp.Know+"\n"+cp.Fits+"\n"+cp.Summary+"\n"+cp.Why)
+	// What the step did to the shape: the files it changed, against what
+	// they were when it began.
+	g.mu.Lock()
+	var paths []string
+	for f := range g.files {
+		paths = append(paths, filepath.Join(g.Root, filepath.FromSlash(f)))
+	}
+	g.mu.Unlock()
+	arch := changes.Arch(ctx, ix, changes.StepFiles(*base, list, paths), base.Before())
 	g.mu.Lock()
 	var avoid []string
 	if st := g.currentStep(); st != nil {
@@ -648,7 +660,7 @@ func (g *Gate) Refresh(ctx context.Context) {
 	}
 	start := false
 	if g.cp == cp {
-		cp.Report, cp.Unknown, cp.Avoided = rep, unknown, avoidedNames(avoid, rep)
+		cp.Report, cp.Unknown, cp.Avoided, cp.Arch = rep, unknown, avoidedNames(avoid, rep), arch
 		// The tests of what the step changed run once, Mentor's own way:
 		// the developer does not take the agent's word for it.
 		if cp.Tests == nil {

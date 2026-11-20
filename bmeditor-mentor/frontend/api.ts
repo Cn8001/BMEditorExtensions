@@ -391,6 +391,7 @@ export interface Checkpoint {
   fit: { above: FitBox[]; parts: FitBox[]; below: FitBox[] } | null
   tests: TestRun | null
   avoided: string[] | null
+  arch?: ArchChange | null // what the step, and only it, did to the project's shape
   summary: string
   why?: string
   unknown: string[]

@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { go, name, openAt, store, type PkgChange } from './api'
+import { go, name, openAt, store, type ArchChange, type PkgChange } from './api'
 
 // The project's shape with the agent's work on it: every package of the
 // project by layer, the ones it touched lit, what it added in them, and the
 // dependencies between packages that came or went, the ones that cut across
 // the layers said so. The whole at a glance, rather than line by line.
-const props = defineProps<{ compact?: boolean }>()
+// change, when given, is what to show, such as a milestone's own; else all
+// the agent's work since HEAD.
+const props = defineProps<{ compact?: boolean; change?: ArchChange | null }>()
 
 const order = ['Entry', 'API', 'Service', 'Providers', 'Repository', 'Model', 'Config', 'Shared', '']
-const a = computed(() => store.arch)
+const a = computed(() => (props.change !== undefined ? props.change : store.arch))
 
 const rows = computed(() => {
   const touched = new Map<string, PkgChange>((a.value?.packages ?? []).map((p) => [p.path, p]))

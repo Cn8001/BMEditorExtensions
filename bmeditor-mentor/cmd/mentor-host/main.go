@@ -386,7 +386,7 @@ func register(s *host.Server, st *state) {
 		if err != nil {
 			return nil, err
 		}
-		return changes.Arch(ctx, ix, out.Files), nil
+		return changes.Arch(ctx, ix, out.Files, changes.HeadBefore(ctx, ix)), nil
 	}))
 
 	s.Handle("review.mark", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, p struct {

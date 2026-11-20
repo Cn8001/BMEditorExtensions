@@ -58,9 +58,47 @@ type EdgeChange struct {
 // (models, config, shared) any layer may use.
 var rank = map[string]int{"Entry": 0, "API": 1, "Service": 2, "Providers": 3, "Repository": 4}
 
+// Before says what a file imported before the changes, and whether it was
+// there.
+type Before func(path string) (imports []string, existed bool)
+
+// HeadBefore is before as HEAD has it.
+func HeadBefore(ctx context.Context, ix *index.Index) Before {
+	return func(path string) ([]string, bool) {
+		src, err := gitx.Show(ctx, ix.Root, "HEAD", path)
+		if err != nil {
+			return nil, false
+		}
+		return importsOf(src), true
+	}
+}
+
+// Before is before as the baseline has it: what a step began with.
+func (b Baseline) Before() Before {
+	return func(path string) ([]string, bool) {
+		fb, ok := b.Files[path]
+		return fb.Imports, ok
+	}
+}
+
+func importsOf(src []byte) []string {
+	f, err := parser.ParseFile(token.NewFileSet(), "", src, parser.ImportsOnly)
+	if err != nil || f == nil {
+		return nil
+	}
+	var out []string
+	for _, im := range f.Imports {
+		if p, err := strconv.Unquote(im.Path.Value); err == nil {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // Arch works out the change in shape from the files that changed, with
-// their declarations' changes, as ByFile gives them.
-func Arch(ctx context.Context, ix *index.Index, files []FileChanges) *ArchChange {
+// their declarations' changes, as ByFile or StepFiles give them, and what
+// the files imported before.
+func Arch(ctx context.Context, ix *index.Index, files []FileChanges, prev Before) *ArchChange {
 	a := &ArchChange{Packages: []PkgChange{}, Edges: []EdgeChange{}}
 	internal := func(p string) bool {
 		if ix.Packages[p] != nil {
@@ -138,7 +176,7 @@ func Arch(ctx context.Context, ix *index.Index, files []FileChanges) *ArchChange
 
 		// The package's imports of the project's packages, now and before:
 		// the files it did not touch are as they were.
-		now, before := map[string]place{}, map[string]place{}
+		now, was := map[string]place{}, map[string]place{}
 		dirFiles := map[string]bool{}
 		if pk := ix.Packages[p]; pk != nil {
 			for _, f := range pk.Files {
@@ -160,20 +198,24 @@ func Arch(ctx context.Context, ix *index.Index, files []FileChanges) *ArchChange
 			switch {
 			case !touched:
 				if err == nil {
-					addImports(before, f, cur, internal)
+					addImports(was, f, cur, internal)
 				}
 			case tf.Status != "A":
-				if old, err := gitx.Show(ctx, ix.Root, "HEAD", f); err == nil {
-					addImports(before, f, old, internal)
+				if old, ok := prev(f); ok {
+					for _, imp := range old {
+						if _, seen := was[imp]; !seen && internal(imp) {
+							was[imp] = place{file: f}
+						}
+					}
 				}
 			}
 		}
 		for to, at := range now {
-			if _, ok := before[to]; !ok && to != p {
+			if _, ok := was[to]; !ok && to != p {
 				a.Edges = append(a.Edges, edge(ix, p, name, to, true, at, hasService))
 			}
 		}
-		for to, at := range before {
+		for to, at := range was {
 			if _, ok := now[to]; !ok && to != p {
 				a.Edges = append(a.Edges, edge(ix, p, name, to, false, at, hasService))
 			}

@@ -114,8 +114,9 @@ function time(at: string) {
           <p v-if="cp.know" class="know"><span class="dim">To carry on without the agent:</span> {{ cp.know }}</p>
         </div>
         <div class="shape">
-          <div class="dim">The project's shape, with the agent's work so far</div>
-          <ArchView compact />
+          <div class="dim">What this milestone changed in the project's shape</div>
+          <ArchView v-if="cp.arch?.packages.length" compact :change="cp.arch" />
+          <div v-else class="dim">{{ cp.arch ? 'It changed no Go package.' : 'Reading what it changed…' }}</div>
         </div>
         <div v-if="cp.tests" class="tests" :class="cp.tests.state">
           <template v-if="cp.tests.state === 'running'"><i class="codicon codicon-loading codicon-modifier-spin" /> Running its tests…</template>

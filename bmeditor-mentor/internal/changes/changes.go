@@ -29,6 +29,8 @@ import (
 type FileBase struct {
 	Hash  string        `json:"hash"`
 	Decls []golang.Decl `json:"decls"`
+	// Imports are the file's imports then, for what changed in the shape.
+	Imports []string `json:"imports,omitempty"`
 }
 
 // Baseline is the code to compare with. Files holds the files it knows;
@@ -58,9 +60,37 @@ func Snapshot(ctx context.Context, ix *index.Index, label string) Baseline {
 			continue
 		}
 		decls, _ := golang.Decls(pkgPathFor(ix, file, src), src)
-		b.Files[file] = FileBase{Hash: contentHash(src), Decls: decls}
+		b.Files[file] = FileBase{Hash: contentHash(src), Decls: decls, Imports: importsOf(src)}
 	}
 	return b
+}
+
+// StepFiles are the files of paths, as they differ from the baseline, each
+// with its declarations' changes in list: what a step changed, file by
+// file, as ByFile gives what differs from HEAD.
+func StepFiles(base Baseline, list []Change, paths []string) []FileChanges {
+	out := []FileChanges{}
+	at := map[string]int{}
+	for _, p := range paths {
+		if _, ok := at[p]; ok {
+			continue
+		}
+		st := "M"
+		if _, was := base.Files[p]; !was && base.All {
+			st = "A"
+		} else if _, err := os.Stat(p); err != nil {
+			st = "D"
+		}
+		at[p] = len(out)
+		out = append(out, FileChanges{FileChange: gitx.FileChange{Path: p, Status: st}, Changes: []Change{}})
+	}
+	for _, c := range list {
+		if i, ok := at[c.File]; ok {
+			out[i].Changes = append(out[i].Changes, c)
+		}
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].Path < out[b].Path })
+	return out
 }
 
 // FromHead is HEAD as the baseline: the Go files that differ from it, as

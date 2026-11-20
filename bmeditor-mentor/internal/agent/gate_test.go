@@ -531,3 +531,48 @@ func TestGate_TheDeveloperAsks(t *testing.T) {
 		t.Error("the talk of the plan should stay until the next checkpoint")
 	}
 }
+
+// TestGate_AMilestoneShowsItsOwnChanges: the shape at a milestone is what
+// that step did, since it began, not all the agent did since HEAD.
+func TestGate_AMilestoneShowsItsOwnChanges(t *testing.T) {
+	g, c := setup(t, DefaultPolicy())
+	ctx := t.Context()
+	g.Propose("Discord and a cache", []PlanStep{{Title: "Discord", Files: []string{"internal/auth/provider.go"}}, {Title: "Cache", Files: []string{"internal/store/cache.go"}}})
+	_ = g.AnswerPlan(ctx, true, "")
+
+	g.Hook(edit(g, "internal/auth/provider.go"))
+	write(t, g, "internal/auth/provider.go", "\ntype DiscordProvider struct{}\n")
+	c.reread(t)
+	g.OpenCheckpoint(ctx, "DiscordProvider.", "", "", "", "")
+	if _, err := g.AnswerCheckpoint(ctx, "approve", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	g.Hook(HookCall{Event: "PreToolUse", Tool: "Write", Input: map[string]any{"file_path": filepath.Join(g.Root, "internal/store/cache.go")}})
+	if err := os.WriteFile(filepath.Join(g.Root, "internal/store/cache.go"), []byte("package store\n\nimport _ \"example.com/authsvc/internal/api\"\n\n// Cache keeps answers.\ntype Cache struct{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c.reread(t)
+	g.OpenCheckpoint(ctx, "A Cache.", "", "", "", "")
+
+	a := g.State().Checkpoint.Arch
+	if a == nil {
+		t.Fatal("no shape at the milestone")
+	}
+	var pkgs, parts, edges []string
+	for _, p := range a.Packages {
+		pkgs = append(pkgs, p.Name)
+		for _, r := range p.Parts {
+			parts = append(parts, r.Name)
+		}
+	}
+	for _, e := range a.Edges {
+		edges = append(edges, e.FromName+"→"+e.ToName+":"+e.Warn)
+	}
+	if strings.Join(pkgs, ",") != "store" || strings.Join(parts, ",") != "Cache" {
+		t.Errorf("packages %v, parts %v: only step 2's", pkgs, parts)
+	}
+	if strings.Join(edges, ",") != "store→api:Repository now depends on API, a layer above it" {
+		t.Errorf("edges = %v", edges)
+	}
+}
