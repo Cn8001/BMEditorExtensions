@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, reactive, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, watch } from 'vue'
 import { store } from './api'
 import Sidebar from './Sidebar.vue'
 
@@ -7,6 +7,18 @@ import Sidebar from './Sidebar.vue'
 // so: its title bar moves it, its corner sizes it, and it opens where it
 // was left.
 const key = 'mentor.window'
+
+const connection = computed(() => {
+  switch (store.agent?.level) {
+    case 'enforced':
+      return 'Agent connected: checkpoints hold'
+    case 'cooperative':
+      return 'Agent connected without its hooks: checkpoints do not hold'
+    case 'off':
+      return 'Mentor is off'
+  }
+  return 'Agent not connected'
+})
 const box = reactive({ x: 0, y: 0, w: 380, h: 560 })
 
 function load() {
@@ -70,6 +82,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', fit))
     <div class="bar" @pointerdown="drag($event, 'move')">
       <i class="codicon codicon-mortar-board" />
       <span>Mentor</span>
+      <span class="dot" :class="store.agent?.level || 'observe'" :title="connection" />
       <button title="Close" @click="store.windowOpen = false"><i class="codicon codicon-close" /></button>
     </div>
     <div class="content"><Sidebar /></div>
@@ -101,6 +114,18 @@ onBeforeUnmount(() => window.removeEventListener('resize', fit))
   color: var(--text-dim);
   cursor: move;
   user-select: none;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.dot.enforced {
+  background: var(--success);
+}
+.dot.cooperative {
+  background: var(--warning);
 }
 .bar button {
   margin-left: auto;

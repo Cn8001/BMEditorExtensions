@@ -63,7 +63,7 @@ function time(at: string) {
 <template>
   <div class="agent">
     <div class="line" :title="level.title">
-      <i class="codicon codicon-hubot" />
+      <span class="dot" :class="st?.level || 'observe'" />
       <span>Agent: {{ level.label }}</span>
       <button v-if="st?.level !== 'enforced'" class="link" title="Connect the agent, in Mentor's settings" @click="api.ui.openSettings()">Settings</button>
     </div>
@@ -164,6 +164,19 @@ function time(at: string) {
   padding: 6px 8px;
   font-size: 12px;
   color: var(--text-dim);
+}
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+.dot.enforced {
+  background: var(--success);
+}
+.dot.cooperative {
+  background: var(--warning);
 }
 .link {
   margin-left: auto;
