@@ -271,13 +271,26 @@ func uses(ix *index.Index, s *index.Symbol) []index.Relation {
 
 // ImpactOf counts what a change to key can reach, up to limit symbols.
 func ImpactOf(ix *index.Index, key string, limit int) Impact {
-	seen := map[string]bool{key: true}
-	queue := []string{key}
-	if s := ix.Symbols[key]; s != nil {
-		for _, r := range uses(ix, s) {
-			if !seen[r.From] && r.Kind != index.RelFieldOf && r.Kind != index.RelMethodOf {
-				seen[r.From] = true
-				queue = append(queue, r.From)
+	return ImpactOfAll(ix, []string{key}, limit)
+}
+
+// ImpactOfAll counts what a change to all of keys can reach together:
+// everything that uses them, and what uses that, through calls and
+// references, up to limit symbols. The keys themselves do not count.
+func ImpactOfAll(ix *index.Index, keys []string, limit int) Impact {
+	seen := map[string]bool{}
+	var queue []string
+	for _, key := range keys {
+		seen[key] = true
+	}
+	for _, key := range keys {
+		queue = append(queue, key)
+		if s := ix.Symbols[key]; s != nil {
+			for _, r := range uses(ix, s) {
+				if !seen[r.From] && r.Kind != index.RelFieldOf && r.Kind != index.RelMethodOf {
+					seen[r.From] = true
+					queue = append(queue, r.From)
+				}
 			}
 		}
 	}
@@ -303,7 +316,9 @@ func ImpactOf(ix *index.Index, key string, limit int) Impact {
 			queue = append(queue, r.From)
 		}
 	}
-	delete(seen, key)
+	for _, key := range keys {
+		delete(seen, key)
+	}
 	for k := range seen {
 		u := ix.Symbols[k]
 		if u == nil {
