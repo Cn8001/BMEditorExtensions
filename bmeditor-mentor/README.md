@@ -34,6 +34,14 @@ where it is and what uses what, without asking the agent.
   to the agent's next change, file after file, **Shift+F7** to the one
   before, and **Alt+R** marks the file reviewed and goes to the next one,
   so a step is read without leaving the editor.
+- **Say what you want to do.** "Add a new authentication provider": the
+  Explore tab answers from what the code says for certain. The interface
+  to implement and what it must have; the types that already do, how
+  they differ, and the one to start from; how it is wired in, from the
+  route down to the store; what to change and where, in order; the tests
+  that reach it; and where to stop in the debugger when it breaks. Every
+  line is a place in the code, a click away, and nothing is written by a
+  model.
 - **Ask in plain words.** "Which struct holds a user's login?", "where is
   the session made?": the Explore tab answers with the types and functions
   that fit, best first, each with what it is for, how much it is used and

@@ -14,6 +14,10 @@ when it has a section here.
   auto mode included. One button, Connect the agent, turns it all on or
   off: on, Mentor adds its MCP server and hooks for the folder and its dot
   turns green; off, it takes them out.
+- Say what you want to do, such as "add a new authentication provider",
+  and the Explore tab answers from the code: the interface to implement,
+  the types that already do and how they differ, how it is wired in, what
+  to change and where, the tests, and where to stop when it breaks.
 - How it is used, in the code: a click on the line above a type or a
   function shows, under it, the places that show best how the project
   uses it, as they are written, a click away each.

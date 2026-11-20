@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { go, icons, name, openAt, plural, rel, store } from './api'
+import TaskView from './TaskView.vue'
 
 // The answer to a question: the types and functions that may be what was
 // asked for, best first, each with what it is for, why it matched, how
@@ -10,6 +11,8 @@ import { go, icons, name, openAt, plural, rel, store } from './api'
   <div class="results">
     <div v-if="store.searching" class="hint">Looking…</div>
     <template v-else-if="store.result">
+      <TaskView v-if="store.task" />
+      <div v-if="store.task && store.result.candidates.length" class="hint small">The types and functions that match it:</div>
       <div v-if="!store.result.candidates.length" class="hint">Nothing here matches {{ store.result.words.join(', ') }}.</div>
       <div v-for="(c, i) in store.result.candidates" :key="c.key" class="cand" :class="{ first: i === 0 }" @click="go({ kind: 'card', key: c.key })">
         <div class="head">
@@ -33,7 +36,8 @@ import { go, icons, name, openAt, plural, rel, store } from './api'
       <div v-if="store.result.expanded.length" class="hint small">Also looked for {{ store.result.expanded.join(', ') }}.</div>
     </template>
     <div v-else class="hint">
-      Ask what you need in plain words: <em>which struct holds a user's login</em>, <em>where is the session made</em>.
+      Ask what you need in plain words: <em>which struct holds a user's login</em>, <em>where is the session made</em>, or what you want to do:
+      <em>add a new authentication provider</em>.
       Or put the cursor in a declaration and run <strong>Mentor: Explain This</strong> (Ctrl+Alt+U).
     </div>
   </div>

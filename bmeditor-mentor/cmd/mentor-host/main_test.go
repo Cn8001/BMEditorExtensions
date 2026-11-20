@@ -13,6 +13,7 @@ import (
 	"bmeditor-mentor/internal/changes"
 	"bmeditor-mentor/internal/engine"
 	"bmeditor-mentor/internal/explain"
+	"bmeditor-mentor/internal/intel"
 	"bmeditor-mentor/internal/search"
 )
 
@@ -89,6 +90,11 @@ func TestMethods_OnTheFixture(t *testing.T) {
 	rep := call[changes.Report](t, c, "changes", nil)
 	if rep.Since != "HEAD" || len(rep.Units) != 0 {
 		t.Errorf("changes = %+v", rep)
+	}
+	// A task, from the words to the extension point.
+	task := call[intel.Answer](t, c, "task", map[string]any{"q": "add a new authentication provider"})
+	if task.Point == nil || task.Point.Interface.Key != auth+"Provider" || len(task.Point.Steps) == 0 {
+		t.Errorf("task = %+v (related %v)", task.Point, task.Related)
 	}
 	states := call[map[string]string](t, c, "review.mark", map[string]any{"keys": []string{auth + "Service"}})
 	if states[auth+"Service"] != "reviewed" {

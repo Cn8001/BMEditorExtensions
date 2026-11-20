@@ -241,6 +241,42 @@ export interface AgentChanges {
   warning?: string
 }
 
+// TaskAnswer is what the code says about a task, such as "add a new
+// authentication provider" (internal/intel).
+export interface TaskImpl extends Ref {
+  doc?: string
+  template?: boolean
+  fields: string[]
+  notes: string[]
+  tests: number
+  made: number
+}
+
+export interface TaskPoint {
+  interface: Ref
+  why: string
+  doc?: string
+  methods: Ref[]
+  impls: TaskImpl[]
+  fakes: Ref[]
+  holders: Ref[]
+  consumers: Ref[]
+  made: Ref[]
+  routes: Route[]
+  upstream: Ref[]
+  downstream: Ref[]
+  steps: { text: string; at?: Ref }[]
+  tests: Ref[]
+  breakpoints: Ref[]
+}
+
+export interface TaskAnswer {
+  query: string
+  point?: TaskPoint
+  related: Ref[]
+  note?: string
+}
+
 export interface AgentStep {
   n: number
   title: string
@@ -311,6 +347,7 @@ export const store = reactive({
   agent: null as AgentState | null,
   query: '',
   result: null as SearchResult | null,
+  task: null as TaskAnswer | null,
   searching: false,
   pages: [{ kind: 'search' }] as Page[],
   loading: false,
@@ -423,12 +460,17 @@ export async function ask(q: string) {
   store.tab = 'explore'
   if (!q.trim()) {
     store.result = null
+    store.task = null
     return
   }
   store.searching = true
   store.error = ''
+  store.task = null
   try {
-    store.result = markRaw(await call<SearchResult>('search', { q }))
+    // A task's answer, when the code has one, comes beside the matches.
+    const [res, task] = await Promise.all([call<SearchResult>('search', { q }), call<TaskAnswer>('task', { q }).catch(() => null)])
+    store.result = markRaw(res)
+    store.task = task?.point ? markRaw(task) : null
   } catch (err) {
     store.result = null
     store.error = message(err)
@@ -512,6 +554,7 @@ export function clear() {
   store.reportError = ''
   store.status = null
   store.result = null
+  store.task = null
   store.query = ''
   store.pages = [{ kind: 'search' }]
   store.error = ''

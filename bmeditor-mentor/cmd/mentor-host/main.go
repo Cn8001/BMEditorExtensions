@@ -21,6 +21,7 @@ import (
 	"bmeditor-mentor/internal/explain"
 	"bmeditor-mentor/internal/gitx"
 	"bmeditor-mentor/internal/index"
+	"bmeditor-mentor/internal/intel"
 	"bmeditor-mentor/internal/search"
 )
 
@@ -286,6 +287,23 @@ func register(s *host.Server, st *state) {
 			return nil, &host.Error{Code: "SEARCH", Message: err.Error()}
 		}
 		return res, nil
+	}))
+
+	// task answers a task about the code, such as "add a new
+	// authentication provider": the extension point, its implementations,
+	// how it is wired in, what to change, the tests and where to stop.
+	s.Handle("task", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, p struct {
+		Q string `json:"q"`
+	}) (any, error) {
+		res, err := e.Search(ctx, p.Q, search.Options{Limit: 15})
+		if err != nil {
+			return nil, &host.Error{Code: "SEARCH", Message: err.Error()}
+		}
+		keys := make([]string, 0, len(res.Candidates))
+		for _, c := range res.Candidates {
+			keys = append(keys, c.Key)
+		}
+		return intel.Task(ix, p.Q, keys), nil
 	}))
 
 	// at is the symbol declared at a place: what Explain This explains.
