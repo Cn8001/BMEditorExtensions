@@ -55,7 +55,7 @@ defineExpose({ focus: () => input.value?.focus() })
   <div class="mentor">
     <div class="tabs">
       <button :class="{ on: store.tab === 'changes' }" @click="tab('changes')">
-        Changes<span v-if="store.agent?.waiting" class="badge wait" title="Claude Code waits for you">!</span><span v-else-if="changed" class="badge">{{ changed }}</span>
+        Changes<span v-if="store.agent?.waiting" class="badge wait" title="The agent waits for you">!</span><span v-else-if="changed" class="badge">{{ changed }}</span>
       </button>
       <button :class="{ on: store.tab === 'explore' }" @click="tab('explore')">Explore</button>
     </div>

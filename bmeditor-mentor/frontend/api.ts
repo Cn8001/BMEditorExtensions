@@ -263,7 +263,7 @@ export interface AgentEvent {
   reason?: string
 }
 
-// AgentState is the checkpoints of the folder: Claude Code's plan, its
+// AgentState is the checkpoints of the folder: the agent's plan, its
 // step, and what waits for the developer.
 export interface AgentState {
   level: 'enforced' | 'cooperative' | 'observe'

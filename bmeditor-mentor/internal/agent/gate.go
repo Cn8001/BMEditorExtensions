@@ -1,4 +1,4 @@
-// Package agent pauses Claude Code, as the editor runs it, at the logical
+// Package agent pauses a coding agent, as the editor runs it, at the logical
 // boundaries of its work, so the developer understands each step before
 // the next begins. The agent works on its own, in auto mode or any other:
 // it proposes a plan in steps, which the developer approves in Mentor;
@@ -7,7 +7,7 @@
 // flows, why the agent says it did it and what it can break. Approving
 // lets the agent go on by itself.
 //
-// Claude Code's hooks make the pause hold: while the developer has not
+// The agent's hooks make the pause hold: while the developer has not
 // answered, the agent changes nothing, and it cannot end its turn with a
 // step that has no checkpoint. Without the hooks the agent may still
 // follow the protocol through Mentor's MCP tools, but nothing makes it.
@@ -141,7 +141,7 @@ func (g *Gate) SetPolicy(p Policy) {
 	g.mu.Unlock()
 }
 
-// SetConnection says what is set up in Claude Code.
+// SetConnection says what is set up in the agent.
 func (g *Gate) SetConnection(hooks, mcp bool) {
 	g.mu.Lock()
 	g.hooks, g.mcp = hooks, mcp
@@ -212,7 +212,7 @@ func (g *Gate) currentStep() *Step {
 
 // The hooks.
 
-// HookCall is what Claude Code's hook sends.
+// HookCall is what the agent's hook sends.
 type HookCall struct {
 	Event      string         `json:"hook_event_name"`
 	Tool       string         `json:"tool_name"`
@@ -229,7 +229,7 @@ type Decision struct {
 
 var editTools = map[string]bool{"Edit": true, "Write": true, "MultiEdit": true, "NotebookEdit": true}
 
-// Hook answers one of Claude Code's hooks.
+// Hook answers one of the agent's hooks.
 func (g *Gate) Hook(call HookCall) Decision {
 	g.mu.Lock()
 	g.lastSeen = time.Now()

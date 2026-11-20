@@ -2,7 +2,7 @@
   "name": "mentor",
   "displayName": "Mentor",
   "version": "0.0.1",
-  "description": "Keep hold of what Claude Code does to your Go code. It works on its own, and stops at the end of each step of its plan until you have seen what the step changed, where it fits and what it can break. Ask which type or function to use in plain words, and get any symbol's card, the package map and the path a call takes, all from the type checker, on your machine.",
+  "description": "Keep hold of what a coding agent does to your code. It works on its own, and stops at the end of each step of its plan until you have seen what the step changed, where it fits and what it can break. Ask which type or function to use in plain words, and get any symbol's card, the package map and the path a call takes, all from the compiler's view of the code, on your machine.",
   "icon": "icon.svg",
   "engines": {
     "bmeditor": ">=0.1.6"
@@ -17,14 +17,14 @@
     },
     {
       "key": "requirePlan",
-      "label": "Claude Code: plan first",
-      "description": "Claude Code proposes its plan in steps, and you approve it in Mentor, before it changes code.",
+      "label": "Agent: plan first",
+      "description": "The agent proposes its plan in steps, and you approve it in Mentor, before it changes code.",
       "type": "boolean",
       "default": "true"
     },
     {
       "key": "maxFiles",
-      "label": "Claude Code: files per step",
+      "label": "Agent: files per step",
       "description": "A step that would change more files than this ends at a checkpoint first. 0 for no limit.",
       "type": "string",
       "default": "12",

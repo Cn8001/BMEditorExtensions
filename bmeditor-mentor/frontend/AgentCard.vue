@@ -4,7 +4,7 @@ import { agent, call, connect, go, icons, name, store, type SearchResult } from 
 import Section from './Section.vue'
 import UnitCard from './UnitCard.vue'
 
-// Claude Code's plan and checkpoints, at the top of the Changes tab. The
+// The coding agent's plan and checkpoints, at the top of the Changes tab. The
 // agent works on its own; at the end of each step it waits here, and the
 // developer sees what the step did before letting it go on.
 const st = computed(() => store.agent)
@@ -15,11 +15,11 @@ const showSetup = ref(false)
 const level = computed(() => {
   switch (st.value?.level) {
     case 'enforced':
-      return { label: 'Checkpoints hold', title: 'Claude Code waits at each checkpoint: its hooks hold edits until you answer here.' }
+      return { label: 'Checkpoints hold', title: 'The agent waits at each checkpoint: its hooks hold edits until you answer here.' }
     case 'cooperative':
-      return { label: 'Checkpoints, not held', title: 'Claude Code has the tools but not the hooks: it can go on without waiting.' }
+      return { label: 'Checkpoints, not held', title: 'The agent has the tools but not the hooks: it can go on without waiting.' }
   }
-  return { label: 'Watching changes only', title: 'Claude Code is not connected: Mentor shows what changed, and does not pause it.' }
+  return { label: 'Watching changes only', title: 'No agent is connected: Mentor shows what changed, and does not pause anything.' }
 })
 
 const step = computed(() => (st.value?.plan && st.value.step ? st.value.plan.steps[st.value.step - 1] : null))
@@ -63,7 +63,7 @@ function time(at: string) {
   <div class="agent">
     <div class="line" :title="level.title">
       <i class="codicon codicon-hubot" />
-      <span>Claude Code: {{ level.label }}</span>
+      <span>Agent: {{ level.label }}</span>
       <button v-if="st?.level === 'enforced'" class="link" @click="connect(false)">Disconnect</button>
       <button v-else class="link" @click="(showSetup = true), connect(true)">Connect</button>
     </div>
@@ -71,12 +71,12 @@ function time(at: string) {
       <div v-if="store.setup.hooks">Hooks in {{ store.setup.hooksFile }}.</div>
       <div v-if="store.setup.detail" class="warn">{{ store.setup.detail }}</div>
       <code v-if="!store.setup.mcp" class="cmd">{{ store.setup.mcpCommand }}</code>
-      <div class="dim">Start Claude Code again in the folder for it to pick them up.</div>
+      <div class="dim">Start the agent again in the folder for it to pick them up.</div>
     </div>
 
     <!-- The plan waits. -->
     <div v-if="st?.waiting === 'plan' && st.plan" class="card wait">
-      <div class="head"><i class="codicon codicon-checklist" /> Claude Code's plan <span class="badge">waits for you</span></div>
+      <div class="head"><i class="codicon codicon-checklist" /> The agent's plan <span class="badge">waits for you</span></div>
       <div class="task">{{ st.plan.task }}</div>
       <ol class="steps">
         <li v-for="s in st.plan.steps" :key="s.n">
@@ -92,7 +92,7 @@ function time(at: string) {
           <span class="dim">{{ c.pkgName }} · {{ c.responsibility }}</span>
         </div>
       </Section>
-      <textarea v-model="note" rows="2" placeholder="A note for Claude (optional)" />
+      <textarea v-model="note" rows="2" placeholder="A note for the agent (optional)" />
       <div class="buttons">
         <button class="primary" @click="answerPlan(true)"><i class="codicon codicon-check" /> Approve</button>
         <button @click="answerPlan(false)">Ask for changes</button>
@@ -106,7 +106,7 @@ function time(at: string) {
         <span class="badge">waits for you</span>
       </div>
       <div class="said">
-        <div class="who">Claude says it</div>
+        <div class="who">The agent says it</div>
         <div class="text">{{ st.checkpoint.summary }}</div>
         <template v-if="st.checkpoint.why">
           <div class="who">and why</div>
@@ -120,12 +120,12 @@ function time(at: string) {
       <div v-if="!st.checkpoint.report" class="dim pad">Reading the changes…</div>
       <div v-else-if="!st.checkpoint.report.units.length" class="dim pad">No Go declaration changed in this step.</div>
       <UnitCard v-for="u in st.checkpoint.report?.units" :key="u.id" :u="u" no-review />
-      <textarea v-model="note" rows="2" placeholder="What to change, or a note for Claude" />
+      <textarea v-model="note" rows="2" placeholder="What to change, or a note for the agent" />
       <div class="buttons">
-        <button class="primary" title="Mark it reviewed and let Claude go on" @click="answerCheckpoint('approve')">
+        <button class="primary" title="Mark it reviewed and let the agent go on" @click="answerCheckpoint('approve')">
           <i class="codicon codicon-debug-continue" /> Approve and go on
         </button>
-        <button title="Claude stays on this step and makes the changes in your note" @click="answerCheckpoint('changes')">Ask for changes</button>
+        <button title="The agent stays on this step and makes the changes in your note" @click="answerCheckpoint('changes')">Ask for changes</button>
         <button class="quiet" title="Go on without reviewing it" @click="answerCheckpoint('skip')">Skip</button>
       </div>
     </div>
@@ -143,7 +143,7 @@ function time(at: string) {
       <div class="buttons"><button class="quiet" @click="agent('end')">End the plan</button></div>
     </div>
 
-    <Section v-if="st?.events?.length" title="What Claude did" :count="st.events.length" :open="false">
+    <Section v-if="st?.events?.length" title="What the agent did" :count="st.events.length" :open="false">
       <div v-for="(e, i) in [...st.events].reverse().slice(0, 30)" :key="i" class="event" :class="e.result" :title="e.reason">
         <span class="t">{{ time(e.at) }}</span>
         <span class="tool">{{ e.tool }}</span>

@@ -23,7 +23,7 @@ export default function activate(a: ExtensionAPI) {
     lastState = st.state
   })
 
-  // When Claude Code stops at a plan or a checkpoint, show it: it waits
+  // When the agent stops at a plan or a checkpoint, show it: it waits
   // until the developer answers.
   api.on('mentor/agent', (st: AgentState) => {
     const was = store.agent?.waiting
@@ -32,7 +32,7 @@ export default function activate(a: ExtensionAPI) {
       showSidebar()
       store.tab = 'changes'
       void loadChanges()
-      api.ui.toast('info', st.waiting === 'plan' ? 'Claude Code waits for you to approve its plan' : `Claude Code waits at the checkpoint of step ${st.checkpoint?.step}`)
+      api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`)
     }
   })
 
@@ -64,7 +64,7 @@ export default function activate(a: ExtensionAPI) {
       { id: 'mentor-ask', label: 'Mentor: Ask About the Code', icon: 'search', run: askFocus, when: () => !!api.ide.folder },
       {
         id: 'mentor-connect',
-        label: 'Mentor: Connect Claude Code',
+        label: 'Mentor: Connect the Agent',
         icon: 'hubot',
         run: async () => {
           showSidebar()

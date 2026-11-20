@@ -1,4 +1,4 @@
-// Package gateproto is what mentor-gate, the program Claude Code runs,
+// Package gateproto is what mentor-gate, the program the agent runs,
 // and the extension's backend agree on: where the backend listens for a
 // folder, the MCP tools, and what a hook answers. It is small, so the gate
 // stays small and quick to start.
@@ -150,7 +150,7 @@ var Tools = []Tool{
 	},
 }
 
-// HookOutput is what the gate prints for Claude Code: nothing to let the
+// HookOutput is what the gate prints for the agent: nothing to let the
 // agent go on as it would anyway, or what holds it, with the reason.
 func HookOutput(event string, d Decision) []byte {
 	if d.Allow {

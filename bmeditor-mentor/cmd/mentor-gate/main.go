@@ -1,4 +1,4 @@
-// Command mentor-gate is what Claude Code runs for Mentor: an MCP server
+// Command mentor-gate is what the coding agent runs for Mentor: an MCP server
 // with the tools through which the agent proposes its plan and opens
 // checkpoints ("mentor-gate mcp"), and a hook before each edit and command
 // and at the end of each turn, which holds the agent while a checkpoint
@@ -53,7 +53,7 @@ func regDir() string {
 	return filepath.Dir(exe)
 }
 
-// project is the folder Claude Code works in.
+// project is the folder the agent works in.
 func project(cwd string) string {
 	if d := os.Getenv("CLAUDE_PROJECT_DIR"); d != "" {
 		return d
@@ -84,7 +84,7 @@ func post(reg gateproto.Registry, path string, body []byte, timeout time.Duratio
 	return io.ReadAll(io.LimitReader(res.Body, 16<<20))
 }
 
-// hook answers one of Claude Code's hooks: nothing to let it go on, or a
+// hook answers one of the agent's hooks: nothing to let it go on, or a
 // denial with what to do instead.
 func hook(in io.Reader) []byte {
 	body, err := io.ReadAll(io.LimitReader(in, 16<<20))
