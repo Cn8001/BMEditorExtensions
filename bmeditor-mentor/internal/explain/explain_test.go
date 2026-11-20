@@ -174,36 +174,40 @@ func TestEntries(t *testing.T) {
 	}
 }
 
-func TestExamples_ShowHowAStructIsUsed(t *testing.T) {
+// TestRefs_EveryUseInPages pages through every place UserIdentity is used:
+// the total, the order by file and line, the line's text and where the
+// name is in it.
+func TestRefs_EveryUseInPages(t *testing.T) {
 	// Arrange
 	ix := load(t)
 
 	// Act
-	ex := ExamplesOf(ix, auth+"UserIdentity", 3)
+	first := RefsOf(ix, auth+"UserIdentity", 0, 3)
+	rest := RefsOf(ix, auth+"UserIdentity", 3, 100)
 
 	// Assert
-	if ex == nil || ex.Total < 3 || len(ex.Items) != 3 {
-		t.Fatalf("examples = %+v", ex)
+	if first == nil || first.Total < 6 || len(first.Items) != 3 || first.Files < 3 {
+		t.Fatalf("first page = %+v", first)
 	}
-	fns := map[string]bool{}
-	for i, it := range ex.Items {
-		t.Logf("%s in %s (%s): %s", it.How, it.In, it.Pkg, strings.Fields(strings.Split(it.Text, "\n")[it.Line-it.First])[0])
-		if fns[it.In] {
-			t.Errorf("two examples from %s", it.In)
+	if rest.Total != first.Total || len(first.Items)+len(rest.Items) != first.Total {
+		t.Errorf("pages: %d + %d of %d", len(first.Items), len(rest.Items), first.Total)
+	}
+	all := append(append([]Use{}, first.Items...), rest.Items...)
+	for i, u := range all {
+		if i > 0 && (u.File < all[i-1].File || u.File == all[i-1].File && u.Line < all[i-1].Line) {
+			t.Errorf("out of order at %d: %s:%d after %s:%d", i, u.File, u.Line, all[i-1].File, all[i-1].Line)
 		}
-		fns[it.In] = true
-		if it.Test {
-			t.Errorf("a test was picked before code: %+v", it)
+		if !strings.Contains(u.Text, u.Name) {
+			t.Errorf("%s:%d: the line %q does not show %s", u.File, u.Line, u.Text, u.Name)
 		}
-		if it.Line < it.First || !strings.Contains(strings.Split(it.Text, "\n")[it.Line-it.First], "UserIdentity") && i == 0 {
-			t.Errorf("the first example's line does not show it: %+v", it)
+		if u.Col > 0 && u.Name == "UserIdentity" && !strings.HasPrefix(u.Text[max(0, u.Col-1-u.Indent):], "UserIdentity") {
+			t.Errorf("%s:%d: col %d does not point at the name in %q", u.File, u.Line, u.Col, u.Text)
 		}
 	}
-	// Code from another package comes first: it shows how it is used from outside.
-	if ex.Items[0].Pkg == "auth" {
-		t.Errorf("first example is from its own package: %+v", ex.Items[0])
+	if out := RefsOf(ix, auth+"UserIdentity", 1000, 10); len(out.Items) != 0 {
+		t.Error("past the end, a page is empty")
 	}
-	if ExamplesOf(ix, "nope", 3) != nil {
-		t.Error("an unknown key should have no examples")
+	if RefsOf(ix, "nope", 0, 10) != nil {
+		t.Error("an unknown key has no uses")
 	}
 }

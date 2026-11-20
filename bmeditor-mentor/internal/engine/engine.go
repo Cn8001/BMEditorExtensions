@@ -307,7 +307,8 @@ func (e *Engine) build(ctx context.Context, full bool, dirs []string) {
 		st.Languages[p.Language]++
 	}
 	st.Built, st.Took, st.Head = ix.Built, time.Since(start).Milliseconds(), head
-	st.Errors = append(errs, ix.Errors...)
+	// Never null: the view reads it as a list.
+	st.Errors = append(append([]string{}, errs...), ix.Errors...)
 	if len(st.Errors) > 30 {
 		st.Errors = st.Errors[:30]
 	}
