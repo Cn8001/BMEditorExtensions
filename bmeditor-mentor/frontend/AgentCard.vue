@@ -14,13 +14,13 @@ const related = ref<SearchResult | null>(null)
 const level = computed(() => {
   switch (st.value?.level) {
     case 'off':
-      return { label: 'Mentor is off', title: 'Pause the agent at each step is off in Settings: the agent works without plans or checkpoints.' }
+      return { label: 'Mentor is off', title: 'Connect the agent is off: the agent works without plans or checkpoints.' }
     case 'enforced':
       return { label: 'Checkpoints hold', title: 'The agent waits at each checkpoint: its hooks hold edits until you answer here.' }
     case 'cooperative':
       return { label: 'Checkpoints, not held', title: 'The agent has the tools but not the hooks: it can go on without waiting.' }
   }
-  return { label: 'Not connected', title: 'Connect the agent is off in Settings, or connecting did not work: Mentor shows what changed, and does not pause anything.' }
+  return { label: 'Not connected', title: 'Connecting the agent did not work: Mentor shows what changed, and does not pause anything.' }
 })
 
 const step = computed(() => (st.value?.plan && st.value.step ? st.value.plan.steps[st.value.step - 1] : null))
@@ -72,8 +72,8 @@ function time(at: string) {
     <div class="line" :title="level.title">
       <span class="dot" :class="st?.level || 'observe'" />
       <span>Agent: {{ level.label }}</span>
-      <button v-if="st?.level !== 'enforced' && st?.level !== 'off'" class="link" title="Connect the agent, in Mentor's settings" @click="api.ui.openSettings()">Settings</button>
-      <button v-if="api.saveSettings" class="link" :title="st?.level === 'off' ? 'Pause the agent at each step again' : 'Let the agent work without Mentor: no plan, no checkpoints'" @click="setOn(st?.level === 'off')">
+      <button v-if="st?.level !== 'enforced' && st?.level !== 'off'" class="link" title="Mentor's settings" @click="api.ui.openSettings()">Settings</button>
+      <button v-if="api.saveSettings" class="link" :title="st?.level === 'off' ? 'Connect the agent again: it stops after each step' : 'Let the agent work without Mentor: no plan, no checkpoints'" @click="setOn(st?.level === 'off')">
         {{ st?.level === 'off' ? 'Turn on' : 'Turn off' }}
       </button>
     </div>

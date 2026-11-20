@@ -41,6 +41,7 @@ type state struct {
 	gate   *agent.Gate
 	server *agent.Server
 	linked string // "on" or "off": what the settings last said of connecting the agent to this folder
+	manual bool   // tests: leave the agent's settings alone
 }
 
 func (st *state) close() {
@@ -147,15 +148,14 @@ func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 }
 
 // link connects the agent to the folder or takes it out, as the settings
-// say: connected while Mentor pauses the agent and Connect the agent is
-// on. It acts when the folder opens and when the settings change; a setup
+// say: connected while Connect the agent is on. It acts when the folder opens and when the settings change; a setup
 // already as the settings want is left alone. Call it with st.mu held.
 func (st *state) link(s *host.Server, e *engine.Engine) {
 	want := "off"
-	if s.Context().Setting("watchAgent") != "false" && s.Context().Setting("autoConnect") != "false" {
+	if s.Context().Setting("watchAgent") != "false" {
 		want = "on"
 	}
-	if want == st.linked {
+	if want == st.linked || st.manual {
 		return
 	}
 	first := st.linked == ""

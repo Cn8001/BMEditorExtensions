@@ -21,7 +21,7 @@ const auth = "example.com/authsvc/internal/auth."
 func connect(t *testing.T, folder string) *host.Client {
 	t.Helper()
 	s := host.New()
-	st := &state{dataDir: t.TempDir()}
+	st := &state{dataDir: t.TempDir(), manual: true}
 	register(s, st)
 	toServer, fromClient := io.Pipe()
 	toClient, fromServer := io.Pipe()
@@ -34,7 +34,7 @@ func connect(t *testing.T, folder string) *host.Client {
 		st.close()
 	})
 	c := host.NewClient(toClient, fromClient, nil)
-	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"autoConnect": "false"}}); err != nil {
+	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder}); err != nil {
 		t.Fatal(err)
 	}
 	return c
@@ -102,14 +102,14 @@ func TestMethods_OnTheFixture(t *testing.T) {
 func TestAgentMethods(t *testing.T) {
 	folder, _ := filepath.Abs(filepath.Join("..", "..", "internal", "golang", "testdata", "authsvc"))
 	s := host.New()
-	st := &state{dataDir: t.TempDir()}
+	st := &state{dataDir: t.TempDir(), manual: true}
 	register(s, st)
 	toServer, fromClient := io.Pipe()
 	toClient, fromServer := io.Pipe()
 	go func() { _ = s.Serve(t.Context(), toServer, fromServer); fromServer.Close() }()
 	t.Cleanup(func() { fromClient.Close(); st.close() })
 	c := host.NewClient(toClient, fromClient, nil)
-	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"maxFiles": "3", "autoConnect": "false"}}); err != nil {
+	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"maxFiles": "3"}}); err != nil {
 		t.Fatal(err)
 	}
 	as := call[agent.State](t, c, "agent.state", nil)
@@ -155,14 +155,14 @@ func TestAgentChanges_OnlyWhatTheAgentChanged(t *testing.T) {
 	git("commit", "-q", "-m", "fixture")
 
 	s := host.New()
-	st := &state{dataDir: t.TempDir()}
+	st := &state{dataDir: t.TempDir(), manual: true}
 	register(s, st)
 	toServer, fromClient := io.Pipe()
 	toClient, fromServer := io.Pipe()
 	go func() { _ = s.Serve(t.Context(), toServer, fromServer); fromServer.Close() }()
 	t.Cleanup(func() { fromClient.Close(); st.close() })
 	c := host.NewClient(toClient, fromClient, nil)
-	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"autoConnect": "false", "requirePlan": "false"}}); err != nil {
+	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"requirePlan": "false"}}); err != nil {
 		t.Fatal(err)
 	}
 	_ = call[engine.Status](t, c, "status", nil)

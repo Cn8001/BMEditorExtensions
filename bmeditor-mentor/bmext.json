@@ -31,8 +31,8 @@
     },
     {
       "key": "watchAgent",
-      "label": "Pause the agent at each step",
-      "description": "The agent stops after each step of its plan until you approve it. Off: the agent works without Mentor.",
+      "label": "Connect the agent",
+      "description": "On: Mentor connects the agent for the open folder and stops it after each step of its plan until you approve. Off: the agent works without Mentor.",
       "type": "boolean",
       "default": "true",
       "style": "switch"
@@ -54,16 +54,6 @@
       "type": "string",
       "default": "12",
       "scope": "both"
-    },
-    {
-      "key": "autoConnect",
-      "label": "Connect the agent",
-      "description": "Add Mentor's MCP server and hooks to the agent for the open folder. Off: Mentor takes them out.",
-      "type": "boolean",
-      "default": "true",
-      "when": {
-        "watchAgent": "true"
-      }
     },
     {
       "key": "lens",

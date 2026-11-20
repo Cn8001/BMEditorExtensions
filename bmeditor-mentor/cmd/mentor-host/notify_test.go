@@ -16,7 +16,7 @@ import (
 func TestAgentNotifies_WhenThePlanComes(t *testing.T) {
 	folder, _ := filepath.Abs(filepath.Join("..", "..", "internal", "golang", "testdata", "authsvc"))
 	s := host.New()
-	st := &state{dataDir: t.TempDir()}
+	st := &state{dataDir: t.TempDir(), manual: true}
 	register(s, st)
 	toServer, fromClient := io.Pipe()
 	toClient, fromServer := io.Pipe()
@@ -30,7 +30,7 @@ func TestAgentNotifies_WhenThePlanComes(t *testing.T) {
 			got <- as
 		}
 	})
-	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"autoConnect": "false"}}); err != nil {
+	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder}); err != nil {
 		t.Fatal(err)
 	}
 	_ = call[agent.State](t, c, "agent.state", nil)

@@ -69,11 +69,12 @@ Other languages come through their language servers.
 
 ## Connecting the agent
 
-Mentor connects the agent while the settings Pause the agent at each
-step and Connect the agent are both on: for the open folder it adds its
+Connect the agent, one On/Off button in Settings (and Turn off / Turn on
+in Mentor), is all there is to it. On, Mentor adds to the open folder its
 MCP server, through which the agent proposes its plan and opens
-checkpoints, and its hooks to the agent's local settings, which stay on
-this machine. Turn either off and Mentor takes both out. An agent already
+checkpoints, and its hooks, in the agent's local settings, which stay on
+this machine; the dot beside Mentor in the top bar turns green. Off, it
+takes both out, and the agent works without Mentor. An agent already
 running picks the change up when it starts again.
 
 Mentor says how far a stop holds: with the hooks, the agent waits; with
