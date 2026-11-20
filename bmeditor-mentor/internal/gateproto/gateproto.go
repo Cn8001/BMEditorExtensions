@@ -87,9 +87,10 @@ type ToolResult struct {
 }
 
 // Instructions are what the agent is told about Mentor when it connects.
-const Instructions = `Mentor lets the developer follow your work step by step, in the editor. Work on your own, but in steps they can review:
-- Before changing code, call mentor_plan with the task and its steps, each a logical part of the work (a data model, a service, wiring it in, its tests) with the files or packages it touches. Then call mentor_wait until they answer.
-- Do one step. When it is done, call mentor_checkpoint with what you did and why, naming the types and functions in backticks, then mentor_wait. The developer reads it beside the code that changed; when they approve, mentor_wait tells you to go on.
+const Instructions = `Mentor lets the developer follow your work step by step, in the editor, and keep the project in their head. Work on your own, but in steps they can place in their map of the project:
+- Before changing code, call mentor_plan with the task and its steps. A step is one behavior the developer can understand on its own (storing users, issuing tokens), not one function and not a whole feature: usually 2 to 4 files besides tests. For each step say what it does, the existing code it uses, what it creates, what it will not touch, and when it is done. Then call mentor_wait until they answer.
+- Do one step, and keep to what it said: Mentor holds an edit outside it, and ends a step that grows well past the files it named.
+- When it is done, call mentor_checkpoint: what you made, in a sentence, and the one thing the developer needs to know of it (the rule it follows, where to start to change it), naming types and functions in backticks. Then mentor_wait. Mentor shows where it fits in the project and runs its tests; when they approve, mentor_wait tells you to go on.
 - If mentor_wait says they have not answered yet, call it again. Change nothing while you wait.
 - When Mentor holds an edit, read why and do what it says.`
 
@@ -118,25 +119,32 @@ func object(props map[string]any, required ...string) map[string]any {
 var Tools = []Tool{
 	{
 		Name:        "mentor_plan",
-		Description: "Propose your plan before changing code: the task, and its steps in order, each a logical part the developer can review on its own, with the files and packages (folders from the project root) it touches. Then call mentor_wait.",
+		Description: "Propose your plan before changing code: the task, and its steps in order, each one behavior the developer can understand on its own, usually 2 to 4 files besides tests. For each say what it does, what existing code it uses, what it creates, what it will not touch and when it is done. Then call mentor_wait.",
 		InputSchema: object(map[string]any{
 			"task": str("What you were asked to do, in a sentence."),
 			"steps": map[string]any{"type": "array", "description": "The steps, in order.",
 				"items": object(map[string]any{
-					"title":    str("What the step does."),
+					"title":    str("The step, in a few words: User repository."),
+					"does":     str("What it will do, as a behavior: store users and look them up by ID."),
+					"uses":     strs("Existing types and functions it builds on, by name: User, Repository."),
+					"creates":  strs("Types and functions it will add, by name: UserRepository."),
+					"avoid":    strs("What it will not touch: files, folders (internal/store/), globs (*.sql), or types by name (SteamProvider)."),
+					"doneWhen": str("When it stops: users are stored and found, with tests."),
 					"why":      str("Why it is needed, or why this way."),
-					"files":    strs("Files it changes or adds, from the project root."),
+					"files":    strs("Files it changes or adds, from the project root; its budget comes from them."),
 					"packages": strs("Folders it changes, from the project root."),
-				}, "title")},
+				}, "title", "does", "doneWhen")},
 		}, "task", "steps"),
 	},
 	{
 		Name:        "mentor_checkpoint",
-		Description: "End the current step: what you did and how it works now, and why this way, naming the types and functions in backticks. The developer reviews it beside the code that changed. Then call mentor_wait.",
+		Description: "End the current step. Say what you made, in a sentence, and the one thing the developer needs to know of it, naming types and functions in backticks. Mentor shows where it fits in the project and runs its tests. Then call mentor_wait.",
 		InputSchema: object(map[string]any{
-			"summary": str("What the step changed, and how it works now."),
+			"made":    str("What the step made, in a sentence: a `UserRepository` that stores users and finds them by ID."),
+			"know":    str("The one thing the developer needs to know of it: the rule it follows, or where to start to change it."),
+			"summary": str("How it works now, if more than that is worth saying."),
 			"why":     str("Why this way; what you chose and what you left out."),
-		}, "summary"),
+		}, "made", "know"),
 	},
 	{
 		Name:        "mentor_wait",

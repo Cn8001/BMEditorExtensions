@@ -43,7 +43,9 @@ func setup(t *testing.T, p Policy) (*Gate, *code) {
 		t.Fatal(err)
 	}
 	c.ix.Store(index.Merge(root, c.b))
-	return New(root, c, p, nil), c
+	g := New(root, c, p, nil)
+	g.RunTests = func(context.Context, string, []string) TestRun { return TestRun{State: "passed", Failed: []string{}} }
+	return g, c
 }
 
 func edit(g *Gate, rel string) HookCall {
@@ -120,7 +122,7 @@ func TestGate_StepByStep(t *testing.T) {
 	}
 
 	// The checkpoint: its words beside what the code shows.
-	g.OpenCheckpoint(ctx, "Added `DiscordProvider` with `DiscordProvider.Exchange`, like `TwitchProvider`.", "Same shape as SteamProvider.")
+	g.OpenCheckpoint(ctx, "", "", "Added `DiscordProvider` with `DiscordProvider.Exchange`, like `TwitchProvider`.", "Same shape as SteamProvider.")
 	st := g.State()
 	if st.Waiting != "checkpoint" || st.Checkpoint.Report == nil || len(st.Checkpoint.Report.Units) == 0 {
 		t.Fatalf("checkpoint = %+v", st.Checkpoint)
@@ -142,7 +144,7 @@ func TestGate_StepByStep(t *testing.T) {
 	if g.State().Step != 1 {
 		t.Fatal("the step moved on after changes were asked")
 	}
-	g.OpenCheckpoint(ctx, "Added a test too.", "")
+	g.OpenCheckpoint(ctx, "", "", "Added a test too.", "")
 	keys, err := g.AnswerCheckpoint(ctx, "approve", "")
 	if err != nil || len(keys) < 3 {
 		t.Fatalf("keys = %v, %v", keys, err)
@@ -155,7 +157,7 @@ func TestGate_StepByStep(t *testing.T) {
 	if d := g.Hook(edit(g, "cmd/server/main.go")); !d.Allow {
 		t.Fatalf("step 2: %+v", d)
 	}
-	g.OpenCheckpoint(ctx, "Wired it in.", "")
+	g.OpenCheckpoint(ctx, "", "", "Wired it in.", "")
 	if _, err := g.AnswerCheckpoint(ctx, "skip", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -358,5 +360,143 @@ func TestReadOnly(t *testing.T) {
 		if got := readOnly(cmd); got != want {
 			t.Errorf("readOnly(%q) = %v, want %v", cmd, got, want)
 		}
+	}
+}
+
+// TestGate_AStepSaysWhatItWillDo: before a step, the agent says what it
+// will do, use, make and leave alone, and when it stops; names it uses that
+// the code lacks, and ones it makes that the code has, are flagged.
+func TestGate_AStepSaysWhatItWillDo(t *testing.T) {
+	g, _ := setup(t, DefaultPolicy())
+	g.Propose("Tokens", []PlanStep{{
+		Title: "Token issuing", Does: "JWT token issuing", Uses: []string{"UserIdentity", "Repository", "Ghost"},
+		Creates: []string{"TokenService", "Session"}, Avoid: []string{"internal/store", "SteamProvider"},
+		DoneWhen: "tokens are issued and tested", Files: []string{"internal/auth/token.go", "internal/auth/token_test.go"},
+	}})
+	st := g.State().Plan.Steps[0]
+	if st.Does != "JWT token issuing" || st.DoneWhen == "" || len(st.Avoid) != 2 {
+		t.Errorf("step = %+v", st)
+	}
+	if strings.Join(st.Unknown, ",") != "Ghost" || strings.Join(st.Exists, ",") != "Session" {
+		t.Errorf("unknown = %v, exists = %v", st.Unknown, st.Exists)
+	}
+	if st.Budget != 2 {
+		t.Errorf("budget = %d: a test file does not count, and two at least", st.Budget)
+	}
+}
+
+// TestGate_TheStepStaysWhatItSaid: an edit where the step said it would not
+// go, or past its budget, ends the step; tests do not count.
+func TestGate_TheStepStaysWhatItSaid(t *testing.T) {
+	p := DefaultPolicy()
+	p.MaxFiles = 0
+	g, _ := setup(t, p)
+	g.Propose("Tokens", []PlanStep{{Title: "Tokens", Files: []string{"internal/auth/token.go"}, Avoid: []string{"internal/store/", "*.sql"}}})
+	_ = g.AnswerPlan(t.Context(), true, "")
+	if d := g.Hook(edit(g, "internal/store/pg.go")); d.Allow || !strings.Contains(d.Reason, "leave internal/store/ alone") {
+		t.Fatalf("an avoided folder: %+v", d)
+	}
+	if d := g.Hook(edit(g, "db/001_init.sql")); d.Allow {
+		t.Fatal("an avoided glob was let through")
+	}
+	// Budget 2, so up to 4 files outside tests; tests are free.
+	for _, f := range []string{"internal/auth/token.go", "internal/auth/a.go", "internal/auth/b.go", "internal/auth/c.go", "internal/auth/a_test.go", "internal/auth/b_test.go"} {
+		if d := g.Hook(edit(g, f)); !d.Allow {
+			t.Fatalf("%s: %+v", f, d)
+		}
+	}
+	if d := g.Hook(edit(g, "internal/auth/d.go")); d.Allow || !strings.Contains(d.Reason, "planned about 2") {
+		t.Fatalf("past the budget: %+v", d)
+	}
+	if d := g.Hook(edit(g, "internal/auth/a.go")); !d.Allow {
+		t.Error("a file the step already changed should stay editable")
+	}
+}
+
+// TestGate_TheCheckpointPlacesTheNewPart: the checkpoint says what was made
+// and what to know, where it fits, runs the tests of what changed, and
+// flags what the step said it would leave alone and changed.
+func TestGate_TheCheckpointPlacesTheNewPart(t *testing.T) {
+	g, c := setup(t, DefaultPolicy())
+	ctx := t.Context()
+	ran := make(chan []string, 1)
+	g.RunTests = func(_ context.Context, _ string, dirs []string) TestRun {
+		ran <- dirs
+		return TestRun{State: "failed", Packages: dirs, Failed: []string{"TestLogin_LinksIdentity"}}
+	}
+	g.Propose("Discord", []PlanStep{{Title: "Add DiscordProvider", Files: []string{"internal/auth/provider.go"}, Avoid: []string{"SteamProvider"}}})
+	_ = g.AnswerPlan(ctx, true, "")
+	g.Hook(edit(g, "internal/auth/provider.go"))
+	write(t, g, "internal/auth/provider.go", "\ntype DiscordProvider struct{ Repo Repository }\n\nfunc (DiscordProvider) Name() string { return \"discord\" }\n\nfunc (p DiscordProvider) Exchange(ctx context.Context, code string) (UserIdentity, error) {\n\t_, _ = p.Repo.FindIdentity(ctx, \"discord\", code)\n\treturn UserIdentity{}, nil\n}\n\nfunc (SteamProvider) Extra() {}\n")
+	c.reread(t)
+
+	g.OpenCheckpoint(ctx, "A `DiscordProvider` that signs users in with Discord.", "Providers are kept in `Service`; a new one is made in main.", "", "")
+
+	cp := g.State().Checkpoint
+	if cp.Made == "" || cp.Know == "" || cp.Fit == nil {
+		t.Fatalf("checkpoint = %+v", cp)
+	}
+	var parts, below []string
+	for _, b := range cp.Fit.Parts {
+		parts = append(parts, b.Name)
+	}
+	for _, b := range cp.Fit.Below {
+		below = append(below, b.Name)
+	}
+	if len(parts) == 0 || parts[0] != "DiscordProvider" || !strings.Contains(strings.Join(below, " "), "FindIdentity") {
+		t.Errorf("fit: parts %v, below %v", parts, below)
+	}
+	if strings.Join(cp.Avoided, ",") != "SteamProvider" {
+		t.Errorf("avoided = %v", cp.Avoided)
+	}
+	select {
+	case dirs := <-ran:
+		if strings.Join(dirs, ",") != "internal/auth" {
+			t.Errorf("tests ran for %v", dirs)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("the tests did not run")
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for g.State().Checkpoint.Tests.State != "failed" && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if tr := g.State().Checkpoint.Tests; tr.State != "failed" || tr.Failed[0] != "TestLogin_LinksIdentity" {
+		t.Errorf("tests = %+v", tr)
+	}
+}
+
+func TestAvoided(t *testing.T) {
+	cases := map[string]string{
+		"internal/store/pg.go|internal/store":     "internal/store",
+		"internal/store/pg.go|./internal/store/":  "./internal/store/",
+		"migrations/001.sql|*.sql":                "*.sql",
+		"internal/auth/provider.go|provider.go":   "provider.go",
+		"internal/auth/provider.go|SteamProvider": "",
+		"internal/storex/a.go|internal/store":     "",
+	}
+	for in, want := range cases {
+		rel, a, _ := strings.Cut(in, "|")
+		if got := avoided(rel, []string{a}); got != want {
+			t.Errorf("avoided(%q, %q) = %q, want %q", rel, a, got, want)
+		}
+	}
+}
+
+func TestRunGoTests(t *testing.T) {
+	if testing.Short() {
+		t.Skip("runs go test")
+	}
+	g, _ := setup(t, DefaultPolicy())
+	if run := RunGoTests(t.Context(), g.Root, []string{"internal/auth"}); run.State != "passed" {
+		t.Fatalf("run = %+v", run)
+	}
+	write(t, g, "internal/auth/broken_test.go", "package auth\n\nimport \"testing\"\n\nfunc TestBroken(t *testing.T) { t.Fatal(\"no\") }\n")
+	run := RunGoTests(t.Context(), g.Root, []string{"internal/auth"})
+	if run.State != "failed" || strings.Join(run.Failed, ",") != "TestBroken" || run.Output == "" {
+		t.Errorf("run = %+v", run)
+	}
+	if run := RunGoTests(t.Context(), g.Root, nil); run.State != "none" {
+		t.Errorf("no folders: %+v", run)
 	}
 }

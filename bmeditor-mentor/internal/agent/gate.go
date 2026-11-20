@@ -42,7 +42,8 @@ type Policy struct {
 // DefaultPolicy is the policy when the developer has set nothing.
 func DefaultPolicy() Policy { return Policy{RequirePlan: true, MaxFiles: 12} }
 
-// Step is a part of the plan.
+// Step is a part of the plan: one behavior the developer can understand on
+// its own, and what the agent says of it before it starts.
 type Step struct {
 	N        int      `json:"n"`
 	Title    string   `json:"title"`
@@ -50,6 +51,20 @@ type Step struct {
 	Files    []string `json:"files"`
 	Packages []string `json:"packages"`
 	Status   string   `json:"status"` // todo, doing, done
+	// What the agent will do, the code it will use, what it will make, what
+	// it will leave alone, and when it will stop.
+	Does     string   `json:"does,omitempty"`
+	Uses     []string `json:"uses"`
+	Creates  []string `json:"creates"`
+	Avoid    []string `json:"avoid"`
+	DoneWhen string   `json:"doneWhen,omitempty"`
+	// Unknown are names in Uses the code does not have; Exists, names in
+	// Creates it already has.
+	Unknown []string `json:"unknown"`
+	Exists  []string `json:"exists"`
+	// Budget is how many files outside tests the step is expected to change,
+	// from what it said it touches; past it by more than a little, it ends.
+	Budget int `json:"budget"`
 }
 
 // Plan is the agent's proposal and the developer's answer.
@@ -61,14 +76,21 @@ type Plan struct {
 	Created time.Time `json:"created"`
 }
 
-// Checkpoint is the end of a step: what the agent says it did and why,
-// beside what the code shows it did.
+// Checkpoint is the end of a step, as the developer needs it: what was
+// made, where it fits in the project, what to know of it, and whether the
+// tests pass; the whole of what changed is there too, for who wants it.
 type Checkpoint struct {
-	ID      int             `json:"id"`
-	Step    int             `json:"step"`
-	Summary string          `json:"summary"`
-	Why     string          `json:"why,omitempty"`
-	Unknown []string        `json:"unknown"` // names the agent used that the code does not have
+	ID      int    `json:"id"`
+	Step    int    `json:"step"`
+	Made    string `json:"made,omitempty"` // what was made, in a sentence
+	Know    string `json:"know,omitempty"` // what the developer needs to know of it
+	Summary string `json:"summary"`
+	Why     string `json:"why,omitempty"`
+	// Unknown are names the agent used that the code does not have.
+	Unknown []string        `json:"unknown"`
+	Fit     *Fit            `json:"fit"`
+	Tests   *TestRun        `json:"tests"`
+	Avoided []string        `json:"avoided"` // what the step said it would leave alone and changed
 	Report  *changes.Report `json:"report"`
 	Status  string          `json:"status"` // waiting, approved, changes_requested, skipped
 	Note    string          `json:"note,omitempty"`
@@ -136,6 +158,10 @@ type Gate struct {
 	// Persist keeps the gate's state, so a plan under way outlives a
 	// restart of the backend.
 	Persist func([]byte)
+
+	// RunTests runs the tests of the folders a step changed, from Root; nil
+	// runs go test.
+	RunTests func(ctx context.Context, root string, dirs []string) TestRun
 
 	// Dirty answers the files of the folder that differ from HEAD, each
 	// with a hash of what it holds now ("" when it is gone): a command's
@@ -335,10 +361,7 @@ func (g *Gate) preToolUse(call HookCall, dirty map[string]string) Decision {
 		return Decision{Reason: "Mentor: " + reason}
 	}
 	if editTools[call.Tool] {
-		// A step that grows past its size ends: a smaller one is easier
-		// to understand.
-		if n := len(g.files); g.step > 0 && g.policy.MaxFiles > 0 && !g.files[what] && n >= g.policy.MaxFiles {
-			reason := fmt.Sprintf("Step %d has changed %d files, as many as one step may. End it here: call mentor_checkpoint with what you did and why, then mentor_wait, and go on in the next step.", g.step, n)
+		if reason := g.outOfStep(what); reason != "" {
 			g.log(call.Tool, what, "held", reason)
 			return Decision{Reason: "Mentor: " + reason}
 		}
@@ -349,6 +372,35 @@ func (g *Gate) preToolUse(call HookCall, dirty map[string]string) Decision {
 	}
 	g.log(call.Tool, what, "done", "")
 	return Decision{Allow: true}
+}
+
+// outOfStep is why an edit of rel does not belong to the step under way:
+// a file the step said it would leave alone, or one more than it can take.
+// A smaller step is easier to understand.
+func (g *Gate) outOfStep(rel string) string {
+	st := g.currentStep()
+	if st == nil || g.files[rel] {
+		return ""
+	}
+	if a := avoided(rel, st.Avoid); a != "" {
+		return fmt.Sprintf("Step %d said it would leave %s alone, and %s is there. If the step needs it after all, end the step here: call mentor_checkpoint and say why, then mentor_wait.", g.step, a, rel)
+	}
+	n := 0
+	for f := range g.files {
+		if !isTestFile(f) {
+			n++
+		}
+	}
+	if !isTestFile(rel) {
+		n++
+	}
+	if overBudget(n, st.Budget) {
+		return fmt.Sprintf("Step %d would change %d files outside tests; it planned about %d. It has grown past one behavior: end it here with mentor_checkpoint, then mentor_wait, and go on in a step of its own.", g.step, n, st.Budget)
+	}
+	if g.policy.MaxFiles > 0 && len(g.files) >= g.policy.MaxFiles {
+		return fmt.Sprintf("Step %d has changed %d files, as many as one step may. End it here: call mentor_checkpoint, then mentor_wait, and go on in the next step.", g.step, len(g.files))
+	}
+	return ""
 }
 
 // ran notes what a shell command changed: the files that differ from HEAD
@@ -491,6 +543,11 @@ type PlanStep struct {
 	Why      string   `json:"why"`
 	Files    []string `json:"files"`
 	Packages []string `json:"packages"`
+	Does     string   `json:"does"`
+	Uses     []string `json:"uses"`
+	Creates  []string `json:"creates"`
+	Avoid    []string `json:"avoid"`
+	DoneWhen string   `json:"doneWhen"`
 }
 
 // Propose takes the agent's plan, which waits for the developer. One
@@ -499,10 +556,15 @@ func (g *Gate) Propose(task string, steps []PlanStep) string {
 	if strings.TrimSpace(task) == "" || len(steps) == 0 {
 		return "A plan needs the task and at least one step."
 	}
+	ix := g.code.Peek()
 	g.mu.Lock()
 	p := &Plan{Task: task, Status: "proposed", Created: time.Now()}
 	for i, s := range steps {
-		p.Steps = append(p.Steps, Step{N: i + 1, Title: s.Title, Why: s.Why, Files: clean(s.Files), Packages: clean(s.Packages), Status: "todo"})
+		st := Step{N: i + 1, Title: s.Title, Why: s.Why, Files: clean(s.Files), Packages: clean(s.Packages), Status: "todo",
+			Does: strings.TrimSpace(s.Does), Uses: trimmed(s.Uses), Creates: trimmed(s.Creates), Avoid: trimmed(s.Avoid), DoneWhen: strings.TrimSpace(s.DoneWhen)}
+		st.Unknown, st.Exists = namesCheck(ix, st.Uses, st.Creates)
+		st.Budget = budgetOf(st)
+		p.Steps = append(p.Steps, st)
 	}
 	g.plan, g.step, g.cp, g.reply = p, 0, nil, ""
 	g.files = map[string]bool{}
@@ -510,6 +572,16 @@ func (g *Gate) Propose(task string, steps []PlanStep) string {
 	g.mu.Unlock()
 	g.notify()
 	return "The plan is with the developer. Call mentor_wait for their answer, and change nothing until then."
+}
+
+func trimmed(list []string) []string {
+	out := []string{}
+	for _, s := range list {
+		if s = strings.TrimSpace(s); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func clean(list []string) []string {
@@ -524,7 +596,7 @@ func clean(list []string) []string {
 
 // OpenCheckpoint ends the step: what the agent says it did and why, beside
 // what the code shows changed since the step began.
-func (g *Gate) OpenCheckpoint(ctx context.Context, summary, why string) string {
+func (g *Gate) OpenCheckpoint(ctx context.Context, made, know, summary, why string) string {
 	g.mu.Lock()
 	if g.currentStep() == nil {
 		g.mu.Unlock()
@@ -536,7 +608,13 @@ func (g *Gate) OpenCheckpoint(ctx context.Context, summary, why string) string {
 		return fmt.Sprintf("Checkpoint %d already waits for the developer. Call mentor_wait.", id)
 	}
 	g.nextID++
-	g.cp = &Checkpoint{ID: g.nextID, Step: g.step, Summary: summary, Why: why, Status: "waiting", Unknown: []string{}, Created: time.Now()}
+	if strings.TrimSpace(made) == "" && strings.TrimSpace(summary) == "" {
+		g.nextID--
+		g.mu.Unlock()
+		return "Say what the step made, in a sentence (made), and what the developer needs to know of it (know)."
+	}
+	g.cp = &Checkpoint{ID: g.nextID, Step: g.step, Made: strings.TrimSpace(made), Know: strings.TrimSpace(know), Summary: summary, Why: why,
+		Status: "waiting", Unknown: []string{}, Avoided: []string{}, Created: time.Now()}
 	g.reply = ""
 	g.log("mentor_checkpoint", fmt.Sprintf("step %d", g.step), "done", "")
 	id := g.cp.ID
@@ -557,13 +635,44 @@ func (g *Gate) Refresh(ctx context.Context) {
 	}
 	rep := changes.Build(ix, *base, changes.Diff(ix, *base), nil)
 	rep.Since = fmt.Sprintf("step %d began", cp.Step)
-	unknown := unknownNames(ix, cp.Summary+"\n"+cp.Why)
+	unknown := unknownNames(ix, cp.Made+"\n"+cp.Know+"\n"+cp.Summary+"\n"+cp.Why)
+	fit := fitOf(rep)
 	g.mu.Lock()
-	if g.cp == cp {
-		cp.Report, cp.Unknown = rep, unknown
+	var avoid []string
+	if st := g.currentStep(); st != nil {
+		avoid = st.Avoid
 	}
+	start := false
+	if g.cp == cp {
+		cp.Report, cp.Unknown, cp.Fit, cp.Avoided = rep, unknown, fit, avoidedNames(avoid, rep)
+		// The tests of what the step changed run once, Mentor's own way:
+		// the developer does not take the agent's word for it.
+		if cp.Tests == nil {
+			cp.Tests = &TestRun{State: "running", Packages: goDirs(g.Root, g.files), Failed: []string{}}
+			start = true
+		}
+	}
+	dirs := []string(nil)
+	if cp.Tests != nil {
+		dirs = cp.Tests.Packages
+	}
+	run := g.RunTests
 	g.mu.Unlock()
 	g.notify()
+	if start {
+		if run == nil {
+			run = RunGoTests
+		}
+		go func() {
+			res := run(context.Background(), g.Root, dirs)
+			g.mu.Lock()
+			if g.cp == cp {
+				cp.Tests = &res
+			}
+			g.mu.Unlock()
+			g.notify()
+		}()
+	}
 }
 
 // Wait blocks until nothing waits for the developer, or until timeout, and
@@ -605,10 +714,7 @@ func (g *Gate) Status() string {
 		return "No plan is under way."
 	}
 	s := fmt.Sprintf("Plan: %s\nStep %d of %d: %s\n", g.plan.Task, st.N, len(g.plan.Steps), st.Title)
-	if len(st.Files)+len(st.Packages) > 0 {
-		s += "It touches " + strings.Join(append(append([]string{}, st.Files...), st.Packages...), ", ") + ".\n"
-	}
-	return s + "When it is done, call mentor_checkpoint with what you did and why, then mentor_wait."
+	return s + said(st) + "When it is done, call mentor_checkpoint with what you made and what the developer needs to know, then mentor_wait."
 }
 
 // next says what the agent does now.
@@ -617,11 +723,26 @@ func (g *Gate) next() string {
 	if st == nil {
 		return "All steps are done."
 	}
-	s := fmt.Sprintf("Do step %d: %s.", st.N, st.Title)
-	if len(st.Files)+len(st.Packages) > 0 {
-		s += " It touches " + strings.Join(append(append([]string{}, st.Files...), st.Packages...), ", ") + "."
+	s := fmt.Sprintf("Do step %d: %s.\n", st.N, st.Title)
+	return s + said(st) + "When it is done, call mentor_checkpoint with what you made and what the developer needs to know, then mentor_wait."
+}
+
+// said is what the agent said of a step, to hold it to.
+func said(st *Step) string {
+	var b strings.Builder
+	if st.Does != "" {
+		b.WriteString("It does: " + st.Does + "\n")
 	}
-	return s + " When it is done, call mentor_checkpoint with what you did and why, then mentor_wait."
+	if len(st.Files)+len(st.Packages) > 0 {
+		b.WriteString("It touches " + strings.Join(append(append([]string{}, st.Files...), st.Packages...), ", ") + fmt.Sprintf(" (about %d files besides tests).\n", st.Budget))
+	}
+	if len(st.Avoid) > 0 {
+		b.WriteString("It leaves alone " + strings.Join(st.Avoid, ", ") + ".\n")
+	}
+	if st.DoneWhen != "" {
+		b.WriteString("It is done when " + st.DoneWhen + "\n")
+	}
+	return b.String()
 }
 
 // What the developer answers, from the panel.

@@ -127,6 +127,8 @@ func (g *Gate) Tool(ctx context.Context, name string, args json.RawMessage) (str
 		Steps   []PlanStep `json:"steps"`
 		Summary string     `json:"summary"`
 		Why     string     `json:"why"`
+		Made    string     `json:"made"`
+		Know    string     `json:"know"`
 	}
 	if len(args) > 0 && string(args) != "null" {
 		if err := json.Unmarshal(args, &a); err != nil {
@@ -144,7 +146,7 @@ func (g *Gate) Tool(ctx context.Context, name string, args json.RawMessage) (str
 	case "mentor_plan":
 		return g.Propose(a.Task, a.Steps), nil
 	case "mentor_checkpoint":
-		return g.OpenCheckpoint(ctx, a.Summary, a.Why), nil
+		return g.OpenCheckpoint(ctx, a.Made, a.Know, a.Summary, a.Why), nil
 	case "mentor_wait":
 		return g.Wait(ctx, 50*time.Second), nil
 	case "mentor_status":
