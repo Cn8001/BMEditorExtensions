@@ -19,13 +19,16 @@
 }
 .mentor-lens .card {
   margin-left: 8px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.mentor-lens .card .codicon {
   font-size: 12px;
   vertical-align: -2px;
-  opacity: 0.6;
 }
 .mentor-lens .card:hover {
   opacity: 1;
-  text-decoration: none;
+  color: var(--accent);
 }
 .mentor-peek-host {
   padding: 0 12px 0 6px;

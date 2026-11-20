@@ -58,9 +58,13 @@ class Lens extends WidgetType {
       view.dispatch({ effects: setPeek.of(same ? null : { key: this.item.key, line: this.item.start }) })
     }
     div.appendChild(link)
+    // The icon is its own element: the link's font would hide the icon's.
     const card = document.createElement('span')
-    card.className = 'link card codicon codicon-info'
+    card.className = 'card'
     card.title = 'Its card in Mentor'
+    const icon = document.createElement('i')
+    icon.className = 'codicon codicon-info'
+    card.appendChild(icon)
     card.onmousedown = (e) => {
       e.preventDefault()
       void reveal({ page: { kind: 'card', key: this.item.key } })
