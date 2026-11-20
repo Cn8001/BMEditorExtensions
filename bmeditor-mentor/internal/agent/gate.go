@@ -475,7 +475,7 @@ func (g *Gate) stop(call HookCall) Decision {
 }
 
 // readOnlyBash are commands that look and do not change.
-var readOnlyBash = regexp.MustCompile(`^\s*(ls|cat|head|tail|wc|grep|rg|find|fd|tree|pwd|echo|which|file|stat|du|df|diff|sort|uniq|jq|go\s+(build|vet|test|list|doc|env|version)|gofmt\s+-l|git\s+(status|diff|log|show|blame|branch|rev-parse|ls-files)|make\s+(test|check|lint))\b`)
+var readOnlyBash = regexp.MustCompile(`^\s*(ls|cat|head|tail|wc|grep|rg|find|fd|tree|pwd|echo|which|file|stat|du|df|diff|cmp|sort|uniq|jq|sed|awk|nl|cut|tr|basename|dirname|realpath|readlink|strings|od|hexdump|ps|go\s+(build|vet|test|list|doc|env|version)|gofmt\s+-l|git\s+(status|diff|log|show|blame|branch|rev-parse|ls-files|grep)|make\s+(test|check|lint))\b`)
 
 // quiet are redirections that write nothing: errors to nowhere, one stream
 // into the other.
@@ -483,6 +483,28 @@ var quiet = regexp.MustCompile(`\d?>\s*/dev/null|\d?>&\d`)
 
 // writesFiles are find's actions that change or run things.
 var writesFiles = regexp.MustCompile(`(^|\s)-(delete|exec|execdir|ok|okdir|fprint\w*)\b`)
+
+// sedWrites is sed changing files in place, or its w and e commands, which
+// write a file and run one.
+var sedWrites = regexp.MustCompile(`(^|\s)(-[a-zA-Z]*i|--in-place)|[/;{\s']w\s|[/;{\s']e(\s|')`)
+
+// awkWrites is awk writing a file or running a command, from inside its
+// program, where the shell sees no redirect.
+var awkWrites = regexp.MustCompile(`>|\|\s*"|"\s*\||system\s*\(|\|&`)
+
+// writes says whether one command of a chain, though it only looks by its
+// name, writes or runs something by its arguments.
+func writes(part string) bool {
+	switch strings.Fields(part)[0] {
+	case "find":
+		return writesFiles.MatchString(part)
+	case "sed":
+		return sedWrites.MatchString(part)
+	case "awk":
+		return awkWrites.MatchString(part)
+	}
+	return false
+}
 
 // readOnly says whether a shell command only looks: each command of its
 // chain (split on ; & | and new lines outside quotes) is one that looks,
@@ -496,7 +518,7 @@ func readOnly(cmd string) bool {
 		if part = strings.TrimSpace(part); part == "" || part == "cd" || strings.HasPrefix(part, "cd ") {
 			continue
 		}
-		if !readOnlyBash.MatchString(part) || (strings.HasPrefix(part, "find") && writesFiles.MatchString(part)) {
+		if !readOnlyBash.MatchString(part) || writes(part) {
 			return false
 		}
 	}

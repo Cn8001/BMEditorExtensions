@@ -337,24 +337,37 @@ func TestGate_ACommandsChangesAreTheAgents(t *testing.T) {
 
 func TestReadOnly(t *testing.T) {
 	cases := map[string]bool{
-		`ls -la`:                             true,
-		`grep -n '"create"\|NewWindow' a.go`: true, // a | inside quotes
-		`grep -rn "x|y" . 2>/dev/null`:       true,
-		`go test ./... 2>&1`:                 true,
-		`cd /tmp/x && git status --short`:    true,
-		"git diff HEAD | head -20":           true,
-		`grep a b.go > out.txt`:              false,
-		`echo hi >> notes`:                   false,
-		`ls; rm -rf build`:                   false,
-		`cd x && rm a.go`:                    false,
-		`cat $(rm a.go)`:                     false,
-		"echo `touch x`":                     false,
-		`find . -name '*.tmp' -delete`:       false,
-		`find . -exec rm {} \;`:              false,
-		`find . -name '*.go'`:                true,
-		`sed -i 's/a/b/' x.go`:               false,
-		`grep -e '>' x.go`:                   true, // > inside quotes
-		`W=1 grep x y`:                       false,
+		`ls -la`:                                true,
+		`grep -n '"create"\|NewWindow' a.go`:    true, // a | inside quotes
+		`grep -rn "x|y" . 2>/dev/null`:          true,
+		`go test ./... 2>&1`:                    true,
+		`cd /tmp/x && git status --short`:       true,
+		"git diff HEAD | head -20":              true,
+		`grep a b.go > out.txt`:                 false,
+		`echo hi >> notes`:                      false,
+		`ls; rm -rf build`:                      false,
+		`cd x && rm a.go`:                       false,
+		`cat $(rm a.go)`:                        false,
+		"echo `touch x`":                        false,
+		`find . -name '*.tmp' -delete`:          false,
+		`find . -exec rm {} \;`:                 false,
+		`find . -name '*.go'`:                   true,
+		`sed -i 's/a/b/' x.go`:                  false,
+		`grep -e '>' x.go`:                      true, // > inside quotes
+		`W=1 grep x y`:                          false,
+		`sed -n '1,80p' gate.go`:                true,
+		`sed -e 's/a/b/' x.go`:                  true,
+		`sed -ni 's/a/b/p' x.go`:                false,
+		`sed --in-place 's/a/b/' x.go`:          false,
+		`sed -n 's/a/b/w out.txt' x.go`:         false,
+		`awk '{print $1}' x.go`:                 true,
+		`awk '{print > "out"}' x.go`:            false,
+		`awk 'BEGIN{system("rm x")}'`:           false,
+		`awk '{print | "sh"}' x`:                false,
+		"cmp -s a b && echo same":               true,
+		`git grep -n Provider`:                  true,
+		`ps -eo pid,args`:                       true,
+		"grep -c x a.go | cut -d: -f1 | tr a b": true,
 	}
 	for cmd, want := range cases {
 		if got := readOnly(cmd); got != want {
