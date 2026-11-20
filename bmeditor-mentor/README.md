@@ -46,8 +46,10 @@ where it is and what uses what, without asking the agent.
 - **Where you want it.** Mentor opens in a window of its own that you
   move and size over the editor, as a tab of the bottom panel, or in the
   sidebar, as Open Mentor in says; its button is in the sidebar only when
-  you choose the sidebar. **Mentor: Open** shows it. It does not open by
-  itself: when the agent waits for you, a notice says so.
+  you choose the sidebar. The Mentor button in the top bar shows it, as
+  does **Mentor: Open**, and its dot says whether the agent is connected:
+  green when checkpoints hold. Mentor does not open by itself: when the
+  agent waits for you, a notice says so and the button shows it.
 
 Everything comes from the compiler's view of the code, read on your
 machine and kept up to date as files change; nothing is guessed, and a

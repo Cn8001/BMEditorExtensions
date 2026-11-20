@@ -24,5 +24,7 @@ when it has a section here.
   of the declaration at the cursor, and a line above each declaration
   counts its uses. Search by meaning with a local Ollama is optional.
 - Mentor opens in a floating window, the bottom panel or the sidebar, as
-  the setting Open Mentor in says, and does not open by itself.
+  the setting Open Mentor in says, and does not open by itself; its
+  button in the top bar shows it, with a dot that says whether the agent
+  is connected.
 - Reads Go code, with Go on the PATH. Needs BMEditor 0.1.6.

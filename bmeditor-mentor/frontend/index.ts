@@ -3,6 +3,7 @@ import type { ExtensionAPI } from '../bmext/bmeditor'
 import { agent, api, call, clear, cursor, fail, go, loadChanges, refreshStatus, setApi, show, store, view, type AgentState, type Place, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import Sidebar from './Sidebar.vue'
+import TopButton from './TopButton.vue'
 import Window from './Window.vue'
 import './style.css'
 
@@ -33,7 +34,7 @@ export default function activate(a: ExtensionAPI) {
     if (st.waiting && st.waiting !== was) {
       store.tab = 'changes'
       void loadChanges()
-      api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`, 'Mentor: Open shows it.')
+      api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`, 'Mentor in the top bar shows it.')
     }
   })
 
@@ -79,6 +80,7 @@ export default function activate(a: ExtensionAPI) {
 
   api.register({
     editor: lens,
+    toolbar: TopButton,
     commands: [
       { id: 'mentor-open', label: 'Mentor: Open', icon: 'mortar-board', run: show },
       { id: 'mentor-explain', label: 'Mentor: Explain This', icon: 'mortar-board', kbd: 'Ctrl+Alt+U', run: explainThis, when: () => !!api.ui.activeTab()?.path.endsWith('.go') },
