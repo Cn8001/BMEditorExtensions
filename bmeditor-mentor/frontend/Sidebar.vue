@@ -43,9 +43,9 @@ defineExpose({ focus: () => input.value?.focus() })
 
 <template>
   <div class="mentor">
-    <div class="status" :class="status?.state" :title="status?.errors.join('\n')">
+    <div class="status" :class="status?.state" :title="status?.errors?.join('\n')">
       <i v-if="status?.state === 'indexing' || status?.state === 'stale'" class="codicon codicon-loading codicon-modifier-spin" />
-      <i v-else-if="status?.state === 'error' || status?.errors.length" class="codicon codicon-warning" />
+      <i v-else-if="status?.state === 'error' || status?.errors?.length" class="codicon codicon-warning" />
       <span>{{ line(status) }}</span>
       <button title="The map of the packages" @click="go({ kind: 'map', focus: '' })"><i class="codicon codicon-type-hierarchy" /></button>
       <button title="Read the code again" @click="reindex"><i class="codicon codicon-refresh" /></button>

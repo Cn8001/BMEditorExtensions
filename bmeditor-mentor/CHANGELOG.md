@@ -30,7 +30,8 @@ when it has a section here.
 - In the code: the agent's declarations painted, green where it added one
   and amber where it changed one; a strip above each file it changed, F7
   to its next change and Alt+R to mark a file reviewed; a line above each
-  declaration counting its uses, which opens how the project uses it; and
+  declaration counting its uses, which opens every place it is used, a
+  page at a time; and
   Explain This (Ctrl+Alt+U).
 - Mentor opens in a floating window, the bottom panel or the sidebar; its
   button in the top bar shows it, with a dot that says whether the agent

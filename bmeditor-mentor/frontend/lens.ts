@@ -7,8 +7,8 @@ import UsagePeek from './UsagePeek.vue'
 
 // One line above each type and function of a Go file: how many things use
 // it, how many tests reach it, how many types implement it. A click on the
-// uses opens, under the line, how the project uses it: the places that show
-// it best, as they are written (UsagePeek); Esc closes it. The i shows its
+// uses opens, under the line, every place it is used, as an editor lists
+// references, a page at a time (UsagePeek); Esc closes it. The i shows its
 // card. The numbers come from the index, as of the last time the files were
 // read; edits since move them with the code.
 
@@ -50,7 +50,7 @@ class Lens extends WidgetType {
     const link = document.createElement('span')
     link.className = 'link'
     link.textContent = parts.join(' · ')
-    link.title = 'How the project uses it, here (Esc closes)'
+    link.title = 'Every place it is used, here (Esc closes)'
     link.onmousedown = (e) => {
       e.preventDefault()
       const open = view.state.field(peekField, false)
