@@ -36,8 +36,7 @@ where it is and what uses what, without asking the agent.
   added is green, one it changed is amber, from its first line to its
   last: open a file and see what the agent wrote, with nothing to click.
   One you mark reviewed keeps only its edge; the paint goes when the change
-  is committed. When the agent stops at a checkpoint, the step's code
-  opens by itself in the editor, beside HEAD.
+  is committed.
 - **Review in the code.** Above each file the agent changed, a strip
   says what it changed there, its declarations a click away, with Diff,
   Reviewed and, while the agent waits at a checkpoint, Approve. **F7** goes

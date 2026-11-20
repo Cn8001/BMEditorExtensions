@@ -28,8 +28,7 @@ when it has a section here.
   function shows, under it, the places that show best how the project
   uses it, as they are written, a click away each.
 - The agent's code is painted in the editor, green where it added a
-  declaration and amber where it changed one, and at a checkpoint the
-  step's code opens by itself beside HEAD.
+  declaration and amber where it changed one.
 - Review in the code: a strip above each file the agent changed, with
   what it changed there, Diff, Reviewed and the checkpoint's Approve; F7
   and Shift+F7 go from one of its changes to the next, Alt+R marks a file

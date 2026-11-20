@@ -1,6 +1,6 @@
 import { createApp, watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
-import { agent, api, apply, call, clear, cursor, diff, fail, loadChanges, popup, refreshStatus, reveal, setApi, show, store, view, type AgentState, type Go, type Place, type Ref, type Status } from './api'
+import { agent, api, apply, call, clear, cursor, fail, loadChanges, popup, refreshStatus, reveal, setApi, show, store, view, type AgentState, type Go, type Place, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import { keydown, reviewAndNext, step } from './review'
 import { refreshStrips, strip } from './strip'
@@ -40,23 +40,10 @@ export default function activate(a: ExtensionAPI) {
     if (st.waiting && st.waiting !== was) {
       store.tab = 'changes'
       void loadChanges()
-      // At a checkpoint, the step's code opens in the editor, beside HEAD,
-      // with nothing to click: F7 goes on from there.
-      if (st.waiting === 'checkpoint' && !api.ui.inPopup) void openStep(st)
       // The main window says so; a popup only shows it.
       if (!api.ui.inPopup) api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`, 'Mentor in the top bar shows it.')
     }
   })
-
-  // openStep opens the first file a checkpoint's step changed beside HEAD.
-  async function openStep(st: AgentState) {
-    await loadChanges()
-    const rel = st.files.find((f) => f.endsWith('.go') && !f.endsWith('_test.go')) ?? st.files[0]
-    const file = store.report?.files.find((f) => rel && f.path.replace(/\\/g, '/').endsWith('/' + rel)) ?? store.report?.files[0]
-    if (!file) return
-    if (file.status === 'A') await api.session.openFile(file.path, file.changes[0]?.start ? { line: file.changes[0].start, col: 1 } : undefined)
-    else if (file.status !== 'D') await diff(file.path)
-  }
 
   // What the main window asks Mentor to show reaches a popup here.
   const goHere = (g: Go | null) => {
