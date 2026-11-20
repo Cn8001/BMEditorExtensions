@@ -40,8 +40,7 @@ function tab(t: 'explore' | 'changes') {
 }
 
 const changed = computed(() => {
-  const r = store.report
-  return r ? r.units.reduce((n, u) => n + u.changes.length, 0) : 0
+  return store.report?.files.length ?? 0
 })
 
 async function reindex() {

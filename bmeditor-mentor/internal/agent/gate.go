@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -118,6 +119,7 @@ type Gate struct {
 	cp       *Checkpoint
 	nextID   int
 	files    map[string]bool
+	touched  map[string]bool // every file the agent changed, from the folder, until it no longer differs from HEAD
 	events   []Event
 	reply    string        // the developer's last answer, as the agent reads it
 	changed  chan struct{} // closed and replaced on every change, for Wait
@@ -132,7 +134,7 @@ func New(root string, code Code, policy Policy, tell func(State)) *Gate {
 	if tell == nil {
 		tell = func(State) {}
 	}
-	return &Gate{Root: root, code: code, tell: tell, policy: policy, files: map[string]bool{}, changed: make(chan struct{})}
+	return &Gate{Root: root, code: code, tell: tell, policy: policy, files: map[string]bool{}, touched: map[string]bool{}, changed: make(chan struct{})}
 }
 
 // SetPolicy takes the developer's new settings.
@@ -308,6 +310,7 @@ func (g *Gate) preToolUse(call HookCall) Decision {
 		if g.step > 0 {
 			g.files[what] = true
 		}
+		g.touched[what] = true
 	}
 	g.log(call.Tool, what, "done", "")
 	return Decision{Allow: true}
@@ -606,6 +609,24 @@ func (g *Gate) EndPlan() {
 	g.notify()
 }
 
+// Touched answers the files the agent changed, from the folder, that
+// still differ from HEAD: differs says which do. The rest, committed or
+// put back, are forgotten.
+func (g *Gate) Touched(differs func(rel string) bool) []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	var list []string
+	for f := range g.touched {
+		if differs(f) {
+			list = append(list, f)
+		} else {
+			delete(g.touched, f)
+		}
+	}
+	sort.Strings(list)
+	return list
+}
+
 // Helpers.
 
 func (g *Gate) rel(path string) string {
@@ -644,21 +665,22 @@ func firstLine(s string, n int) string {
 // Persistence.
 
 type saved struct {
-	Plan   *Plan             `json:"plan"`
-	Step   int               `json:"step"`
-	Base   *changes.Baseline `json:"base"`
-	CP     *Checkpoint       `json:"cp"`
-	NextID int               `json:"nextId"`
-	Files  map[string]bool   `json:"files"`
-	Events []Event           `json:"events"`
-	Reply  string            `json:"reply"`
+	Plan    *Plan             `json:"plan"`
+	Step    int               `json:"step"`
+	Base    *changes.Baseline `json:"base"`
+	CP      *Checkpoint       `json:"cp"`
+	NextID  int               `json:"nextId"`
+	Files   map[string]bool   `json:"files"`
+	Touched map[string]bool   `json:"touched"`
+	Events  []Event           `json:"events"`
+	Reply   string            `json:"reply"`
 }
 
 // Marshal is the gate's state to keep.
 func (g *Gate) Marshal() ([]byte, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return json.Marshal(saved{Plan: g.plan, Step: g.step, Base: g.base, CP: g.cp, NextID: g.nextID, Files: g.files, Events: g.events, Reply: g.reply})
+	return json.Marshal(saved{Plan: g.plan, Step: g.step, Base: g.base, CP: g.cp, NextID: g.nextID, Files: g.files, Touched: g.touched, Events: g.events, Reply: g.reply})
 }
 
 // Unmarshal takes back state Marshal kept.
@@ -672,6 +694,9 @@ func (g *Gate) Unmarshal(b []byte) error {
 	g.plan, g.step, g.base, g.cp, g.nextID, g.events, g.reply = s.Plan, s.Step, s.Base, s.CP, s.NextID, s.Events, s.Reply
 	if s.Files != nil {
 		g.files = s.Files
+	}
+	if s.Touched != nil {
+		g.touched = s.Touched
 	}
 	return nil
 }

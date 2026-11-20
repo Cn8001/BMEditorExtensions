@@ -256,3 +256,46 @@ func TestGate_Off(t *testing.T) {
 		t.Errorf("level = %s", g.State().Level)
 	}
 }
+
+func TestGate_RemembersTheFilesTheAgentChanged(t *testing.T) {
+	p := DefaultPolicy()
+	p.RequirePlan = false
+	g, c := setup(t, p)
+	var kept []byte
+	g.Persist = func(b []byte) { kept = b }
+	g.Hook(edit(g, "internal/auth/provider.go"))
+	g.Hook(edit(g, "internal/auth/service.go"))
+	g.Hook(edit(g, "../elsewhere.go")) // outside the folder
+	g.Hook(bash("go test ./..."))
+
+	all := func(string) bool { return true }
+	if got := strings.Join(g.Touched(all), ","); got != "internal/auth/provider.go,internal/auth/service.go" {
+		t.Fatalf("touched = %s", got)
+	}
+	// service.go was committed: it no longer differs, and is forgotten.
+	got := g.Touched(func(f string) bool { return f != "internal/auth/service.go" })
+	if strings.Join(got, ",") != "internal/auth/provider.go" {
+		t.Errorf("touched = %v", got)
+	}
+	if again := g.Touched(all); len(again) != 1 {
+		t.Errorf("a forgotten file came back: %v", again)
+	}
+	g.notify()
+	restarted := New(g.Root, c, p, nil)
+	if err := restarted.Unmarshal(kept); err != nil {
+		t.Fatal(err)
+	}
+	if got := restarted.Touched(all); len(got) != 1 || got[0] != "internal/auth/provider.go" {
+		t.Errorf("after a restart = %v", got)
+	}
+}
+
+func TestGate_OffRemembersNothing(t *testing.T) {
+	p := DefaultPolicy()
+	p.Off = true
+	g, _ := setup(t, p)
+	g.Hook(edit(g, "internal/auth/provider.go"))
+	if got := g.Touched(func(string) bool { return true }); len(got) != 0 {
+		t.Errorf("off, touched = %v", got)
+	}
+}

@@ -230,3 +230,33 @@ func refOf(ix *index.Index, key string, d golang.Decl, file string) explain.Ref 
 	return explain.Ref{Key: key, Name: d.Name, Kind: string(d.Kind), Recv: d.Recv, Pkg: pkg, PkgName: name, File: file, Line: d.Line, Col: 1,
 		Test: strings.HasSuffix(file, "_test.go")}
 }
+
+// FileChanges is one file that differs from the baseline, with the
+// declarations that changed in it.
+type FileChanges struct {
+	gitx.FileChange
+	Changes []Change `json:"changes"`
+}
+
+// ByFile lists the files keep holds, each with its changed declarations
+// in the order of the file, by path.
+func ByFile(list []Change, files []gitx.FileChange, keep func(path string) bool) []FileChanges {
+	out := []FileChanges{}
+	at := map[string]int{}
+	for _, f := range files {
+		if keep(f.Path) {
+			at[f.Path] = len(out)
+			out = append(out, FileChanges{FileChange: f, Changes: []Change{}})
+		}
+	}
+	for _, c := range list {
+		if i, ok := at[c.File]; ok {
+			out[i].Changes = append(out[i].Changes, c)
+		}
+	}
+	for i := range out {
+		sort.SliceStable(out[i].Changes, func(a, b int) bool { return out[i].Changes[a].Line < out[i].Changes[b].Line })
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].Path < out[b].Path })
+	return out
+}

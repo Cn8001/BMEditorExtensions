@@ -13,10 +13,10 @@ when it has a section here.
   you first. The agent's hooks make the stops hold in any permission mode,
   auto mode included. Mentor connects the agent by itself when a folder
   opens, adding its MCP server and hooks; Disconnect keeps them out.
-- The Changes tab: what differs from HEAD, declaration by declaration, in
-  units that change together, each with where it is wired in, what it
-  relies on, the routes and tests that reach it, how far it reaches and
-  its risks. Reviewed marks a unit; a later change to it shows again.
+- The Changes tab lists what the agent changed that still differs from
+  HEAD: the files it edited, each with the declarations added, changed
+  and removed in it. The check marks a file reviewed; a later change to it
+  shows again.
 - The Explore tab answers questions about the code in plain words with the
   types and functions that fit, and shows any symbol's card, the flow from
   a function and the package map. Explain This (Ctrl+Alt+U) shows the card

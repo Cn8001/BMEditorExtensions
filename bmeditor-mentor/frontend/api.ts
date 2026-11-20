@@ -228,6 +228,19 @@ export interface Report {
   warning?: string
 }
 
+// AgentFile is a file the agent changed that still differs from HEAD,
+// with the declarations changed in it.
+export interface AgentFile extends FileChange {
+  changes: Change[]
+}
+
+export interface AgentChanges {
+  head: { commit: string; branch: string }
+  files: AgentFile[]
+  lines: [number, number]
+  warning?: string
+}
+
 export interface AgentStep {
   n: number
   title: string
@@ -299,10 +312,9 @@ export type Page = (
 export const store = reactive({
   status: null as Status | null,
   tab: 'explore' as 'explore' | 'changes',
-  report: null as Report | null,
+  report: null as AgentChanges | null,
   reportError: '',
   reportBusy: false,
-  stale: [] as Ref[],
   agent: null as AgentState | null,
   setup: null as Setup | null,
   query: '',
@@ -432,9 +444,7 @@ export async function loadChanges() {
   if (!api.ide.folder) return
   store.reportBusy = true
   try {
-    const [rep, stale] = await Promise.all([call<Report>('changes'), call<Ref[]>('review.stale')])
-    store.report = markRaw(rep)
-    store.stale = stale
+    store.report = markRaw(await call<AgentChanges>('agent.changes'))
     store.reportError = ''
   } catch (err) {
     store.report = null
@@ -488,7 +498,6 @@ export function clear() {
   store.agent = null
   store.setup = null
   store.report = null
-  store.stale = []
   store.reportError = ''
   store.status = null
   store.result = null

@@ -18,15 +18,14 @@ where it is and what uses what, without asking the agent.
   turn with a step that has no checkpoint. A step that grows past the
   files a step may change ends early. What the agent did, edit by edit, is
   listed as it happens.
-- **What changed.** Below the checkpoints, the Changes tab reads what
-  differs from HEAD (the agent's work, or yours) declaration by
-  declaration, grouped into the units that change together. Each says
-  where it is wired into the code that did not change, what it relies on,
-  which routes and tests reach it, how far it can reach, and what to look
-  at first: a changed signature others use, an interface its
-  implementations must follow, something removed, code no test reaches.
-  Diff opens a file beside HEAD; Reviewed marks a unit as looked at, and a
-  later change to it shows again.
+- **What the agent changed.** Below the checkpoints, the Changes tab
+  lists the files the agent edited that still differ from HEAD, each with
+  the declarations added, changed and removed in it. A file opens beside
+  HEAD, a declaration opens where it is, and its card shows who uses it
+  and its tests. The check marks a file reviewed; a later change to it
+  shows again. A file leaves the list once it is committed or put back.
+  Your own edits are not listed, nor files the agent changed through a
+  shell command.
 - **Ask in plain words.** "Which struct holds a user's login?", "where is
   the session made?": the Explore tab answers with the types and functions
   that fit, best first, each with what it is for, how much it is used and

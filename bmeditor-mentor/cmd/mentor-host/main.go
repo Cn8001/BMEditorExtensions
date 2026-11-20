@@ -18,6 +18,7 @@ import (
 	"bmeditor-mentor/internal/changes"
 	"bmeditor-mentor/internal/engine"
 	"bmeditor-mentor/internal/explain"
+	"bmeditor-mentor/internal/gitx"
 	"bmeditor-mentor/internal/index"
 	"bmeditor-mentor/internal/search"
 )
@@ -289,6 +290,54 @@ func register(s *host.Server, st *state) {
 		return rep, nil
 	}))
 
+	// agent.changes is what the agent changed that still differs from
+	// HEAD, file by file: the files its edits touched, each with the
+	// declarations changed in it and which the developer has reviewed.
+	s.Handle("agent.changes", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, _ none) (any, error) {
+		base, files, err := changes.FromHead(ctx, ix)
+		if err != nil {
+			return nil, &host.Error{Code: "NO_GIT", Message: err.Error()}
+		}
+		rel := func(path string) string {
+			r, err := filepath.Rel(e.Root, path)
+			if err != nil {
+				return path
+			}
+			return filepath.ToSlash(r)
+		}
+		differs := map[string]bool{}
+		for _, f := range files {
+			differs[rel(f.Path)] = true
+		}
+		touched := map[string]bool{}
+		if g := st.gateOf(e); g != nil {
+			for _, f := range g.Touched(func(f string) bool { return differs[f] }) {
+				touched[f] = true
+			}
+		}
+		out := agentChanges{Head: base.Head, Files: changes.ByFile(changes.Diff(ix, base), files, func(path string) bool { return touched[rel(path)] })}
+		var keys []string
+		for _, f := range out.Files {
+			out.Lines[0] += f.Added
+			out.Lines[1] += f.Deleted
+			for _, c := range f.Changes {
+				keys = append(keys, c.Key)
+			}
+		}
+		states := e.Review.States(ix, keys)
+		for i := range out.Files {
+			for j := range out.Files[i].Changes {
+				if c := &out.Files[i].Changes[j]; c.Change != "removed" {
+					c.Review = states[c.Key]
+				}
+			}
+		}
+		if e.Status().State == "stale" {
+			out.Warning = "Files changed since the index was read; this updates when they are read again."
+		}
+		return out, nil
+	}))
+
 	s.Handle("review.mark", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, p struct {
 		Keys []string `json:"keys"`
 		Note string   `json:"note"`
@@ -368,6 +417,14 @@ func lensOf(ix *index.Index, s *index.Symbol) lensItem {
 		}
 	}
 	return lensItem{Key: s.Key, Line: s.Line, Start: s.Start, Uses: len(users), Tests: len(tests), Impls: impls}
+}
+
+// agentChanges is the answer of agent.changes.
+type agentChanges struct {
+	Head    gitx.Head             `json:"head"`
+	Files   []changes.FileChanges `json:"files"`
+	Lines   [2]int                `json:"lines"`
+	Warning string                `json:"warning,omitempty"`
 }
 
 // markReviews fills in each change's review state. A removed declaration
