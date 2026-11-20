@@ -14,8 +14,8 @@ when it has a section here.
   auto mode included. Mentor connects the agent by itself when a folder
   opens, adding its MCP server and hooks; Disconnect keeps them out.
 - The Changes tab lists what the agent changed that still differs from
-  HEAD: the files it edited, each with the declarations added, changed
-  and removed in it. The check marks a file reviewed; a later change to it
+  HEAD: the files it edited, added or removed, by its tools or its
+  commands, each with the declarations added, changed and removed in it. The check marks a file reviewed; a later change to it
   shows again.
 - The Explore tab answers questions about the code in plain words with the
   types and functions that fit, and shows any symbol's card, the flow from

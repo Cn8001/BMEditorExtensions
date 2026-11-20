@@ -90,3 +90,19 @@ func TestServer_HookAndTool(t *testing.T) {
 		t.Error("still registered")
 	}
 }
+
+func TestHooks_AnOlderSetupWithoutPostToolUseIsNotInstalled(t *testing.T) {
+	root := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(root, ".claude"), 0o755)
+	_ = os.WriteFile(settingsPath(root), []byte(`{"hooks":{"PreToolUse":[{"matcher":"Edit","hooks":[{"type":"command","command":"/x/mentor-gate hook"}]}],"Stop":[{"hooks":[{"type":"command","command":"/x/mentor-gate hook"}]}]}}`), 0o644)
+	if HooksInstalled(root) {
+		t.Fatal("hooks without PostToolUse count as installed")
+	}
+	if err := writeHooks(root, "/x/mentor-gate hook", true); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(settingsPath(root))
+	if !HooksInstalled(root) || !strings.Contains(string(b), `"PostToolUse"`) {
+		t.Errorf("settings = %s", b)
+	}
+}

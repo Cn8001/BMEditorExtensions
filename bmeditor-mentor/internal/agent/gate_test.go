@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -297,5 +298,37 @@ func TestGate_OffRemembersNothing(t *testing.T) {
 	g.Hook(edit(g, "internal/auth/provider.go"))
 	if got := g.Touched(func(string) bool { return true }); len(got) != 0 {
 		t.Errorf("off, touched = %v", got)
+	}
+}
+
+// TestGate_ACommandsChangesAreTheAgents: what differs from HEAD after a
+// shell command and did not before it, or held something else, is the
+// agent's: a file it removed or moved too. A file already changed by hand
+// that the command left alone is not.
+func TestGate_ACommandsChangesAreTheAgents(t *testing.T) {
+	p := DefaultPolicy()
+	p.RequirePlan = false
+	g, _ := setup(t, p)
+	dirty := map[string]string{"by-hand.go": "h1"}
+	g.Dirty = func(context.Context) map[string]string {
+		out := map[string]string{}
+		for k, v := range dirty {
+			out[k] = v
+		}
+		return out
+	}
+	run := func(id, cmd string, effect func()) {
+		g.Hook(HookCall{Event: "PreToolUse", Tool: "Bash", ToolUseID: id, Input: map[string]any{"command": cmd}})
+		effect()
+		g.Hook(HookCall{Event: "PostToolUse", Tool: "Bash", ToolUseID: id, Input: map[string]any{"command": cmd}})
+	}
+	run("1", "rm internal/auth/session.go", func() { dirty["internal/auth/session.go"] = "" })
+	run("2", "git mv a.go b.go", func() { dirty["a.go"] = ""; dirty["b.go"] = "h2" })
+	run("3", "ls", func() { dirty["by-ls.go"] = "h3" }) // only looks: not watched
+	run("4", "gofmt -w by-hand.go", func() { dirty["by-hand.go"] = "h4" })
+
+	got := strings.Join(g.Touched(func(string) bool { return true }), ",")
+	if got != "a.go,b.go,by-hand.go,internal/auth/session.go" {
+		t.Errorf("touched = %s", got)
 	}
 }

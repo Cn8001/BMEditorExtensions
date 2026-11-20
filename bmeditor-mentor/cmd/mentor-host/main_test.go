@@ -196,6 +196,21 @@ func TestAgentChanges_OnlyWhatTheAgentChanged(t *testing.T) {
 		t.Errorf("lines = %v", got.Lines)
 	}
 
+	// A file the agent removes with a shell command is the agent's too.
+	gone := filepath.Join(folder, "internal", "auth", "session.go")
+	rm := map[string]any{"command": "rm internal/auth/session.go"}
+	g.Hook(agent.HookCall{Event: "PreToolUse", Tool: "Bash", ToolUseID: "rm", Input: rm})
+	if err := os.Remove(gone); err != nil {
+		t.Fatal(err)
+	}
+	g.Hook(agent.HookCall{Event: "PostToolUse", Tool: "Bash", ToolUseID: "rm", Input: rm})
+	_ = call[engine.Status](t, c, "reindex", nil)
+	got = call[agentChanges](t, c, "agent.changes", nil)
+	if len(got.Files) != 2 || got.Files[1].Path != gone || got.Files[1].Status != "D" || len(got.Files[1].Changes) == 0 || got.Files[1].Changes[0].Change != "removed" {
+		t.Fatalf("after rm = %+v", got.Files)
+	}
+
+	git("add", "-A")
 	git("commit", "-q", "-am", "agent's work")
 	if got := call[agentChanges](t, c, "agent.changes", nil); len(got.Files) != 0 {
 		t.Errorf("after the commit = %+v", got.Files)

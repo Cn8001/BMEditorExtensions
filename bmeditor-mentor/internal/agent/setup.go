@@ -89,10 +89,38 @@ func quote(path string) string {
 
 func ours(cmd string) bool { return strings.Contains(cmd, "mentor-gate") }
 
-// HooksInstalled says whether the project's settings run the gate.
+// hookEvents are the agent's hooks the gate answers, with the tools each
+// is for: before an edit or a command, after a command (what it changed),
+// and at the end of a turn.
+var hookEvents = []struct{ event, matcher string }{
+	{"PreToolUse", "Edit|Write|MultiEdit|NotebookEdit|Bash"},
+	{"PostToolUse", "Bash"},
+	{"Stop", ""},
+}
+
+// HooksInstalled says whether the project's settings run the gate for
+// each of its hooks; settings from an older Mentor lack some.
 func HooksInstalled(root string) bool {
 	b, err := os.ReadFile(settingsPath(root))
-	return err == nil && bytes.Contains(b, []byte("mentor-gate"))
+	if err != nil || !bytes.Contains(b, []byte("mentor-gate")) {
+		return false
+	}
+	var settings struct {
+		Hooks map[string][]any `json:"hooks"`
+	}
+	if json.Unmarshal(b, &settings) != nil {
+		return false
+	}
+	for _, h := range hookEvents {
+		found := false
+		for _, entry := range settings.Hooks[h.event] {
+			found = found || mentions(entry)
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 // Setup is what Connect did, for the panel to show.
@@ -147,7 +175,8 @@ func writeHooks(root, command string, add bool) error {
 	if hooks == nil {
 		hooks = map[string]any{}
 	}
-	for _, event := range []string{"PreToolUse", "Stop"} {
+	for _, h := range hookEvents {
+		event := h.event
 		list, _ := hooks[event].([]any)
 		var kept []any
 		for _, m := range list {
@@ -157,8 +186,8 @@ func writeHooks(root, command string, add bool) error {
 		}
 		if add {
 			entry := map[string]any{"hooks": []any{map[string]any{"type": "command", "command": command, "timeout": 30}}}
-			if event == "PreToolUse" {
-				entry["matcher"] = "Edit|Write|MultiEdit|NotebookEdit|Bash"
+			if h.matcher != "" {
+				entry["matcher"] = h.matcher
 			}
 			kept = append(kept, entry)
 		}

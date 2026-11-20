@@ -24,8 +24,10 @@ where it is and what uses what, without asking the agent.
   HEAD, a declaration opens where it is, and its card shows who uses it
   and its tests. The check marks a file reviewed; a later change to it
   shows again. A file leaves the list once it is committed or put back.
-  Your own edits are not listed, nor files the agent changed through a
-  shell command.
+  Files the agent adds, removes or moves are listed too, as are those its
+  commands change (rm, mv, gofmt -w): what differs from HEAD after a
+  command and did not before. Your own edits are not listed, unless you
+  make them while one of the agent's commands runs.
 - **Ask in plain words.** "Which struct holds a user's login?", "where is
   the session made?": the Explore tab answers with the types and functions
   that fit, best first, each with what it is for, how much it is used and

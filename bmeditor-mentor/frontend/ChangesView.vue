@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { diff, go, icons, loadChanges, markReviewed, name, openAt, rel, store, type AgentFile, type Change } from './api'
+import { api, diff, go, icons, loadChanges, markReviewed, name, openAt, rel, store, type AgentFile, type Change } from './api'
 import AgentCard from './AgentCard.vue'
 
 // What the agent changed that still differs from HEAD, file by file, flat:
@@ -28,9 +28,15 @@ function dir(path: string) {
   return i > 0 ? p.slice(0, i) : ''
 }
 
-function open(c: Change) {
-  if (c.change === 'removed') void diff(c.file)
-  else void openAt(c.file, c.line)
+// A new file has nothing to compare with, and a deleted one nothing to open.
+function openFile(f: AgentFile) {
+  if (f.status === 'A') void api.session.openFile(f.path)
+  else if (f.status !== 'D') void diff(f.path)
+}
+
+function open(f: AgentFile, c: Change) {
+  if (c.change !== 'removed') void openAt(c.file, c.line)
+  else if (f.status !== 'D') void diff(c.file)
 }
 
 function card(c: Change) {
@@ -55,16 +61,18 @@ function card(c: Change) {
     </div>
 
     <div v-for="f in r?.files" :key="f.path" class="file" :class="{ done: reviewed(f) }">
-      <div class="frow" :title="'Beside HEAD: ' + rel(f.path)" @click="diff(f.path)">
-        <i class="codicon codicon-diff" />
+      <div class="frow" :class="{ gone: f.status === 'D' }" :title="(f.status === 'A' ? 'New: ' : f.status === 'D' ? 'Deleted: ' : 'Beside HEAD: ') + rel(f.path)" @click="openFile(f)">
+        <i class="codicon" :class="f.status === 'A' ? 'codicon-diff-added' : f.status === 'D' ? 'codicon-diff-removed' : 'codicon-diff'" />
         <span class="fname">{{ base(f.path) }}</span>
+        <span v-if="f.status === 'A'" class="tag new">new</span>
+        <span v-else-if="f.status === 'D'" class="tag gone">deleted</span>
         <span class="fdir">{{ dir(f.path) }}</span>
         <span class="nums"><span class="add">+{{ f.added }}</span> <span class="del">−{{ f.deleted }}</span></span>
         <button v-if="live(f).length" :class="{ ok: reviewed(f) }" :title="reviewed(f) ? 'Reviewed; click to unmark' : 'Mark reviewed'" @click.stop="markReviewed(live(f).map((c) => c.key), !reviewed(f))">
           <i class="codicon" :class="reviewed(f) ? 'codicon-pass-filled' : 'codicon-check'" />
         </button>
       </div>
-      <div v-for="c in f.changes" :key="c.key + c.change" class="crow" :class="c.change" :title="rel(c.file) + ':' + c.line" @click="open(c)">
+      <div v-for="c in f.changes" :key="c.key + c.change" class="crow" :class="c.change" :title="rel(c.file) + ':' + c.line" @click="open(f, c)">
         <span class="mark">{{ mark[c.change] }}</span>
         <i :class="['codicon', 'codicon-' + (icons[c.kind] || 'symbol-misc')]" />
         <span class="cname">{{ name(c) }}</span>
@@ -198,5 +206,17 @@ function card(c: Change) {
 }
 .tag.again {
   color: var(--warning);
+}
+.tag.new {
+  color: var(--success);
+}
+.tag.gone {
+  color: var(--error);
+}
+.frow.gone {
+  cursor: default;
+}
+.frow.gone .fname {
+  text-decoration: line-through;
 }
 </style>

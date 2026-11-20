@@ -15,8 +15,11 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -25,6 +28,7 @@ import (
 	"time"
 
 	"bmeditor-mentor/internal/changes"
+	"bmeditor-mentor/internal/gitx"
 	"bmeditor-mentor/internal/index"
 )
 
@@ -119,7 +123,8 @@ type Gate struct {
 	cp       *Checkpoint
 	nextID   int
 	files    map[string]bool
-	touched  map[string]bool // every file the agent changed, from the folder, until it no longer differs from HEAD
+	touched  map[string]bool              // every file the agent changed, from the folder, until it no longer differs from HEAD
+	before   map[string]map[string]string // by tool use: the files that differed from HEAD before a command ran
 	events   []Event
 	reply    string        // the developer's last answer, as the agent reads it
 	changed  chan struct{} // closed and replaced on every change, for Wait
@@ -127,6 +132,11 @@ type Gate struct {
 	// Persist keeps the gate's state, so a plan under way outlives a
 	// restart of the backend.
 	Persist func([]byte)
+
+	// Dirty answers the files of the folder that differ from HEAD, each
+	// with a hash of what it holds now ("" when it is gone): a command's
+	// changes are what differs after it and did not before. Nil reads git.
+	Dirty func(ctx context.Context) map[string]string
 }
 
 // New makes a folder's gate.
@@ -223,6 +233,7 @@ type HookCall struct {
 	Tool       string         `json:"tool_name"`
 	Input      map[string]any `json:"tool_input"`
 	StopActive bool           `json:"stop_hook_active"`
+	ToolUseID  string         `json:"tool_use_id"`
 }
 
 // Decision is the gate's answer: let the agent go on, or hold it with a
@@ -236,6 +247,12 @@ var editTools = map[string]bool{"Edit": true, "Write": true, "MultiEdit": true, 
 
 // Hook answers one of the agent's hooks.
 func (g *Gate) Hook(call HookCall) Decision {
+	// A shell command's changes cannot be read from its input: the files
+	// that differ from HEAD are noted before it runs and after.
+	var dirty map[string]string
+	if call.Tool == "Bash" && (call.Event == "PostToolUse" || call.Event == "PreToolUse" && !readOnly(commandOf(call))) && !g.off() {
+		dirty = g.dirty()
+	}
 	g.mu.Lock()
 	g.lastSeen = time.Now()
 	g.hooks = true // a hook that calls shows they are there
@@ -244,9 +261,12 @@ func (g *Gate) Hook(call HookCall) Decision {
 	case g.policy.Off:
 		d = Decision{Allow: true}
 	case call.Event == "PreToolUse":
-		d = g.preToolUse(call)
+		d = g.preToolUse(call, dirty)
 	case call.Event == "Stop":
 		d = g.stop(call)
+	case call.Event == "PostToolUse":
+		g.ran(call, dirty)
+		d = Decision{Allow: true}
 	default:
 		d = Decision{Allow: true}
 	}
@@ -271,7 +291,7 @@ func (g *Gate) held() string {
 	return ""
 }
 
-func (g *Gate) preToolUse(call HookCall) Decision {
+func (g *Gate) preToolUse(call HookCall, dirty map[string]string) Decision {
 	var what string
 	switch {
 	case editTools[call.Tool]:
@@ -287,11 +307,22 @@ func (g *Gate) preToolUse(call HookCall) Decision {
 		}
 		what = g.rel(path)
 	case call.Tool == "Bash":
-		cmd, _ := call.Input["command"].(string)
+		cmd := commandOf(call)
 		if readOnly(cmd) {
 			return Decision{Allow: true}
 		}
 		what = firstLine(cmd, 120)
+		if dirty != nil {
+			defer func() {
+				if len(g.before) > 32 {
+					g.before = nil // answers that never came
+				}
+				if g.before == nil {
+					g.before = map[string]map[string]string{}
+				}
+				g.before[call.ToolUseID] = dirty
+			}()
+		}
 	default:
 		return Decision{Allow: true}
 	}
@@ -314,6 +345,59 @@ func (g *Gate) preToolUse(call HookCall) Decision {
 	}
 	g.log(call.Tool, what, "done", "")
 	return Decision{Allow: true}
+}
+
+// ran notes what a shell command changed: the files that differ from HEAD
+// now and did not, or held something else, before it ran.
+func (g *Gate) ran(call HookCall, dirty map[string]string) {
+	before, ok := g.before[call.ToolUseID]
+	delete(g.before, call.ToolUseID)
+	if !ok || before == nil || dirty == nil {
+		return
+	}
+	for f, h := range dirty {
+		if b, was := before[f]; was && b == h {
+			continue
+		}
+		g.touched[f] = true
+		if g.step > 0 {
+			g.files[f] = true
+		}
+	}
+}
+
+func (g *Gate) off() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.policy.Off
+}
+
+func commandOf(call HookCall) string {
+	cmd, _ := call.Input["command"].(string)
+	return cmd
+}
+
+// dirty is Dirty, or else what git says differs from HEAD.
+func (g *Gate) dirty() map[string]string {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if g.Dirty != nil {
+		return g.Dirty(ctx)
+	}
+	files, err := gitx.Changes(ctx, g.Root)
+	if err != nil {
+		return nil
+	}
+	out := map[string]string{}
+	for _, f := range files {
+		h := ""
+		if b, err := os.ReadFile(f.Path); err == nil {
+			sum := sha256.Sum256(b)
+			h = hex.EncodeToString(sum[:12])
+		}
+		out[g.rel(f.Path)] = h
+	}
+	return out
 }
 
 // stop keeps the agent from ending its turn in the middle of a step that
