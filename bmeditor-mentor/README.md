@@ -47,8 +47,12 @@ where it is and what uses what, without asking the agent.
   of its code, into the implementations an interface call may run, marked
   as decided at run time. The packages by the part of the service they
   seem to be, each with what it imports.
-- **Uses above the code.** One line over each type and function: how many
-  things use it, how many tests reach it. A click shows its card.
+- **How it is used, in the code.** One line over each type and function
+  says how many things use it and how many tests reach it. A click on it
+  opens, right there under the line, the places in the project that show
+  best how it is used, as they are written: a struct being built, a method
+  called, a field read, from code before tests and from other packages
+  first. A click on one goes there; Esc closes it. The ⓘ shows its card.
 - **Where you want it.** Mentor opens in a window of its own that you
   move and size over the editor, as a tab of the bottom panel, or in the
   sidebar, as Open Mentor in says; its button is in the sidebar only when

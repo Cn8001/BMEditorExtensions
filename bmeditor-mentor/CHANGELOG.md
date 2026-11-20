@@ -14,6 +14,9 @@ when it has a section here.
   auto mode included. One button, Connect the agent, turns it all on or
   off: on, Mentor adds its MCP server and hooks for the folder and its dot
   turns green; off, it takes them out.
+- How it is used, in the code: a click on the line above a type or a
+  function shows, under it, the places that show best how the project
+  uses it, as they are written, a click away each.
 - Review in the code: a strip above each file the agent changed, with
   what it changed there, Diff, Reviewed and the checkpoint's Approve; F7
   and Shift+F7 go from one of its changes to the next, Alt+R marks a file

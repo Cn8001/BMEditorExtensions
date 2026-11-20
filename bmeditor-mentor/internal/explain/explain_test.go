@@ -173,3 +173,37 @@ func TestEntries(t *testing.T) {
 		t.Errorf("entries = %+v", es)
 	}
 }
+
+func TestExamples_ShowHowAStructIsUsed(t *testing.T) {
+	// Arrange
+	ix := load(t)
+
+	// Act
+	ex := ExamplesOf(ix, auth+"UserIdentity", 3)
+
+	// Assert
+	if ex == nil || ex.Total < 3 || len(ex.Items) != 3 {
+		t.Fatalf("examples = %+v", ex)
+	}
+	fns := map[string]bool{}
+	for i, it := range ex.Items {
+		t.Logf("%s in %s (%s): %s", it.How, it.In, it.Pkg, strings.Fields(strings.Split(it.Text, "\n")[it.Line-it.First])[0])
+		if fns[it.In] {
+			t.Errorf("two examples from %s", it.In)
+		}
+		fns[it.In] = true
+		if it.Test {
+			t.Errorf("a test was picked before code: %+v", it)
+		}
+		if it.Line < it.First || !strings.Contains(strings.Split(it.Text, "\n")[it.Line-it.First], "UserIdentity") && i == 0 {
+			t.Errorf("the first example's line does not show it: %+v", it)
+		}
+	}
+	// Code from another package comes first: it shows how it is used from outside.
+	if ex.Items[0].Pkg == "auth" {
+		t.Errorf("first example is from its own package: %+v", ex.Items[0])
+	}
+	if ExamplesOf(ix, "nope", 3) != nil {
+		t.Error("an unknown key should have no examples")
+	}
+}

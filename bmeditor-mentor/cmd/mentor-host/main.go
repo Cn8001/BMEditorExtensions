@@ -427,6 +427,22 @@ func register(s *host.Server, st *state) {
 	registerAgent(s, st)
 
 	// lens is what the editor shows above each declaration of a file.
+	// examples are the places that show best how a symbol is used, for the
+	// peek under its lens.
+	s.Handle("examples", indexed(s, st, func(_ context.Context, _ *engine.Engine, ix *index.Index, p struct {
+		Key string `json:"key"`
+		N   int    `json:"n"`
+	}) (any, error) {
+		if p.N <= 0 || p.N > 20 {
+			p.N = 3
+		}
+		ex := explain.ExamplesOf(ix, p.Key, p.N)
+		if ex == nil {
+			return nil, &host.Error{Code: "NOT_FOUND", Message: "Mentor does not know " + p.Key + "; it may have changed since the code was read."}
+		}
+		return ex, nil
+	}))
+
 	s.Handle("lens", handler(s, st, func(_ context.Context, e *engine.Engine, p position) (any, error) {
 		ix := e.Peek()
 		out := []lensItem{}
