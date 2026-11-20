@@ -1,6 +1,6 @@
 import { watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
-import { api, call, clear, cursor, fail, go, loadChanges, refreshStatus, setApi, showSidebar, store, view, type Ref, type Status } from './api'
+import { agent, api, call, clear, connect, cursor, fail, go, loadChanges, refreshStatus, setApi, showSidebar, store, view, type AgentState, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import Sidebar from './Sidebar.vue'
 import './style.css'
@@ -21,6 +21,19 @@ export default function activate(a: ExtensionAPI) {
       if (store.tab === 'changes' || store.report) void loadChanges()
     }
     lastState = st.state
+  })
+
+  // When Claude Code stops at a plan or a checkpoint, show it: it waits
+  // until the developer answers.
+  api.on('mentor/agent', (st: AgentState) => {
+    const was = store.agent?.waiting
+    store.agent = st
+    if (st.waiting && st.waiting !== was) {
+      showSidebar()
+      store.tab = 'changes'
+      void loadChanges()
+      api.ui.toast('info', st.waiting === 'plan' ? 'Claude Code waits for you to approve its plan' : `Claude Code waits at the checkpoint of step ${st.checkpoint?.step}`)
+    }
   })
 
   async function explainThis() {
@@ -49,6 +62,17 @@ export default function activate(a: ExtensionAPI) {
     commands: [
       { id: 'mentor-explain', label: 'Mentor: Explain This', icon: 'mortar-board', kbd: 'Ctrl+Alt+U', run: explainThis, when: () => !!api.ui.activeTab()?.path.endsWith('.go') },
       { id: 'mentor-ask', label: 'Mentor: Ask About the Code', icon: 'search', run: askFocus, when: () => !!api.ide.folder },
+      {
+        id: 'mentor-connect',
+        label: 'Mentor: Connect Claude Code',
+        icon: 'hubot',
+        run: async () => {
+          showSidebar()
+          store.tab = 'changes'
+          await connect(true)
+        },
+        when: () => !!api.ide.folder,
+      },
       {
         id: 'mentor-changes',
         label: 'Mentor: What Changed',
@@ -80,6 +104,7 @@ export default function activate(a: ExtensionAPI) {
       clear()
       lastState = ''
       void refreshStatus()
+      if (api.ide.folder) void agent('state')
     },
     { immediate: true },
   )

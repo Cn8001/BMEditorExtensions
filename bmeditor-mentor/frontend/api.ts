@@ -228,6 +228,65 @@ export interface Report {
   warning?: string
 }
 
+export interface AgentStep {
+  n: number
+  title: string
+  why?: string
+  files: string[]
+  packages: string[]
+  status: 'todo' | 'doing' | 'done'
+}
+
+export interface AgentPlan {
+  task: string
+  steps: AgentStep[]
+  status: 'proposed' | 'approved' | 'changes_requested' | 'done'
+  note?: string
+}
+
+export interface Checkpoint {
+  id: number
+  step: number
+  summary: string
+  why?: string
+  unknown: string[]
+  report: Report | null
+  status: 'waiting' | 'approved' | 'changes_requested' | 'skipped'
+  note?: string
+}
+
+export interface AgentEvent {
+  at: string
+  tool: string
+  what: string
+  result: string
+  reason?: string
+}
+
+// AgentState is the checkpoints of the folder: Claude Code's plan, its
+// step, and what waits for the developer.
+export interface AgentState {
+  level: 'enforced' | 'cooperative' | 'observe'
+  hooks: boolean
+  mcp: boolean
+  lastSeen?: string
+  plan: AgentPlan | null
+  step: number
+  checkpoint: Checkpoint | null
+  waiting?: 'plan' | 'checkpoint'
+  files: string[]
+  events: AgentEvent[] | null
+  policy: { requirePlan: boolean; maxFiles: number }
+}
+
+export interface Setup {
+  hooksFile: string
+  hooks: boolean
+  mcp: boolean
+  mcpCommand: string
+  detail?: string
+}
+
 // A page of the Explore tab: the answer to a question, a symbol's card,
 // a flow or a map. Back goes to the one before.
 export type Page = (
@@ -244,6 +303,8 @@ export const store = reactive({
   reportError: '',
   reportBusy: false,
   stale: [] as Ref[],
+  agent: null as AgentState | null,
+  setup: null as Setup | null,
   query: '',
   result: null as SearchResult | null,
   searching: false,
@@ -381,6 +442,28 @@ export async function markReviewed(keys: string[], reviewed = true) {
   }
 }
 
+// agent asks the gate something for the developer, and keeps its state.
+export async function agent(method: string, params?: unknown) {
+  try {
+    store.agent = await call<AgentState>('agent.' + method, params)
+  } catch (err) {
+    fail('Mentor', err)
+  }
+}
+
+export async function connect(on: boolean) {
+  try {
+    if (on) store.setup = await call<Setup>('agent.connect')
+    else {
+      store.setup = null
+      await agent('disconnect')
+    }
+    await agent('state')
+  } catch (err) {
+    fail('Mentor', err)
+  }
+}
+
 // diff opens a file beside what HEAD has, in the editor's own review.
 export async function diff(path: string) {
   await api.session.openFile(path)
@@ -390,6 +473,8 @@ export async function diff(path: string) {
 }
 
 export function clear() {
+  store.agent = null
+  store.setup = null
   store.report = null
   store.stale = []
   store.reportError = ''

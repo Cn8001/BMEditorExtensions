@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { api, ask, back, call, go, loadChanges, page, plural, store, type Status } from './api'
+import { agent, api, ask, back, call, go, loadChanges, page, plural, store, type Status } from './api'
 import CardPage from './CardPage.vue'
 import ChangesView from './ChangesView.vue'
 import FlowPage from './FlowPage.vue'
@@ -33,7 +33,10 @@ function line(st: Status | null): string {
 
 function tab(t: 'explore' | 'changes') {
   store.tab = t
-  if (t === 'changes') void loadChanges()
+  if (t === 'changes') {
+    void loadChanges()
+    void agent('state')
+  }
 }
 
 const changed = computed(() => {
@@ -51,10 +54,10 @@ defineExpose({ focus: () => input.value?.focus() })
 <template>
   <div class="mentor">
     <div class="tabs">
-      <button :class="{ on: store.tab === 'explore' }" @click="tab('explore')">Explore</button>
       <button :class="{ on: store.tab === 'changes' }" @click="tab('changes')">
-        Changes<span v-if="changed" class="badge">{{ changed }}</span>
+        Changes<span v-if="store.agent?.waiting" class="badge wait" title="Claude Code waits for you">!</span><span v-else-if="changed" class="badge">{{ changed }}</span>
       </button>
+      <button :class="{ on: store.tab === 'explore' }" @click="tab('explore')">Explore</button>
     </div>
     <div v-show="store.tab === 'explore'" class="top">
       <form @submit.prevent="ask(store.query)">
@@ -112,6 +115,10 @@ defineExpose({ focus: () => input.value?.focus() })
 .tabs button.on {
   color: var(--text);
   border-bottom-color: var(--accent);
+}
+.badge.wait {
+  background: var(--accent);
+  color: var(--bg);
 }
 .badge {
   padding: 0 5px;

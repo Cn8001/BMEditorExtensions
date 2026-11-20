@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"bmeditor-mentor/bmext/host"
+	"bmeditor-mentor/internal/agent"
 	"bmeditor-mentor/internal/changes"
 	"bmeditor-mentor/internal/engine"
 	"bmeditor-mentor/internal/explain"
@@ -93,6 +94,39 @@ func TestMethods_OnTheFixture(t *testing.T) {
 	}
 	if _, err := c.Call(t.Context(), "card", map[string]string{"key": "nope"}); err == nil {
 		t.Error("an unknown key should fail")
+	}
+}
+
+func TestAgentMethods(t *testing.T) {
+	folder, _ := filepath.Abs(filepath.Join("..", "..", "internal", "golang", "testdata", "authsvc"))
+	s := host.New()
+	st := &state{dataDir: t.TempDir()}
+	register(s, st)
+	toServer, fromClient := io.Pipe()
+	toClient, fromServer := io.Pipe()
+	go func() { _ = s.Serve(t.Context(), toServer, fromServer); fromServer.Close() }()
+	t.Cleanup(func() { fromClient.Close(); st.close() })
+	c := host.NewClient(toClient, fromClient, nil)
+	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"maxFiles": "3"}}); err != nil {
+		t.Fatal(err)
+	}
+	as := call[agent.State](t, c, "agent.state", nil)
+	if as.Level == "" || as.Plan != nil || as.Policy.MaxFiles != 3 || !as.Policy.RequirePlan {
+		t.Fatalf("state = %+v", as)
+	}
+	// The agent proposes through the gate; the developer answers here.
+	g := st.gateFor(folder)
+	g.Propose("Task", []agent.PlanStep{{Title: "One"}})
+	as = call[agent.State](t, c, "agent.plan", map[string]any{"approve": true})
+	if as.Plan.Status != "approved" || as.Step != 1 {
+		t.Errorf("after approving = %+v", as.Plan)
+	}
+	as = call[agent.State](t, c, "agent.end", nil)
+	if as.Plan.Status != "done" {
+		t.Error("the plan did not end")
+	}
+	if _, err := c.Call(t.Context(), "agent.checkpoint", map[string]any{"answer": "approve"}); err == nil {
+		t.Error("no checkpoint waits; answering one should fail")
 	}
 }
 

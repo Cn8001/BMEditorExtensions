@@ -8,9 +8,12 @@ import (
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 
 	"bmeditor-mentor/bmext/host"
+	"bmeditor-mentor/internal/agent"
 	"bmeditor-mentor/internal/changes"
 	"bmeditor-mentor/internal/engine"
 	"bmeditor-mentor/internal/explain"
@@ -26,22 +29,58 @@ func main() {
 	st.close()
 }
 
-// state keeps the engine of the folder open now. Another folder closes it
-// and opens its own.
+// state keeps the engine and the agent gate of the folder open now.
+// Another folder closes them and opens its own.
 type state struct {
 	dataDir string
 
-	mu  sync.Mutex
-	eng *engine.Engine
+	mu     sync.Mutex
+	eng    *engine.Engine
+	gate   *agent.Gate
+	server *agent.Server
 }
 
 func (st *state) close() {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if st.eng != nil {
-		st.eng.Close()
-		st.eng = nil
+	st.closeFolder()
+	if st.server != nil {
+		st.server.Close()
+		st.server = nil
 	}
+}
+
+func (st *state) closeFolder() {
+	if st.eng != nil {
+		if st.server != nil {
+			st.server.Unregister(st.eng.Root)
+		}
+		st.eng.Close()
+		st.eng, st.gate = nil, nil
+	}
+}
+
+func (st *state) gateDir() string { return filepath.Join(st.dataDir, "gate") }
+
+// gateFor is the gate of root, for the server; nil when another folder is
+// open.
+func (st *state) gateFor(root string) *agent.Gate {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.eng != nil && st.gate != nil && filepath.Clean(root) == st.eng.Root {
+		return st.gate
+	}
+	return nil
+}
+
+// policyOf reads the checkpoint settings.
+func policyOf(get func(string) string) agent.Policy {
+	p := agent.DefaultPolicy()
+	p.RequirePlan = get("requirePlan") != "false"
+	if n, err := strconv.Atoi(strings.TrimSpace(get("maxFiles"))); err == nil && n >= 0 {
+		p.MaxFiles = n
+	}
+	return p
 }
 
 // root is the folder the extension works in: the open folder, else the
@@ -58,26 +97,57 @@ func root(s *host.Server) (string, error) {
 	return filepath.Clean(r), nil
 }
 
-// engineFor is the engine of root, opened when it is not yet, with the
-// settings of the call.
+// engineFor is the engine of root, opened with its gate when it is not
+// yet, with the settings of the call.
 func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 	set := engine.SettingsOf(s.Context().Setting)
+	policy := policyOf(s.Context().Setting)
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if st.eng != nil && st.eng.Root == r {
 		st.eng.Apply(set)
+		st.gate.SetPolicy(policy)
 		return st.eng, nil
 	}
-	if st.eng != nil {
-		st.eng.Close()
-		st.eng = nil
+	st.closeFolder()
+	var g *agent.Gate
+	notify := func(method string, params any) {
+		_ = s.Notify(method, params)
+		// A checkpoint follows the code as each read of it lands.
+		if es, ok := params.(engine.Status); ok && es.State == "ready" && g != nil {
+			go g.Refresh(context.Background())
+		}
 	}
-	e, err := engine.Open(r, st.dataDir, set, func(method string, params any) { _ = s.Notify(method, params) })
+	e, err := engine.Open(r, st.dataDir, set, notify)
 	if err != nil {
 		return nil, &host.Error{Code: "STORE", Message: err.Error()}
 	}
-	st.eng = e
+	g = agent.New(r, e, policy, func(as agent.State) { _ = s.Notify("mentor/agent", as) })
+	if b := e.DB.Meta(context.Background(), "gate"); b != "" {
+		_ = g.Unmarshal([]byte(b))
+	}
+	g.Persist = func(b []byte) { _ = e.DB.SetMeta(context.Background(), "gate", string(b)) }
+	g.SetConnection(agent.HooksInstalled(r), e.DB.Meta(context.Background(), "mcp") == "1")
+	if st.server == nil {
+		if srv, err := agent.Listen(st.gateDir(), st.gateFor); err == nil {
+			st.server = srv
+		}
+	}
+	if st.server != nil {
+		_ = st.server.Register(r)
+	}
+	st.eng, st.gate = e, g
 	return e, nil
+}
+
+// gateOf is the gate of the folder the call is for.
+func (st *state) gateOf(e *engine.Engine) *agent.Gate {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	if st.eng == e {
+		return st.gate
+	}
+	return nil
 }
 
 func params[T any](raw json.RawMessage) (T, error) {
@@ -241,6 +311,8 @@ func register(s *host.Server, st *state) {
 		return out, nil
 	}))
 
+	registerAgent(s, st)
+
 	// lens is what the editor shows above each declaration of a file.
 	s.Handle("lens", handler(s, st, func(_ context.Context, e *engine.Engine, p position) (any, error) {
 		ix := e.Peek()
@@ -309,4 +381,68 @@ func markReviews(e *engine.Engine, ix *index.Index, rep *changes.Report) {
 			c.Review = states[c.Key]
 		}
 	}
+}
+
+// registerAgent adds the methods the checkpoint card calls: the
+// developer's side of the gate.
+func registerAgent(s *host.Server, st *state) {
+	gated := func(fn func(ctx context.Context, e *engine.Engine, g *agent.Gate, a answer) error) host.Handler {
+		return handler(s, st, func(ctx context.Context, e *engine.Engine, a answer) (any, error) {
+			g := st.gateOf(e)
+			if g == nil {
+				return nil, &host.Error{Code: "NO_GATE", Message: "The folder changed; try again."}
+			}
+			if err := fn(ctx, e, g, a); err != nil {
+				return nil, &host.Error{Code: "AGENT", Message: err.Error()}
+			}
+			return g.State(), nil
+		})
+	}
+	s.Handle("agent.state", gated(func(context.Context, *engine.Engine, *agent.Gate, answer) error { return nil }))
+	s.Handle("agent.plan", gated(func(ctx context.Context, _ *engine.Engine, g *agent.Gate, a answer) error {
+		return g.AnswerPlan(ctx, a.Approve, a.Note)
+	}))
+	s.Handle("agent.checkpoint", gated(func(ctx context.Context, e *engine.Engine, g *agent.Gate, a answer) error {
+		keys, err := g.AnswerCheckpoint(ctx, a.Answer, a.Note)
+		if err == nil && len(keys) > 0 {
+			if ix := e.Peek(); ix != nil {
+				_ = e.Review.Mark(ctx, ix, keys, "checkpoint approved")
+			}
+		}
+		return err
+	}))
+	s.Handle("agent.end", gated(func(_ context.Context, _ *engine.Engine, g *agent.Gate, _ answer) error {
+		g.EndPlan()
+		return nil
+	}))
+	s.Handle("agent.connect", handler(s, st, func(ctx context.Context, e *engine.Engine, _ none) (any, error) {
+		g := st.gateOf(e)
+		gate, err := agent.InstallGate(st.gateDir())
+		if err != nil || g == nil {
+			msg := "The folder changed; try again."
+			if err != nil {
+				msg = err.Error()
+			}
+			return nil, &host.Error{Code: "AGENT", Message: msg}
+		}
+		res := agent.Connect(ctx, e.Root, gate)
+		if res.MCP {
+			_ = e.DB.SetMeta(ctx, "mcp", "1")
+		}
+		g.SetConnection(res.Hooks, res.MCP || e.DB.Meta(ctx, "mcp") == "1")
+		return res, nil
+	}))
+	s.Handle("agent.disconnect", gated(func(ctx context.Context, e *engine.Engine, g *agent.Gate, _ answer) error {
+		err := agent.Disconnect(ctx, e.Root)
+		_ = e.DB.SetMeta(ctx, "mcp", "")
+		g.SetConnection(false, false)
+		return err
+	}))
+}
+
+// answer is the developer's answer from the checkpoint card.
+type answer struct {
+	Approve bool   `json:"approve"`
+	Answer  string `json:"answer"` // approve, changes or skip
+	Note    string `json:"note"`
 }

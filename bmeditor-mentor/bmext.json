@@ -1,10 +1,12 @@
 {
   "name": "mentor",
   "displayName": "Mentor",
-  "version": "0.1.1",
-  "description": "Know what a coding agent did to your Go code: what changed since HEAD in units, each with where it is wired in, what it can break and which tests reach it; and know your code: ask which type or function to use in plain words, a card for any symbol, the package map and the path a call takes. All from the type checker, on your machine.",
+  "version": "0.0.1",
+  "description": "Keep hold of what Claude Code does to your Go code. It works on its own, and stops at the end of each step of its plan until you have seen what the step changed, where it fits and what it can break. Ask which type or function to use in plain words, and get any symbol's card, the package map and the path a call takes, all from the type checker, on your machine.",
   "icon": "icon.svg",
-  "engines": { "bmeditor": ">=0.1.6" },
+  "engines": {
+    "bmeditor": ">=0.1.6"
+  },
   "settings": [
     {
       "key": "lens",
@@ -12,6 +14,21 @@
       "description": "One line above each Go type and function: how many things use it, how many tests reach it, how many types implement it. A click shows its card.",
       "type": "boolean",
       "default": "true"
+    },
+    {
+      "key": "requirePlan",
+      "label": "Claude Code: plan first",
+      "description": "Claude Code proposes its plan in steps, and you approve it in Mentor, before it changes code.",
+      "type": "boolean",
+      "default": "true"
+    },
+    {
+      "key": "maxFiles",
+      "label": "Claude Code: files per step",
+      "description": "A step that would change more files than this ends at a checkpoint first. 0 for no limit.",
+      "type": "string",
+      "default": "12",
+      "scope": "both"
     },
     {
       "key": "excludes",
@@ -35,8 +52,14 @@
       "type": "string",
       "default": "none",
       "options": [
-        { "value": "none", "label": "Off" },
-        { "value": "ollama", "label": "Ollama" }
+        {
+          "value": "none",
+          "label": "Off"
+        },
+        {
+          "value": "ollama",
+          "label": "Ollama"
+        }
       ]
     },
     {
@@ -44,7 +67,9 @@
       "label": "Ollama URL",
       "type": "string",
       "placeholder": "http://localhost:11434",
-      "when": { "embeddings": "ollama" }
+      "when": {
+        "embeddings": "ollama"
+      }
     },
     {
       "key": "ollamaModel",
@@ -52,10 +77,23 @@
       "description": "An embedding model Ollama has pulled, such as nomic-embed-text.",
       "type": "string",
       "default": "nomic-embed-text",
-      "when": { "embeddings": "ollama" }
+      "when": {
+        "embeddings": "ollama"
+      }
     }
   ],
-  "frontend": { "script": "frontend/index.js", "style": "frontend/style.css" },
-  "backend": { "command": "bin/mentor-host" },
-  "build": { "command": ["make", "dist"], "output": "dist" }
+  "frontend": {
+    "script": "frontend/index.js",
+    "style": "frontend/style.css"
+  },
+  "backend": {
+    "command": "bin/mentor-host"
+  },
+  "build": {
+    "command": [
+      "make",
+      "dist"
+    ],
+    "output": "dist"
+  }
 }
