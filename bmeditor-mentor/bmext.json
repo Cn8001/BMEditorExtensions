@@ -30,45 +30,51 @@
       ]
     },
     {
-      "key": "lens",
-      "label": "Show uses above declarations",
-      "description": "One line above each Go type and function: how many things use it, how many tests reach it, how many types implement it. A click shows its card.",
-      "type": "boolean",
-      "default": "true"
-    },
-    {
       "key": "watchAgent",
-      "label": "Watch the coding agent",
-      "description": "Mentor holds the agent to its plan and stops it at each step's checkpoint. Off: Mentor lets the agent work as it would without it, and does not connect to it; the Explore and Changes tabs still work.",
-      "type": "boolean",
-      "default": "true"
-    },
-    {
-      "key": "autoConnect",
-      "label": "Agent: connect by itself",
-      "description": "When a folder opens, add Mentor's MCP server and hooks to the agent for it, so its plan and checkpoints come here. Off: connect with Mentor: Connect the Agent.",
+      "label": "Pause the agent at each step",
+      "description": "The agent stops after each step of its plan until you approve it. Off: the agent works without Mentor.",
       "type": "boolean",
       "default": "true"
     },
     {
       "key": "requirePlan",
-      "label": "Agent: plan first",
-      "description": "The agent proposes its plan in steps, and you approve it in Mentor, before it changes code.",
+      "label": "Approve the plan first",
+      "description": "The agent shows its plan and waits for you before it changes code.",
       "type": "boolean",
-      "default": "true"
+      "default": "true",
+      "when": {
+        "watchAgent": "true"
+      }
     },
     {
       "key": "maxFiles",
-      "label": "Agent: files per step",
-      "description": "A step that would change more files than this ends at a checkpoint first. 0 for no limit.",
+      "label": "Files per step",
+      "description": "A step that changes more files than this stops for review first. 0: no limit.",
       "type": "string",
       "default": "12",
       "scope": "both"
     },
     {
+      "key": "autoConnect",
+      "label": "Connect the agent automatically",
+      "description": "Set the agent up for Mentor when a folder opens. Off: run Mentor: Connect the Agent.",
+      "type": "boolean",
+      "default": "true",
+      "when": {
+        "watchAgent": "true"
+      }
+    },
+    {
+      "key": "lens",
+      "label": "Show use counts in code",
+      "description": "A line above each type and function with its uses and tests. Click it for details.",
+      "type": "boolean",
+      "default": "true"
+    },
+    {
       "key": "excludes",
-      "label": "Leave out",
-      "description": "Files to leave out of the index, comma-separated globs on paths from the folder: gen/**, *_mock.go. vendor and testdata are always left out.",
+      "label": "Skip files",
+      "description": "Globs to leave out, comma-separated, such as gen/**, *_mock.go. vendor and testdata are always skipped.",
       "type": "string",
       "scope": "both",
       "placeholder": "gen/**, *_mock.go"
@@ -76,14 +82,14 @@
     {
       "key": "buildTags",
       "label": "Build tags",
-      "description": "Read the code as go build -tags would, such as integration.",
+      "description": "Read the code with these Go build tags, such as integration.",
       "type": "string",
       "scope": "both"
     },
     {
       "key": "embeddings",
-      "label": "Semantic search",
-      "description": "Find code by meaning as well as by words, with embeddings from a local Ollama. Nothing leaves your machine.",
+      "label": "Search by meaning",
+      "description": "Also find code by meaning, with a local Ollama. Nothing leaves your machine.",
       "type": "string",
       "default": "none",
       "options": [
@@ -108,7 +114,7 @@
     },
     {
       "key": "ollamaModel",
-      "label": "Embedding model",
+      "label": "Ollama model",
       "description": "An embedding model Ollama has pulled, such as nomic-embed-text.",
       "type": "string",
       "default": "nomic-embed-text",

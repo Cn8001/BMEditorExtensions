@@ -50,8 +50,8 @@ Everything comes from the compiler's view of the code, read on your
 machine and kept up to date as files change; nothing is guessed, and a
 guess (a route found by the shape of a call, a package's layer by its
 name) says so. The index lives in the editor's data folder, one SQLite
-file per folder. With Semantic search on, a local Ollama adds results by
-meaning.
+file per folder. With Search by meaning on, a local Ollama adds results
+by meaning.
 
 Languages: Go is read with its type checker, which needs Go on the PATH.
 Other languages come through their language servers.
@@ -64,7 +64,8 @@ and its hooks to the agent's local settings for the folder, which stay on
 this machine. An agent already running picks them up when it starts
 again. Disconnect in the Changes tab takes both out and keeps them out
 for the folder; **Mentor: Connect the Agent** puts them back. The setting
-Agent: connect by itself turns this off.
+Connect the agent automatically turns this off, and Pause the agent at
+each step turns Mentor's hold on the agent off altogether.
 
 Mentor says how far a stop holds: with the hooks, the agent waits; with
 the MCP server alone, it follows the steps but nothing makes it wait; with

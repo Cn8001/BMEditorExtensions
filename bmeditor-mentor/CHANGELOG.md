@@ -21,7 +21,7 @@ when it has a section here.
   types and functions that fit, and shows any symbol's card, the flow from
   a function and the package map. Explain This (Ctrl+Alt+U) shows the card
   of the declaration at the cursor, and a line above each declaration
-  counts its uses. Semantic search with a local Ollama is optional.
+  counts its uses. Search by meaning with a local Ollama is optional.
 - Mentor opens in the sidebar, the bottom panel or a floating window, as
   the setting Open Mentor in says.
 - Reads Go code, with Go on the PATH. Needs BMEditor 0.1.6.
