@@ -139,4 +139,15 @@ export default function activate(a: ExtensionAPI) {
     },
   )
   void readSettings()
+
+  // The agent's state comes as a notification with each change. While the
+  // agent is connected it is also asked for every few seconds, and when the
+  // window comes back, so a notification that went astray cannot leave the
+  // panel behind.
+  const sync = () => {
+    const level = store.agent?.level
+    if (api.ide.folder && (level === 'enforced' || level === 'cooperative') && !document.hidden) void agent('state', undefined, true)
+  }
+  setInterval(sync, 3000)
+  window.addEventListener('focus', sync)
 }

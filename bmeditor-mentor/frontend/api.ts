@@ -457,11 +457,11 @@ export async function markReviewed(keys: string[], reviewed = true) {
 }
 
 // agent asks the gate something for the developer, and keeps its state.
-export async function agent(method: string, params?: unknown) {
+export async function agent(method: string, params?: unknown, quiet = false) {
   try {
     store.agent = await call<AgentState>('agent.' + method, params)
   } catch (err) {
-    fail('Mentor', err)
+    if (!quiet) fail('Mentor', err)
   }
 }
 
