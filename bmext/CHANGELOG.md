@@ -7,6 +7,13 @@ is released only when it has one.
 
 ## 0.2.9
 
+- `popups`: an extension's view in a window of its own, opened with
+  `ui.openPopup(id)` and closed with `ui.closePopup(id)`, which the user
+  moves anywhere, out of the editor's window too. The window runs only that
+  extension (`ui.inPopup`); what the view does to tabs, notices and
+  Settings happens in the main window. Needs BMEditor 0.1.7: on an older
+  one `ui.openPopup` is missing.
+
 - A setting's `style` says how Settings shows it: `"switch"` shows a
   boolean as an On/Off button with a dot, green when on, with its
   description, for a setting that turns a whole part of the extension on
