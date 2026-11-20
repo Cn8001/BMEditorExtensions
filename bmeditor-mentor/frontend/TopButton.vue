@@ -58,7 +58,7 @@ function click() {
   background: var(--text-faint);
 }
 .dot.enforced {
-  background: var(--success);
+  background: var(--success, #b8d27a);
 }
 .dot.cooperative {
   background: var(--warning);

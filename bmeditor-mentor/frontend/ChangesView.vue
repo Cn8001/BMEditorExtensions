@@ -105,7 +105,7 @@ function card(c: Change) {
   font-size: 11px;
 }
 .add {
-  color: var(--success);
+  color: var(--success, #b8d27a);
 }
 .del {
   color: var(--error);
@@ -166,7 +166,7 @@ function card(c: Change) {
 .frow button:hover,
 .crow button:hover,
 .frow button.ok {
-  color: var(--success);
+  color: var(--success, #b8d27a);
 }
 .crow .info {
   margin-left: auto;
@@ -181,7 +181,7 @@ function card(c: Change) {
   font-family: var(--font-mono, monospace);
 }
 .crow.added .mark {
-  color: var(--success);
+  color: var(--success, #b8d27a);
 }
 .crow.modified .mark {
   color: var(--warning);
@@ -208,7 +208,7 @@ function card(c: Change) {
   color: var(--warning);
 }
 .tag.new {
-  color: var(--success);
+  color: var(--success, #b8d27a);
 }
 .tag.gone {
   color: var(--error);

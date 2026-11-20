@@ -116,7 +116,7 @@ function show(c: Change) {
 }
 .ok {
   margin-left: auto;
-  color: var(--success);
+  color: var(--success, #b8d27a);
 }
 .risk {
   display: flex;
@@ -153,7 +153,7 @@ function show(c: Change) {
   text-align: center;
 }
 .added .mark {
-  color: var(--success);
+  color: var(--success, #b8d27a);
 }
 .modified .mark {
   color: var(--warning);
