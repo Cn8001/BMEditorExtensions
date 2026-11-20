@@ -1,0 +1,61 @@
+{
+  "name": "mentor",
+  "displayName": "Mentor",
+  "version": "0.1.0",
+  "description": "Know your Go code while a coding agent writes it: ask which type or function to use in plain words, and get a card for any symbol with who makes, calls and tests it, real uses, the package map and the path a call takes. All from the type checker, on your machine.",
+  "icon": "icon.svg",
+  "engines": { "bmeditor": ">=0.1.6" },
+  "settings": [
+    {
+      "key": "lens",
+      "label": "Show uses above declarations",
+      "description": "One line above each Go type and function: how many things use it, how many tests reach it, how many types implement it. A click shows its card.",
+      "type": "boolean",
+      "default": "true"
+    },
+    {
+      "key": "excludes",
+      "label": "Leave out",
+      "description": "Files to leave out of the index, comma-separated globs on paths from the folder: gen/**, *_mock.go. vendor and testdata are always left out.",
+      "type": "string",
+      "scope": "both",
+      "placeholder": "gen/**, *_mock.go"
+    },
+    {
+      "key": "buildTags",
+      "label": "Build tags",
+      "description": "Read the code as go build -tags would, such as integration.",
+      "type": "string",
+      "scope": "both"
+    },
+    {
+      "key": "embeddings",
+      "label": "Semantic search",
+      "description": "Find code by meaning as well as by words, with embeddings from a local Ollama. Nothing leaves your machine.",
+      "type": "string",
+      "default": "none",
+      "options": [
+        { "value": "none", "label": "Off" },
+        { "value": "ollama", "label": "Ollama" }
+      ]
+    },
+    {
+      "key": "ollamaUrl",
+      "label": "Ollama URL",
+      "type": "string",
+      "placeholder": "http://localhost:11434",
+      "when": { "embeddings": "ollama" }
+    },
+    {
+      "key": "ollamaModel",
+      "label": "Embedding model",
+      "description": "An embedding model Ollama has pulled, such as nomic-embed-text.",
+      "type": "string",
+      "default": "nomic-embed-text",
+      "when": { "embeddings": "ollama" }
+    }
+  ],
+  "frontend": { "script": "frontend/index.js", "style": "frontend/style.css" },
+  "backend": { "command": "bin/mentor-host" },
+  "build": { "command": ["make", "dist"], "output": "dist" }
+}
