@@ -62,6 +62,9 @@ type Step struct {
 	// Creates it already has.
 	Unknown []string `json:"unknown"`
 	Exists  []string `json:"exists"`
+	// New are the files of Files that are not there when the plan comes:
+	// the ones the step will add rather than change.
+	New []string `json:"new"`
 	// Budget is how many files outside tests the step is expected to change,
 	// from what it said it touches; past it by more than a little, it ends.
 	Budget int `json:"budget"`
@@ -589,8 +592,15 @@ func (g *Gate) Propose(task string, steps []PlanStep) string {
 	// a file's own: code in other languages is checked so.
 	files := fileNames(context.Background(), g.Root)
 	known := make([]func(string) bool, len(steps))
+	fresh := make([][]string, len(steps))
 	for i, s := range steps {
 		known[i] = knownIn(files, readTexts(g.Root, clean(s.Files)))
+		fresh[i] = []string{}
+		for _, f := range clean(s.Files) {
+			if _, err := os.Stat(filepath.Join(g.Root, filepath.FromSlash(f))); err != nil {
+				fresh[i] = append(fresh[i], f)
+			}
+		}
 	}
 	g.mu.Lock()
 	p := &Plan{Task: task, Status: "proposed", Created: time.Now()}
@@ -598,6 +608,7 @@ func (g *Gate) Propose(task string, steps []PlanStep) string {
 		st := Step{N: i + 1, Title: s.Title, Why: s.Why, Files: clean(s.Files), Packages: clean(s.Packages), Status: "todo",
 			Does: strings.TrimSpace(s.Does), Uses: trimmed(s.Uses), Creates: trimmed(s.Creates), Avoid: trimmed(s.Avoid), DoneWhen: strings.TrimSpace(s.DoneWhen)}
 		st.Unknown, st.Exists = namesCheck(ix, st.Uses, st.Creates, known[i])
+		st.New = fresh[i]
 		st.Budget = budgetOf(st)
 		p.Steps = append(p.Steps, st)
 	}

@@ -358,6 +358,7 @@ export interface AgentStep {
   doneWhen?: string
   unknown: string[] | null // uses the code does not have
   exists: string[] | null // creates the code already has
+  new?: string[] | null // files it will add: not there when the plan came
   budget: number
 }
 

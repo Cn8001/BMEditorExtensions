@@ -117,6 +117,12 @@ function time(at: string) {
         <ol class="steps">
           <li v-for="s in st.plan.steps" :key="s.n">
             <b>{{ s.title }}</b><template v-if="s.does"> — {{ s.does }}</template>
+            <div v-if="s.files.length || s.packages.length" class="pfiles">
+              <span v-for="f in s.files" :key="f" class="pf" :class="s.new?.includes(f) ? 'add' : 'chg'" :title="s.new?.includes(f) ? 'It will add this file' : 'It will change this file'">
+                {{ s.new?.includes(f) ? '+' : '~' }} {{ f }}
+              </span>
+              <span v-for="p in s.packages" :key="p" class="pf dir" title="A folder it will change">▸ {{ p }}/</span>
+            </div>
             <div v-if="s.avoid?.length || s.doneWhen" class="dim">
               <template v-if="s.avoid?.length">Leaves alone {{ list(s.avoid) }}. </template>
               <template v-if="s.doneWhen">Done when {{ s.doneWhen }}</template>
@@ -364,6 +370,23 @@ function time(at: string) {
   font-size: 13px;
   white-space: pre-wrap;
   user-select: text;
+}
+.pfiles {
+  display: flex;
+  flex-direction: column;
+  margin: 2px 0 2px 2px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+}
+.pf.add {
+  color: var(--success, #b8d27a);
+}
+.pf.chg {
+  color: var(--warning);
+}
+.pf.dir {
+  color: var(--text-dim);
 }
 .tabs2 {
   display: flex;

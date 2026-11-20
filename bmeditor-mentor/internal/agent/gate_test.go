@@ -617,3 +617,14 @@ func TestGate_NamesOutsideGoAreKnownByTheirFiles(t *testing.T) {
 		t.Errorf("checkpoint unknown = %q", got)
 	}
 }
+
+// TestGate_ThePlanSaysWhichFilesAreNew: a step's file that is not there when
+// the plan comes is one it will add; one that is, it will change.
+func TestGate_ThePlanSaysWhichFilesAreNew(t *testing.T) {
+	g, _ := setup(t, DefaultPolicy())
+	g.Propose("Tokens", []PlanStep{{Title: "Tokens", Files: []string{"internal/auth/provider.go", "internal/auth/token.go"}}})
+	st := g.State().Plan.Steps[0]
+	if strings.Join(st.New, ",") != "internal/auth/token.go" {
+		t.Errorf("new = %v", st.New)
+	}
+}
