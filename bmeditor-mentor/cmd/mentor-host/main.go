@@ -171,15 +171,22 @@ func (st *state) link(s *host.Server, e *engine.Engine) {
 		go func() { _ = st.connect(context.Background(), e) }()
 	case "disconnect":
 		go st.disconnect(context.Background(), e)
+	case "refresh":
+		// Already connected: the copy of the gate the agent runs follows
+		// this Mentor, so an update reaches the next agent that starts.
+		go func() { _, _ = agent.InstallGate(st.gateDir()) }()
 	}
 }
 
 // linkAction is what link does: when the folder opens (first), only what
-// is not yet as the settings want; when the settings change, always.
+// is not yet as the settings want, and a connection already there gets
+// this Mentor's gate; when the settings change, always.
 func linkAction(want, first, hooks, mcp bool) string {
 	switch {
 	case want && (!first || !hooks || !mcp):
 		return "connect"
+	case want:
+		return "refresh"
 	case !want && (!first || hooks || mcp):
 		return "disconnect"
 	}

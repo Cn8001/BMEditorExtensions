@@ -249,7 +249,7 @@ func TestLinkAction_FollowsTheSettings(t *testing.T) {
 		want, first, hooks, mcp bool
 		action                  string
 	}{
-		{"opens, wanted, all there", true, true, true, true, ""},
+		{"opens, wanted, all there", true, true, true, true, "refresh"},
 		{"opens, wanted, hooks missing", true, true, false, true, "connect"},
 		{"opens, wanted, mcp missing", true, true, true, false, "connect"},
 		{"opens, not wanted, nothing there", false, true, false, false, ""},
