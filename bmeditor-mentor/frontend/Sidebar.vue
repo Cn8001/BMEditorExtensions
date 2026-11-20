@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { api, ask, back, call, go, page, plural, store, type Status } from './api'
+import { api, ask, back, call, go, loadChanges, page, plural, store, type Status } from './api'
 import CardPage from './CardPage.vue'
+import ChangesView from './ChangesView.vue'
 import FlowPage from './FlowPage.vue'
 import MapPage from './MapPage.vue'
 import Results from './Results.vue'
@@ -30,6 +31,16 @@ function line(st: Status | null): string {
   return s
 }
 
+function tab(t: 'explore' | 'changes') {
+  store.tab = t
+  if (t === 'changes') void loadChanges()
+}
+
+const changed = computed(() => {
+  const r = store.report
+  return r ? r.units.reduce((n, u) => n + u.changes.length, 0) : 0
+})
+
 async function reindex() {
   store.status = await call<Status>('reindex')
 }
@@ -39,7 +50,13 @@ defineExpose({ focus: () => input.value?.focus() })
 
 <template>
   <div class="mentor">
-    <div class="top">
+    <div class="tabs">
+      <button :class="{ on: store.tab === 'explore' }" @click="tab('explore')">Explore</button>
+      <button :class="{ on: store.tab === 'changes' }" @click="tab('changes')">
+        Changes<span v-if="changed" class="badge">{{ changed }}</span>
+      </button>
+    </div>
+    <div v-show="store.tab === 'explore'" class="top">
       <form @submit.prevent="ask(store.query)">
         <i class="codicon codicon-search" />
         <input ref="input" v-model="store.query" class="q" placeholder="What do you need? Which struct, where is…" spellcheck="false" />
@@ -52,10 +69,13 @@ defineExpose({ focus: () => input.value?.focus() })
         <button title="Read the code again" @click="reindex"><i class="codicon codicon-refresh" /></button>
       </div>
     </div>
-    <div v-if="store.pages.length > 1" class="nav">
+    <div v-if="store.tab === 'changes'" class="body">
+      <ChangesView />
+    </div>
+    <div v-if="store.tab === 'explore' && store.pages.length > 1" class="nav">
       <button @click="back"><i class="codicon codicon-arrow-left" /> Back</button>
     </div>
-    <div class="body">
+    <div v-if="store.tab === 'explore'" class="body">
       <div v-if="store.error" class="error">{{ store.error }}</div>
       <div v-else-if="store.loading" class="hint">Loading…</div>
       <Results v-else-if="p.kind === 'search'" />
@@ -72,6 +92,33 @@ defineExpose({ focus: () => input.value?.focus() })
   flex-direction: column;
   height: 100%;
   min-height: 0;
+}
+.tabs {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 4px 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tabs button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.tabs button.on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.badge {
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--accent-dim);
+  color: var(--text);
+  font-size: 10px;
 }
 .top {
   flex: none;

@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"bmeditor-mentor/bmext/host"
+	"bmeditor-mentor/internal/changes"
 	"bmeditor-mentor/internal/engine"
 	"bmeditor-mentor/internal/explain"
 	"bmeditor-mentor/internal/index"
@@ -195,6 +196,51 @@ func register(s *host.Server, st *state) {
 		return explain.Entries(ix), nil
 	}))
 
+	// changes is what changed since HEAD, in units, with which of the
+	// declarations the developer has reviewed as they are now.
+	s.Handle("changes", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, _ none) (any, error) {
+		base, files, err := changes.FromHead(ctx, ix)
+		if err != nil {
+			return nil, &host.Error{Code: "NO_GIT", Message: err.Error()}
+		}
+		rep := changes.Build(ix, base, changes.Diff(ix, base), files)
+		markReviews(e, ix, rep)
+		if e.Status().State == "stale" {
+			rep.Warning = "Files changed since the index was read; this updates when they are read again."
+		}
+		return rep, nil
+	}))
+
+	s.Handle("review.mark", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, p struct {
+		Keys []string `json:"keys"`
+		Note string   `json:"note"`
+	}) (any, error) {
+		if err := e.Review.Mark(ctx, ix, p.Keys, p.Note); err != nil {
+			return nil, &host.Error{Code: "STORE", Message: err.Error()}
+		}
+		return e.Review.States(ix, p.Keys), nil
+	}))
+
+	s.Handle("review.unmark", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, p struct {
+		Keys []string `json:"keys"`
+	}) (any, error) {
+		if err := e.Review.Unmark(ctx, p.Keys); err != nil {
+			return nil, &host.Error{Code: "STORE", Message: err.Error()}
+		}
+		return e.Review.States(ix, p.Keys), nil
+	}))
+
+	// stale are the declarations reviewed once and changed since.
+	s.Handle("review.stale", indexed(s, st, func(_ context.Context, e *engine.Engine, ix *index.Index, _ none) (any, error) {
+		out := []explain.Ref{}
+		for _, k := range e.Review.StaleKeys(ix) {
+			if sym := ix.Symbols[k]; sym != nil {
+				out = append(out, explain.RefOf(sym))
+			}
+		}
+		return out, nil
+	}))
+
 	// lens is what the editor shows above each declaration of a file.
 	s.Handle("lens", handler(s, st, func(_ context.Context, e *engine.Engine, p position) (any, error) {
 		ix := e.Peek()
@@ -242,4 +288,25 @@ func lensOf(ix *index.Index, s *index.Symbol) lensItem {
 		}
 	}
 	return lensItem{Key: s.Key, Line: s.Line, Start: s.Start, Uses: len(users), Tests: len(tests), Impls: impls}
+}
+
+// markReviews fills in each change's review state. A removed declaration
+// has nothing left to review.
+func markReviews(e *engine.Engine, ix *index.Index, rep *changes.Report) {
+	var keys []string
+	for _, u := range rep.Units {
+		for _, c := range u.Changes {
+			keys = append(keys, c.Key)
+		}
+	}
+	states := e.Review.States(ix, keys)
+	for i := range rep.Units {
+		for j := range rep.Units[i].Changes {
+			c := &rep.Units[i].Changes[j]
+			if c.Change == "removed" {
+				continue
+			}
+			c.Review = states[c.Key]
+		}
+	}
 }

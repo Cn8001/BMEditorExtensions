@@ -1,8 +1,8 @@
 {
   "name": "mentor",
   "displayName": "Mentor",
-  "version": "0.1.0",
-  "description": "Know your Go code while a coding agent writes it: ask which type or function to use in plain words, and get a card for any symbol with who makes, calls and tests it, real uses, the package map and the path a call takes. All from the type checker, on your machine.",
+  "version": "0.1.1",
+  "description": "Know what a coding agent did to your Go code: what changed since HEAD in units, each with where it is wired in, what it can break and which tests reach it; and know your code: ask which type or function to use in plain words, a card for any symbol, the package map and the path a call takes. All from the type checker, on your machine.",
   "icon": "icon.svg",
   "engines": { "bmeditor": ">=0.1.6" },
   "settings": [

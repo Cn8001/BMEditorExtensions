@@ -184,17 +184,66 @@ export interface Graph {
   routes: Route[]
 }
 
+export interface Change extends Ref {
+  change: 'added' | 'modified' | 'removed'
+  shapeChanged?: boolean
+  oldShape?: string
+  shape?: string
+  review?: 'unseen' | 'reviewed' | 'stale'
+}
+
+export interface Unit {
+  id: string
+  title: string
+  pkg: string
+  pkgName: string
+  layer?: string
+  changes: Change[]
+  files: string[]
+  plugsIn: Ref[]
+  reliesOn: Ref[]
+  tests: Ref[]
+  routes: Route[]
+  impact: { symbols: number; packages: string[]; tests: number; capped: boolean }
+  risks: string[]
+  lines: [number, number]
+  flows: string[]
+  stats: Record<string, number>
+}
+
+export interface FileChange {
+  path: string
+  status: string
+  added: number
+  deleted: number
+}
+
+export interface Report {
+  since: string
+  head: { commit: string; branch: string }
+  units: Unit[]
+  other: FileChange[]
+  totals: Record<string, number>
+  lines: [number, number]
+  warning?: string
+}
+
 // A page of the Explore tab: the answer to a question, a symbol's card,
 // a flow or a map. Back goes to the one before.
-export type Page =
+export type Page = (
   | { kind: 'search' }
   | { kind: 'card'; key: string; card?: Card }
   | { kind: 'flow'; key: string; flow?: Flow }
   | { kind: 'map'; focus: string; graph?: Graph }
+) & { from?: 'explore' | 'changes' } // the tab it was opened from, which Back returns to
 
 export const store = reactive({
   status: null as Status | null,
-  tab: 'explore' as 'explore' | 'agent',
+  tab: 'explore' as 'explore' | 'changes',
+  report: null as Report | null,
+  reportError: '',
+  reportBusy: false,
+  stale: [] as Ref[],
   query: '',
   result: null as SearchResult | null,
   searching: false,
@@ -280,6 +329,11 @@ export async function ask(q: string) {
 
 // go opens a page: a card, a flow or a map, loading what it shows.
 export async function go(p: Page) {
+  if (store.tab === 'changes') {
+    // From the Changes tab, a page starts a new trail that Back leaves.
+    p.from = 'changes'
+    store.pages = [{ kind: 'search' }]
+  }
   store.tab = 'explore'
   store.error = ''
   store.pages.push(p)
@@ -296,11 +350,49 @@ export async function go(p: Page) {
 }
 
 export function back() {
-  if (store.pages.length > 1) store.pages.pop()
+  const top = store.pages.length > 1 ? store.pages.pop() : undefined
+  if (top?.from === 'changes' && store.pages.length === 1) store.tab = 'changes'
   store.error = ''
 }
 
+export async function loadChanges() {
+  if (!api.ide.folder) return
+  store.reportBusy = true
+  try {
+    const [rep, stale] = await Promise.all([call<Report>('changes'), call<Ref[]>('review.stale')])
+    store.report = markRaw(rep)
+    store.stale = stale
+    store.reportError = ''
+  } catch (err) {
+    store.report = null
+    store.reportError = message(err)
+  } finally {
+    store.reportBusy = false
+  }
+}
+
+// markReviewed notes that the developer looked at keys as they are now.
+export async function markReviewed(keys: string[], reviewed = true) {
+  try {
+    await call(reviewed ? 'review.mark' : 'review.unmark', { keys })
+    await loadChanges()
+  } catch (err) {
+    fail('Mentor', err)
+  }
+}
+
+// diff opens a file beside what HEAD has, in the editor's own review.
+export async function diff(path: string) {
+  await api.session.openFile(path)
+  const tab = api.ide.tabs.find((t) => t.path === path)
+  const s = api.session as unknown as { compareWithHead?: (id: string) => void }
+  if (tab && s.compareWithHead) s.compareWithHead(tab.id)
+}
+
 export function clear() {
+  store.report = null
+  store.stale = []
+  store.reportError = ''
   store.status = null
   store.result = null
   store.query = ''

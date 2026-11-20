@@ -22,6 +22,7 @@ import (
 	"bmeditor-mentor/internal/gitx"
 	"bmeditor-mentor/internal/golang"
 	"bmeditor-mentor/internal/index"
+	"bmeditor-mentor/internal/review"
 	"bmeditor-mentor/internal/search"
 	"bmeditor-mentor/internal/store"
 )
@@ -72,8 +73,9 @@ type Status struct {
 
 // Engine is one folder's index and store.
 type Engine struct {
-	Root string
-	DB   *store.DB
+	Root   string
+	DB     *store.DB
+	Review *review.Book
 
 	notify func(method string, params any)
 
@@ -119,8 +121,13 @@ func Open(root, dataDir string, set Settings, notify func(string, any)) (*Engine
 	if notify == nil {
 		notify = func(string, any) {}
 	}
+	book, err := review.Open(context.Background(), db)
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	e := &Engine{Root: root, DB: db, notify: notify, settings: set, ready: make(chan struct{}),
+	e := &Engine{Root: root, DB: db, Review: book, notify: notify, settings: set, ready: make(chan struct{}),
 		kick: make(chan bool, 1), stop: cancel, done: make(chan struct{})}
 	e.sources = e.makeSources(set)
 	e.status = Status{Root: root, State: "indexing", Languages: map[string]int{}, Errors: []string{}, Semantic: "off"}

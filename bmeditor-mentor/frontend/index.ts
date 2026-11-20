@@ -1,6 +1,6 @@
 import { watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
-import { api, call, clear, cursor, fail, go, refreshStatus, setApi, showSidebar, store, view, type Ref, type Status } from './api'
+import { api, call, clear, cursor, fail, go, loadChanges, refreshStatus, setApi, showSidebar, store, view, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import Sidebar from './Sidebar.vue'
 import './style.css'
@@ -15,7 +15,11 @@ export default function activate(a: ExtensionAPI) {
   api.on('mentor/index', (st: Status) => {
     store.status = st
     // The numbers above the code follow each read of the files.
-    if (st.state === 'ready' && lastState !== 'ready') refreshAll()
+    if (st.state === 'ready' && lastState !== 'ready') {
+      refreshAll()
+      // What changed follows the files too, while it is shown.
+      if (store.tab === 'changes' || store.report) void loadChanges()
+    }
     lastState = st.state
   })
 
@@ -45,6 +49,17 @@ export default function activate(a: ExtensionAPI) {
     commands: [
       { id: 'mentor-explain', label: 'Mentor: Explain This', icon: 'mortar-board', kbd: 'Ctrl+Alt+U', run: explainThis, when: () => !!api.ui.activeTab()?.path.endsWith('.go') },
       { id: 'mentor-ask', label: 'Mentor: Ask About the Code', icon: 'search', run: askFocus, when: () => !!api.ide.folder },
+      {
+        id: 'mentor-changes',
+        label: 'Mentor: What Changed',
+        icon: 'diff',
+        run: () => {
+          showSidebar()
+          store.tab = 'changes'
+          void loadChanges()
+        },
+        when: () => !!api.ide.folder,
+      },
       { id: 'mentor-reindex', label: 'Mentor: Read the Code Again', icon: 'refresh', run: () => call<Status>('reindex').then((s) => (store.status = s)), when: () => !!api.ide.folder },
     ],
     reset: clear,

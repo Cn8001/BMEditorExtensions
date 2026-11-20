@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"bmeditor-mentor/bmext/host"
+	"bmeditor-mentor/internal/changes"
 	"bmeditor-mentor/internal/engine"
 	"bmeditor-mentor/internal/explain"
 	"bmeditor-mentor/internal/search"
@@ -80,6 +81,15 @@ func TestMethods_OnTheFixture(t *testing.T) {
 	lens := call[[]lensItem](t, c, "lens", map[string]any{"file": card.Symbol.File})
 	if len(lens) == 0 {
 		t.Error("no lens")
+	}
+	// The fixture is committed in this repository: nothing changed.
+	rep := call[changes.Report](t, c, "changes", nil)
+	if rep.Since != "HEAD" || len(rep.Units) != 0 {
+		t.Errorf("changes = %+v", rep)
+	}
+	states := call[map[string]string](t, c, "review.mark", map[string]any{"keys": []string{auth + "Service"}})
+	if states[auth+"Service"] != "reviewed" {
+		t.Errorf("states = %v", states)
 	}
 	if _, err := c.Call(t.Context(), "card", map[string]string{"key": "nope"}); err == nil {
 		t.Error("an unknown key should fail")
