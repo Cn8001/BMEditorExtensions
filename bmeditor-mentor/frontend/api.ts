@@ -266,7 +266,7 @@ export interface AgentEvent {
 // AgentState is the checkpoints of the folder: the agent's plan, its
 // step, and what waits for the developer.
 export interface AgentState {
-  level: 'enforced' | 'cooperative' | 'observe'
+  level: 'off' | 'enforced' | 'cooperative' | 'observe'
   hooks: boolean
   mcp: boolean
   lastSeen?: string

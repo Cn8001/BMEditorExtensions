@@ -14,6 +14,8 @@ const showSetup = ref(false)
 
 const level = computed(() => {
   switch (st.value?.level) {
+    case 'off':
+      return { label: 'Mentor is off', title: 'Watch the coding agent is off in Settings: the agent works without plans or checkpoints.' }
     case 'enforced':
       return { label: 'Checkpoints hold', title: 'The agent waits at each checkpoint: its hooks hold edits until you answer here.' }
     case 'cooperative':

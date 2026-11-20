@@ -78,6 +78,7 @@ func (st *state) gateFor(root string) *agent.Gate {
 func policyOf(get func(string) string) agent.Policy {
 	p := agent.DefaultPolicy()
 	p.RequirePlan = get("requirePlan") != "false"
+	p.Off = get("watchAgent") == "false"
 	if n, err := strconv.Atoi(strings.TrimSpace(get("maxFiles"))); err == nil && n >= 0 {
 		p.MaxFiles = n
 	}
@@ -140,7 +141,7 @@ func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 	st.eng, st.gate = e, g
 	// The agent is connected by itself when the folder opens, unless the
 	// developer turned that off, or disconnected it here.
-	if s.Context().Setting("autoConnect") != "false" && e.DB.Meta(context.Background(), "disconnected") != "1" &&
+	if s.Context().Setting("watchAgent") != "false" && s.Context().Setting("autoConnect") != "false" && e.DB.Meta(context.Background(), "disconnected") != "1" &&
 		(!agent.HooksInstalled(r) || e.DB.Meta(context.Background(), "mcp") != "1") {
 		go func() { _, _ = st.connect(context.Background(), e) }()
 	}

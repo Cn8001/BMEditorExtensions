@@ -16,6 +16,13 @@
       "default": "true"
     },
     {
+      "key": "watchAgent",
+      "label": "Watch the coding agent",
+      "description": "Mentor holds the agent to its plan and stops it at each step's checkpoint. Off: Mentor lets the agent work as it would without it, and does not connect to it; the Explore and Changes tabs still work.",
+      "type": "boolean",
+      "default": "true"
+    },
+    {
       "key": "autoConnect",
       "label": "Agent: connect by itself",
       "description": "When a folder opens, add Mentor's MCP server and hooks to the agent for it, so its plan and checkpoints come here. Off: connect with Mentor: Connect the Agent.",

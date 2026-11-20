@@ -241,3 +241,18 @@ func TestGate_KeepsItsStateAcrossARestart(t *testing.T) {
 		t.Errorf("state = %+v", st)
 	}
 }
+
+func TestGate_Off(t *testing.T) {
+	p := DefaultPolicy()
+	p.Off = true
+	g, _ := setup(t, p)
+	if d := g.Hook(edit(g, "internal/auth/provider.go")); !d.Allow {
+		t.Errorf("off, an edit was held: %+v", d)
+	}
+	if text, _ := g.Tool(t.Context(), "mentor_plan", nil); !strings.Contains(text, "Mentor is off") {
+		t.Errorf("off, mentor_plan = %q", text)
+	}
+	if g.State().Level != "off" {
+		t.Errorf("level = %s", g.State().Level)
+	}
+}

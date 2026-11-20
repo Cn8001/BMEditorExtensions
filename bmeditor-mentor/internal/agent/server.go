@@ -135,7 +135,11 @@ func (g *Gate) Tool(ctx context.Context, name string, args json.RawMessage) (str
 	}
 	g.mu.Lock()
 	g.mcp = true // a tool that is called shows the server is there
+	off := g.policy.Off
 	g.mu.Unlock()
+	if off {
+		return "Mentor is off for the agent: work as the developer told you, without plans or checkpoints.", nil
+	}
 	switch name {
 	case "mentor_plan":
 		return g.Propose(a.Task, a.Steps), nil

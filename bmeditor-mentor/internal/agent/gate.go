@@ -31,6 +31,7 @@ import (
 type Policy struct {
 	RequirePlan bool `json:"requirePlan"` // changing code waits for an approved plan
 	MaxFiles    int  `json:"maxFiles"`    // files a step may change before it must end at a checkpoint; 0 for no limit
+	Off         bool `json:"off"`         // the developer turned Mentor's watch over the agent off: it lets everything through
 }
 
 // DefaultPolicy is the policy when the developer has set nothing.
@@ -180,6 +181,8 @@ func (g *Gate) state() State {
 		st.Files = append(st.Files, f)
 	}
 	switch {
+	case g.policy.Off:
+		st.Level = "off"
 	case g.hooks:
 		st.Level = "enforced"
 	case g.mcp:
@@ -235,10 +238,12 @@ func (g *Gate) Hook(call HookCall) Decision {
 	g.lastSeen = time.Now()
 	g.hooks = true // a hook that calls shows they are there
 	var d Decision
-	switch call.Event {
-	case "PreToolUse":
+	switch {
+	case g.policy.Off:
+		d = Decision{Allow: true}
+	case call.Event == "PreToolUse":
 		d = g.preToolUse(call)
-	case "Stop":
+	case call.Event == "Stop":
 		d = g.stop(call)
 	default:
 		d = Decision{Allow: true}
