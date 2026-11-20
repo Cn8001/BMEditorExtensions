@@ -100,7 +100,7 @@ function card(c: Change) {
   gap: 6px;
   padding: 6px 8px;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 13px;
 }
 .head button {
   margin-left: auto;
@@ -108,7 +108,7 @@ function card(c: Change) {
 }
 .dim {
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 13px;
 }
 .add {
   color: var(--success, #b8d27a);
@@ -123,7 +123,7 @@ function card(c: Change) {
 }
 .warn {
   margin: 0 8px 6px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--warning);
 }
 .file {
@@ -142,11 +142,12 @@ function card(c: Change) {
   white-space: nowrap;
 }
 .frow {
+  font-size: 14px;
   padding: 3px 6px 3px 8px;
 }
 .crow {
   padding: 1px 6px 1px 26px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .frow:hover,
 .crow:hover {
@@ -159,11 +160,11 @@ function card(c: Change) {
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 13px;
 }
 .nums {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 13px;
 }
 .frow button,
 .crow button {
@@ -208,7 +209,7 @@ function card(c: Change) {
   border-radius: 3px;
   background: var(--bg-hover);
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 12px;
 }
 .tag.again {
   color: var(--warning);

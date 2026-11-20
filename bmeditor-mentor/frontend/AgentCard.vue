@@ -191,7 +191,7 @@ function time(at: string) {
   align-items: center;
   gap: 5px;
   padding: 6px 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-dim);
 }
 .dot {
@@ -210,14 +210,14 @@ function time(at: string) {
 .link {
   margin-left: auto;
   color: var(--accent);
-  font-size: 12px;
+  font-size: 13px;
 }
 .link + .link {
   margin-left: 10px;
 }
 .setup {
   margin: 0 8px 6px;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-dim);
 }
@@ -242,6 +242,7 @@ function time(at: string) {
   border-color: var(--accent);
 }
 .head {
+  font-size: 14px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -254,14 +255,16 @@ function time(at: string) {
   border-radius: 8px;
   background: var(--accent-dim);
   color: var(--text);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 400;
 }
 .task {
   padding: 0 8px 4px;
+  font-size: 14px;
   line-height: 1.4;
 }
 .steps {
+  font-size: 14px;
   margin: 0;
   padding: 0 8px 4px 26px;
   line-height: 1.45;
@@ -276,6 +279,7 @@ function time(at: string) {
   font-weight: 600;
 }
 .summary {
+  font-size: 14px;
   padding: 0 10px;
   line-height: 1.5;
   color: var(--text);
@@ -299,7 +303,7 @@ function time(at: string) {
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-dim);
 }
 .tests.passed {
@@ -315,7 +319,7 @@ function time(at: string) {
   padding: 4px 6px;
   background: var(--bg);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   white-space: pre-wrap;
   user-select: text;
 }
@@ -325,9 +329,10 @@ function time(at: string) {
   gap: 3px;
   margin: 2px 6px;
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 13px;
 }
 .talk {
+  font-size: 14px;
   margin: 6px 8px 0;
   line-height: 1.45;
 }
@@ -348,14 +353,14 @@ function time(at: string) {
   color: var(--warning);
 }
 .small {
-  font-size: 11px;
+  font-size: 13px;
 }
 .pad {
   padding: 2px 10px;
 }
 .dim {
   color: var(--text-faint);
-  font-size: 11px;
+  font-size: 13px;
 }
 textarea {
   display: block;
@@ -383,7 +388,7 @@ textarea {
   border-radius: 4px;
   border: 1px solid var(--border);
   background: var(--bg);
-  font-size: 12px;
+  font-size: 13px;
 }
 .buttons button:hover:not(:disabled) {
   border-color: var(--accent);
@@ -405,7 +410,7 @@ textarea {
   display: flex;
   gap: 6px;
   padding: 1px 8px 1px 14px;
-  font-size: 11px;
+  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
 }

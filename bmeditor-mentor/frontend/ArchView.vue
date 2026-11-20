@@ -70,7 +70,7 @@ const warned = computed(() => (a.value?.edges ?? []).filter((e) => e.warn))
   flex-direction: column;
   gap: 3px;
   padding: 4px 0;
-  font-size: 11px;
+  font-size: 13px;
 }
 .row {
   display: flex;
@@ -81,7 +81,7 @@ const warned = computed(() => (a.value?.edges ?? []).filter((e) => e.warn))
   flex: none;
   width: 68px;
   text-align: right;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-faint);
@@ -109,12 +109,12 @@ const warned = computed(() => (a.value?.edges ?? []).filter((e) => e.warn))
   background: rgba(184, 210, 122, 0.1);
 }
 .n {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
 }
 .badge {
   font-family: var(--font-ui);
-  font-size: 9px;
+  font-size: 11px;
   color: var(--success, #b8d27a);
 }
 .line {
@@ -133,7 +133,7 @@ const warned = computed(() => (a.value?.edges ?? []).filter((e) => e.warn))
   background: rgba(184, 210, 122, 0.1);
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 .edge {

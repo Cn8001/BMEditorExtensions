@@ -24,7 +24,7 @@ const shown = ref(props.open ?? true)
   gap: 4px;
   width: 100%;
   padding: 6px 8px 3px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
