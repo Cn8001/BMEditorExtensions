@@ -40,6 +40,13 @@ watch(
   { immediate: true },
 )
 
+// setOn turns Mentor's hold on the agent on or off: the setting Pause the
+// agent at each step, which also connects or takes out its hooks.
+async function setOn(on: boolean) {
+  await api.saveSettings?.({ watchAgent: on ? 'true' : 'false' })
+  await agent('state')
+}
+
 async function answerPlan(approve: boolean) {
   await agent('plan', { approve, note: note.value })
   note.value = ''
@@ -65,7 +72,10 @@ function time(at: string) {
     <div class="line" :title="level.title">
       <span class="dot" :class="st?.level || 'observe'" />
       <span>Agent: {{ level.label }}</span>
-      <button v-if="st?.level !== 'enforced'" class="link" title="Connect the agent, in Mentor's settings" @click="api.ui.openSettings()">Settings</button>
+      <button v-if="st?.level !== 'enforced' && st?.level !== 'off'" class="link" title="Connect the agent, in Mentor's settings" @click="api.ui.openSettings()">Settings</button>
+      <button v-if="api.saveSettings" class="link" :title="st?.level === 'off' ? 'Pause the agent at each step again' : 'Let the agent work without Mentor: no plan, no checkpoints'" @click="setOn(st?.level === 'off')">
+        {{ st?.level === 'off' ? 'Turn on' : 'Turn off' }}
+      </button>
     </div>
     <div v-if="st?.problem" class="setup">
       <div class="warn">{{ st.problem.split('\n')[0] }}</div>
@@ -177,6 +187,9 @@ function time(at: string) {
 }
 .dot.cooperative {
   background: var(--warning);
+}
+.link + .link {
+  margin-left: 10px;
 }
 .link {
   margin-left: auto;
