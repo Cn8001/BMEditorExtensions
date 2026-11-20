@@ -439,16 +439,6 @@ func register(s *host.Server, st *state) {
 	}))
 
 	// stale are the declarations reviewed once and changed since.
-	s.Handle("review.stale", indexed(s, st, func(_ context.Context, e *engine.Engine, ix *index.Index, _ none) (any, error) {
-		out := []explain.Ref{}
-		for _, k := range e.Review.StaleKeys(ix) {
-			if sym := ix.Symbols[k]; sym != nil {
-				out = append(out, explain.RefOf(sym))
-			}
-		}
-		return out, nil
-	}))
-
 	registerAgent(s, st)
 
 	// lens is what the editor shows above each declaration of a file.

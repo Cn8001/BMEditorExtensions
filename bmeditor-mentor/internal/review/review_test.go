@@ -47,7 +47,7 @@ func TestMark_GoesStaleWhenTheCodeChanges(t *testing.T) {
 	if bk.StateOf(ix, key) != Reviewed {
 		t.Error("the old index should still say reviewed")
 	}
-	if bk.StateOf(after, key) != Stale || len(bk.StaleKeys(after)) != 1 {
+	if bk.StateOf(after, key) != Stale {
 		t.Errorf("after the change = %s", bk.StateOf(after, key))
 	}
 	again, _ := Open(t.Context(), db)

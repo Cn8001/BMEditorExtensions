@@ -5,7 +5,6 @@ package review
 
 import (
 	"context"
-	"sort"
 	"sync"
 	"time"
 
@@ -96,18 +95,4 @@ func (b *Book) Unmark(ctx context.Context, keys []string) error {
 	}
 	b.mu.Unlock()
 	return nil
-}
-
-// StaleKeys are the reviewed symbols that changed since.
-func (b *Book) StaleKeys(ix *index.Index) []string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	var out []string
-	for k := range b.marks {
-		if b.state(ix, k) == Stale {
-			out = append(out, k)
-		}
-	}
-	sort.Strings(out)
-	return out
 }

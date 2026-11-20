@@ -1,9 +1,10 @@
 import { createApp, watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
-import { agent, api, apply, call, clear, cursor, fail, loadChanges, popup, refreshStatus, reveal, setApi, show, store, view, type AgentState, type Go, type Place, type Ref, type Status } from './api'
+import { agent, api, apply, call, clear, cursor, diff, fail, loadChanges, popup, refreshStatus, reveal, setApi, show, store, view, type AgentState, type Go, type Place, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
 import { keydown, reviewAndNext, step } from './review'
 import { refreshStrips, strip } from './strip'
+import { marks, refreshAllMarks } from './marks'
 import Sidebar from './Sidebar.vue'
 import TopButton from './TopButton.vue'
 import Window from './Window.vue'
@@ -39,10 +40,23 @@ export default function activate(a: ExtensionAPI) {
     if (st.waiting && st.waiting !== was) {
       store.tab = 'changes'
       void loadChanges()
+      // At a checkpoint, the step's code opens in the editor, beside HEAD,
+      // with nothing to click: F7 goes on from there.
+      if (st.waiting === 'checkpoint' && !api.ui.inPopup) void openStep(st)
       // The main window says so; a popup only shows it.
       if (!api.ui.inPopup) api.ui.toast('info', st.waiting === 'plan' ? 'The agent waits for you to approve its plan' : `The agent waits at the checkpoint of step ${st.checkpoint?.step}`, 'Mentor in the top bar shows it.')
     }
   })
+
+  // openStep opens the first file a checkpoint's step changed beside HEAD.
+  async function openStep(st: AgentState) {
+    await loadChanges()
+    const rel = st.files.find((f) => f.endsWith('.go') && !f.endsWith('_test.go')) ?? st.files[0]
+    const file = store.report?.files.find((f) => rel && f.path.replace(/\\/g, '/').endsWith('/' + rel)) ?? store.report?.files[0]
+    if (!file) return
+    if (file.status === 'A') await api.session.openFile(file.path, file.changes[0]?.start ? { line: file.changes[0].start, col: 1 } : undefined)
+    else if (file.status !== 'D') await diff(file.path)
+  }
 
   // What the main window asks Mentor to show reaches a popup here.
   const goHere = (g: Go | null) => {
@@ -51,13 +65,24 @@ export default function activate(a: ExtensionAPI) {
     if (g.tab === 'explore' && !g.page) setTimeout(() => (document.querySelector('.mentor .q') as HTMLInputElement | null)?.focus(), 50)
   }
 
-  // The agent's state comes as a notification with each change. While the
-  // agent is connected it is also asked for every few seconds, and when the
-  // window comes back, so a notification that went astray cannot leave the
-  // panel behind.
-  const sync = () => {
-    const level = store.agent?.level
-    if (api.ide.folder && (level === 'enforced' || level === 'cooperative') && !document.hidden) void agent('state', undefined, true)
+  // The agent's state comes as a notification with each change. It is also
+  // asked for every few seconds, and when the window comes back, so a
+  // notification that went astray, as a window of its own may miss, cannot
+  // leave the view behind; when the agent did something since, what it
+  // changed is read again too.
+  let seen = ''
+  const sync = async () => {
+    if (document.hidden || store.agent?.level === 'off') return
+    const before = store.agent?.waiting
+    await agent('state', undefined, true)
+    const st = store.agent
+    if (!st) return
+    const now = `${st.events?.length ?? 0}|${st.waiting ?? ''}|${st.checkpoint?.id ?? ''}|${st.files.length}`
+    if (now !== seen) {
+      if (seen) void loadChanges()
+      seen = now
+    }
+    if (st.waiting && st.waiting !== before) store.tab = 'changes'
   }
   setInterval(sync, 3000)
   window.addEventListener('focus', sync)
@@ -125,7 +150,7 @@ export default function activate(a: ExtensionAPI) {
   createApp(Window).mount(document.body.appendChild(document.createElement('div')))
 
   api.register({
-    editor: (tab) => [lens(tab), strip(tab)],
+    editor: (tab) => [lens(tab), strip(tab), marks(tab)],
     toolbar: TopButton,
     keydown: (e) => keydown(e, explainThis),
     shortcuts: [
@@ -183,6 +208,10 @@ export default function activate(a: ExtensionAPI) {
 
   // The strips above the agent's files follow its changes, and go when
   // Mentor is off.
-  watch(() => [store.report, store.agent?.level], refreshStrips)
-  watch(() => api.ide.tabs.length, refreshStrips)
+  const repaint = () => {
+    refreshStrips()
+    refreshAllMarks()
+  }
+  watch(() => [store.report, store.agent?.level], repaint)
+  watch(() => api.ide.tabs.length, repaint)
 }

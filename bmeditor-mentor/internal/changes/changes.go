@@ -148,6 +148,9 @@ type Change struct {
 	OldShape     string `json:"oldShape,omitempty"`
 	Shape        string `json:"shape,omitempty"`
 	Review       string `json:"review,omitempty"` // unseen, reviewed or stale, filled in by the caller
+	// Start and End are the lines it spans now; none when it was removed.
+	Start int `json:"start,omitempty"`
+	End   int `json:"end,omitempty"`
 }
 
 // Diff compares the code now, as the index and the files on disk have
@@ -195,10 +198,10 @@ func Diff(ix *index.Index, base Baseline) []Change {
 		switch {
 		case !was:
 			// A file that did not change cannot have lost it, so it is new.
-			out = append(out, Change{Ref: ref, Change: "added", Shape: d.Shape})
+			out = append(out, Change{Ref: ref, Change: "added", Shape: d.Shape, Start: d.Start, End: d.End})
 		case old.Hash != d.Hash:
 			out = append(out, Change{Ref: ref, Change: "modified", ShapeChanged: old.Shape != d.Shape && (old.Shape != "" || d.Shape != ""),
-				OldShape: old.Shape, Shape: d.Shape})
+				OldShape: old.Shape, Shape: d.Shape, Start: d.Start, End: d.End})
 		}
 	}
 	for k, d := range before {

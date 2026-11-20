@@ -190,6 +190,8 @@ export interface Change extends Ref {
   oldShape?: string
   shape?: string
   review?: 'unseen' | 'reviewed' | 'stale'
+  start?: number // the lines it spans now
+  end?: number
 }
 
 export interface Unit {

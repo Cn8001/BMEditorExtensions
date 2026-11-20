@@ -31,3 +31,21 @@
   padding: 0 12px 0 6px;
   white-space: normal;
 }
+
+/* The agent's code, painted in the editor (marks.ts): added green, changed
+   amber; reviewed keeps only its edge. */
+.cm-line.mentor-agent {
+  box-shadow: inset 3px 0 0 var(--mentor-edge);
+}
+.cm-line.mentor-added {
+  --mentor-edge: rgba(184, 210, 122, 0.85);
+  background-color: rgba(184, 210, 122, 0.09);
+}
+.cm-line.mentor-modified {
+  --mentor-edge: rgba(229, 192, 123, 0.85);
+  background-color: rgba(229, 192, 123, 0.09);
+}
+.cm-line.mentor-seen {
+  --mentor-edge: rgba(162, 156, 146, 0.45);
+  background-color: transparent;
+}

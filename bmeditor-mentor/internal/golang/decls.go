@@ -18,7 +18,11 @@ type Decl struct {
 	Recv string     `json:"recv,omitempty"`
 	Kind index.Kind `json:"kind"`
 	Line int        `json:"line"`
-	Hash string     `json:"hash"`
+	// Start and End are the lines the declaration spans, its doc comment
+	// left out.
+	Start int    `json:"start,omitempty"`
+	End   int    `json:"end,omitempty"`
+	Hash  string `json:"hash"`
 	// Shape is what callers depend on: a function's parameters and
 	// results, a field's type, a type's definition head. A change to it
 	// can break code that uses the declaration.
@@ -49,7 +53,8 @@ func Decls(pkgPath string, src []byte) ([]Decl, error) {
 		if shape != nil {
 			sh = strings.Join(strings.Fields(string(text(shape))), " ")
 		}
-		out = append(out, Decl{Key: index.KeyJoin(pkgPath, recv, name), Name: name, Recv: recv, Kind: kind, Line: fset.Position(at).Line, Hash: hashOf(text(node)), Shape: sh})
+		out = append(out, Decl{Key: index.KeyJoin(pkgPath, recv, name), Name: name, Recv: recv, Kind: kind, Line: fset.Position(at).Line,
+			Start: fset.Position(node.Pos()).Line, End: fset.Position(node.End()).Line, Hash: hashOf(text(node)), Shape: sh})
 	}
 	for _, d := range f.Decls {
 		switch d := d.(type) {

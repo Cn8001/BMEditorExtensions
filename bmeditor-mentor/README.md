@@ -32,6 +32,12 @@ where it is and what uses what, without asking the agent.
   commands change (rm, mv, gofmt -w): what differs from HEAD after a
   command and did not before. Your own edits are not listed, unless you
   make them while one of the agent's commands runs.
+- **The agent's code, painted in the editor.** A declaration the agent
+  added is green, one it changed is amber, from its first line to its
+  last: open a file and see what the agent wrote, with nothing to click.
+  One you mark reviewed keeps only its edge; the paint goes when the change
+  is committed. When the agent stops at a checkpoint, the step's code
+  opens by itself in the editor, beside HEAD.
 - **Review in the code.** Above each file the agent changed, a strip
   says what it changed there, its declarations a click away, with Diff,
   Reviewed and, while the agent waits at a checkpoint, Approve. **F7** goes

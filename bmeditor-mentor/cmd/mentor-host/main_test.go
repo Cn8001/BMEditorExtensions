@@ -198,6 +198,9 @@ func TestAgentChanges_OnlyWhatTheAgentChanged(t *testing.T) {
 	if f.Added == 0 || len(f.Changes) != 1 || f.Changes[0].Name != "AddedByTheAgent" || f.Changes[0].Change != "added" {
 		t.Errorf("file = %+v", f)
 	}
+	if c := f.Changes[0]; c.Start == 0 || c.End < c.Start {
+		t.Errorf("span = %d-%d: the editor paints it", c.Start, c.End)
+	}
 	if got.Lines[0] != f.Added {
 		t.Errorf("lines = %v", got.Lines)
 	}
