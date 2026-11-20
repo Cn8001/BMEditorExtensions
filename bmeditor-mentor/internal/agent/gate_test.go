@@ -122,7 +122,7 @@ func TestGate_StepByStep(t *testing.T) {
 	}
 
 	// The checkpoint: its words beside what the code shows.
-	g.OpenCheckpoint(ctx, "", "", "Added `DiscordProvider` with `DiscordProvider.Exchange`, like `TwitchProvider`.", "Same shape as SteamProvider.")
+	g.OpenCheckpoint(ctx, "", "", "", "Added `DiscordProvider` with `DiscordProvider.Exchange`, like `TwitchProvider`.", "Same shape as SteamProvider.")
 	st := g.State()
 	if st.Waiting != "checkpoint" || st.Checkpoint.Report == nil || len(st.Checkpoint.Report.Units) == 0 {
 		t.Fatalf("checkpoint = %+v", st.Checkpoint)
@@ -144,7 +144,7 @@ func TestGate_StepByStep(t *testing.T) {
 	if g.State().Step != 1 {
 		t.Fatal("the step moved on after changes were asked")
 	}
-	g.OpenCheckpoint(ctx, "", "", "Added a test too.", "")
+	g.OpenCheckpoint(ctx, "", "", "", "Added a test too.", "")
 	keys, err := g.AnswerCheckpoint(ctx, "approve", "")
 	if err != nil || len(keys) < 3 {
 		t.Fatalf("keys = %v, %v", keys, err)
@@ -157,7 +157,7 @@ func TestGate_StepByStep(t *testing.T) {
 	if d := g.Hook(edit(g, "cmd/server/main.go")); !d.Allow {
 		t.Fatalf("step 2: %+v", d)
 	}
-	g.OpenCheckpoint(ctx, "", "", "Wired it in.", "")
+	g.OpenCheckpoint(ctx, "", "", "", "Wired it in.", "")
 	if _, err := g.AnswerCheckpoint(ctx, "skip", ""); err != nil {
 		t.Fatal(err)
 	}
@@ -413,9 +413,9 @@ func TestGate_TheStepStaysWhatItSaid(t *testing.T) {
 	}
 }
 
-// TestGate_TheCheckpointPlacesTheNewPart: the checkpoint says what was made
-// and what to know, where it fits, runs the tests of what changed, and
-// flags what the step said it would leave alone and changed.
+// TestGate_TheCheckpointPlacesTheNewPart: the checkpoint keeps what the
+// agent says it made, where it fits and what to know, runs the tests of what
+// changed, and flags what the step said it would leave alone and changed.
 func TestGate_TheCheckpointPlacesTheNewPart(t *testing.T) {
 	g, c := setup(t, DefaultPolicy())
 	ctx := t.Context()
@@ -430,21 +430,11 @@ func TestGate_TheCheckpointPlacesTheNewPart(t *testing.T) {
 	write(t, g, "internal/auth/provider.go", "\ntype DiscordProvider struct{ Repo Repository }\n\nfunc (DiscordProvider) Name() string { return \"discord\" }\n\nfunc (p DiscordProvider) Exchange(ctx context.Context, code string) (UserIdentity, error) {\n\t_, _ = p.Repo.FindIdentity(ctx, \"discord\", code)\n\treturn UserIdentity{}, nil\n}\n\nfunc (SteamProvider) Extra() {}\n")
 	c.reread(t)
 
-	g.OpenCheckpoint(ctx, "A `DiscordProvider` that signs users in with Discord.", "Providers are kept in `Service`; a new one is made in main.", "", "")
+	g.OpenCheckpoint(ctx, "A `DiscordProvider` that signs users in with Discord.", "Providers are kept in `Service`; a new one is made in main.", "Beside `SteamProvider`, called by `Service.Login`.", "", "")
 
 	cp := g.State().Checkpoint
-	if cp.Made == "" || cp.Know == "" || cp.Fit == nil {
+	if cp.Made == "" || cp.Know == "" || cp.Fits == "" {
 		t.Fatalf("checkpoint = %+v", cp)
-	}
-	var parts, below []string
-	for _, b := range cp.Fit.Parts {
-		parts = append(parts, b.Name)
-	}
-	for _, b := range cp.Fit.Below {
-		below = append(below, b.Name)
-	}
-	if len(parts) == 0 || parts[0] != "DiscordProvider" || !strings.Contains(strings.Join(below, " "), "FindIdentity") {
-		t.Errorf("fit: parts %v, below %v", parts, below)
 	}
 	if strings.Join(cp.Avoided, ",") != "SteamProvider" {
 		t.Errorf("avoided = %v", cp.Avoided)
@@ -498,5 +488,46 @@ func TestRunGoTests(t *testing.T) {
 	}
 	if run := RunGoTests(t.Context(), g.Root, nil); run.State != "none" {
 		t.Errorf("no folders: %+v", run)
+	}
+}
+
+// TestGate_TheDeveloperAsks: at the plan or a checkpoint the developer asks
+// a question; mentor_wait gives it to the agent, which answers without
+// changing anything, and what waits keeps waiting.
+func TestGate_TheDeveloperAsks(t *testing.T) {
+	g, _ := setup(t, DefaultPolicy())
+	ctx := t.Context()
+	if err := g.Ask("why?"); err == nil {
+		t.Error("a question with nothing waiting")
+	}
+	g.Propose("Tokens", []PlanStep{{Title: "Tokens"}})
+	got := make(chan string, 1)
+	go func() { got <- g.Wait(ctx, 5*time.Second) }()
+	time.Sleep(20 * time.Millisecond)
+	if err := g.Ask("Why a new TokenService rather than Service?"); err != nil {
+		t.Fatal(err)
+	}
+	if reply := <-got; !strings.Contains(reply, "Why a new TokenService") || !strings.Contains(reply, "mentor_answer") {
+		t.Fatalf("wait = %q", reply)
+	}
+	if err := g.Ask("And?"); err == nil {
+		t.Error("a second question before the first is answered")
+	}
+	if d := g.Hook(edit(g, "internal/auth/provider.go")); d.Allow {
+		t.Error("an edit while the plan waits, after a question")
+	}
+	if r := g.Answer("Service signs in; tokens are their own concern."); !strings.Contains(r, "mentor_wait") {
+		t.Fatalf("answer = %q", r)
+	}
+	st := g.State()
+	if st.Waiting != "plan" || len(st.Talk) != 1 || st.Talk[0].A == "" {
+		t.Fatalf("state = %+v", st.Talk)
+	}
+	if reply := g.Wait(ctx, 30*time.Millisecond); !strings.Contains(reply, "not answered") {
+		t.Errorf("after the answer the agent waits again: %q", reply)
+	}
+	_ = g.AnswerPlan(ctx, true, "")
+	if g.State().Talk == nil || len(g.State().Talk) != 1 {
+		t.Error("the talk of the plan should stay until the next checkpoint")
 	}
 }

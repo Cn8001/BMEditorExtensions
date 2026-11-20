@@ -11,86 +11,11 @@ import (
 	"time"
 
 	"bmeditor-mentor/internal/changes"
-	"bmeditor-mentor/internal/explain"
 	"bmeditor-mentor/internal/index"
 )
 
 // What a step is, before and after: its budget, what it said it would
-// leave alone, where what it made fits, and its tests. The developer is not
-// asked to read all the step changed, but to place the new part in their
-// map of the project.
-
-// Fit is where a step's new part sits: what calls into it, the part
-// itself, and what it relies on, each with its layer, a place in the code.
-type Fit struct {
-	Above []Box `json:"above"` // code that did not change and uses the part
-	Parts []Box `json:"parts"` // the declarations the step made or changed
-	Below []Box `json:"below"` // code that did not change and the part uses
-}
-
-// Box is one declaration in a Fit.
-type Box struct {
-	explain.Ref
-	Layer  string `json:"layer,omitempty"` // guessed from the package's path
-	Change string `json:"change,omitempty"`
-}
-
-// fitOf works out a step's Fit from what it changed.
-func fitOf(rep *changes.Report) *Fit {
-	f := &Fit{Above: []Box{}, Parts: []Box{}, Below: []Box{}}
-	if rep == nil {
-		return f
-	}
-	seen := map[string]bool{}
-	box := func(r explain.Ref, change string) Box {
-		return Box{Ref: r, Layer: explain.LayerOf(r.Pkg, r.PkgName), Change: change}
-	}
-	var parts []changes.Change
-	for _, u := range rep.Units {
-		for _, c := range u.Changes {
-			if !c.Test && c.Change != "removed" && c.Kind != string(index.KindField) {
-				parts = append(parts, c)
-			}
-		}
-	}
-	// Types first, then what was added, then the rest: the new part as it
-	// is named.
-	rank := func(c changes.Change) int {
-		r := 0
-		if c.Kind != string(index.KindStruct) && c.Kind != string(index.KindInterface) && c.Kind != string(index.KindType) {
-			r += 2
-		}
-		if c.Change != "added" {
-			r++
-		}
-		return r
-	}
-	sort.SliceStable(parts, func(i, j int) bool { return rank(parts[i]) < rank(parts[j]) })
-	for _, c := range parts {
-		if len(f.Parts) == 5 {
-			break
-		}
-		if !seen[c.Key] {
-			seen[c.Key] = true
-			f.Parts = append(f.Parts, box(c.Ref, c.Change))
-		}
-	}
-	for _, u := range rep.Units {
-		for _, r := range u.PlugsIn {
-			if !r.Test && !seen[r.Key] && len(f.Above) < 4 {
-				seen[r.Key] = true
-				f.Above = append(f.Above, box(r, ""))
-			}
-		}
-		for _, r := range u.ReliesOn {
-			if !r.Test && !seen[r.Key] && len(f.Below) < 4 {
-				seen[r.Key] = true
-				f.Below = append(f.Below, box(r, ""))
-			}
-		}
-	}
-	return f
-}
+// leave alone, and its tests.
 
 // isTestFile says whether a file is a test's: tests do not count against a
 // step's budget.

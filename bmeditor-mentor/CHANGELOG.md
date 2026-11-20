@@ -9,9 +9,12 @@ when it has a section here.
 - First version. The coding agent the editor runs works on its own, in
   steps of one behavior each, saying before each what it does, uses,
   creates and leaves alone and when it is done; a step that strays or
-  grows ends. At the end of each it stops: Mentor shows what was made,
-  where it fits in the project and what to know of it, runs its tests, and
-  the agent goes on when you approve, or makes the changes you ask for.
+  grows ends. At the end of each it stops at a milestone and tells you
+  what it made, where it sits in the architecture and what to know to
+  carry on without it, beside the project's shape with its work on it:
+  packages touched, parts added, dependencies that came or went. Mentor
+  runs the tests. Ask it a question, which it answers without changing
+  anything, or tell it what to change; then Continue.
   Its plan waits for you first. The agent's hooks make the stops hold in any permission mode,
   auto mode included. One button, Connect the agent, turns it all on or
   off: on, Mentor adds its MCP server and hooks for the folder and its dot

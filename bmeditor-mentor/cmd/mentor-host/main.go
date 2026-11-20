@@ -375,48 +375,18 @@ func register(s *host.Server, st *state) {
 	// HEAD, file by file: the files its edits touched, each with the
 	// declarations changed in it and which the developer has reviewed.
 	s.Handle("agent.changes", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, _ none) (any, error) {
-		base, files, err := changes.FromHead(ctx, ix)
+		return st.agentChanges(ctx, e, ix)
+	}))
+
+	// agent.arch is what the agent's changes did to the project's shape:
+	// the packages they touch and the new ones, the parts they add, and the
+	// dependencies between packages that came or went.
+	s.Handle("agent.arch", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, _ none) (any, error) {
+		out, err := st.agentChanges(ctx, e, ix)
 		if err != nil {
-			return nil, &host.Error{Code: "NO_GIT", Message: err.Error()}
+			return nil, err
 		}
-		rel := func(path string) string {
-			r, err := filepath.Rel(e.Root, path)
-			if err != nil {
-				return path
-			}
-			return filepath.ToSlash(r)
-		}
-		differs := map[string]bool{}
-		for _, f := range files {
-			differs[rel(f.Path)] = true
-		}
-		touched := map[string]bool{}
-		if g := st.gateOf(e); g != nil {
-			for _, f := range g.Touched(func(f string) bool { return differs[f] }) {
-				touched[f] = true
-			}
-		}
-		out := agentChanges{Head: base.Head, Files: changes.ByFile(changes.Diff(ix, base), files, func(path string) bool { return touched[rel(path)] })}
-		var keys []string
-		for _, f := range out.Files {
-			out.Lines[0] += f.Added
-			out.Lines[1] += f.Deleted
-			for _, c := range f.Changes {
-				keys = append(keys, c.Key)
-			}
-		}
-		states := e.Review.States(ix, keys)
-		for i := range out.Files {
-			for j := range out.Files[i].Changes {
-				if c := &out.Files[i].Changes[j]; c.Change != "removed" {
-					c.Review = states[c.Key]
-				}
-			}
-		}
-		if e.Status().State == "stale" {
-			out.Warning = "Files changed since the index was read; this updates when they are read again."
-		}
-		return out, nil
+		return changes.Arch(ctx, ix, out.Files), nil
 	}))
 
 	s.Handle("review.mark", indexed(s, st, func(ctx context.Context, e *engine.Engine, ix *index.Index, p struct {
@@ -506,6 +476,54 @@ func lensOf(ix *index.Index, s *index.Symbol) lensItem {
 	return lensItem{Key: s.Key, Line: s.Line, Start: s.Start, Uses: len(users), Tests: len(tests), Impls: impls}
 }
 
+// agentChanges works out what the agent changed that still differs from
+// HEAD: the files its edits touched, with their declarations' changes and
+// review marks.
+func (st *state) agentChanges(ctx context.Context, e *engine.Engine, ix *index.Index) (agentChanges, error) {
+	base, files, err := changes.FromHead(ctx, ix)
+	if err != nil {
+		return agentChanges{}, &host.Error{Code: "NO_GIT", Message: err.Error()}
+	}
+	rel := func(path string) string {
+		r, err := filepath.Rel(e.Root, path)
+		if err != nil {
+			return path
+		}
+		return filepath.ToSlash(r)
+	}
+	differs := map[string]bool{}
+	for _, f := range files {
+		differs[rel(f.Path)] = true
+	}
+	touched := map[string]bool{}
+	if g := st.gateOf(e); g != nil {
+		for _, f := range g.Touched(func(f string) bool { return differs[f] }) {
+			touched[f] = true
+		}
+	}
+	out := agentChanges{Head: base.Head, Files: changes.ByFile(changes.Diff(ix, base), files, func(path string) bool { return touched[rel(path)] })}
+	var keys []string
+	for _, f := range out.Files {
+		out.Lines[0] += f.Added
+		out.Lines[1] += f.Deleted
+		for _, c := range f.Changes {
+			keys = append(keys, c.Key)
+		}
+	}
+	states := e.Review.States(ix, keys)
+	for i := range out.Files {
+		for j := range out.Files[i].Changes {
+			if c := &out.Files[i].Changes[j]; c.Change != "removed" {
+				c.Review = states[c.Key]
+			}
+		}
+	}
+	if e.Status().State == "stale" {
+		out.Warning = "Files changed since the index was read; this updates when they are read again."
+	}
+	return out, nil
+}
+
 // agentChanges is the answer of agent.changes.
 type agentChanges struct {
 	Head    gitx.Head             `json:"head"`
@@ -562,6 +580,11 @@ func registerAgent(s *host.Server, st *state) {
 			}
 		}
 		return err
+	}))
+	// agent.ask puts the developer's question about the plan or the
+	// checkpoint to the agent, which answers it without changing anything.
+	s.Handle("agent.ask", gated(func(_ context.Context, _ *engine.Engine, g *agent.Gate, a answer) error {
+		return g.Ask(a.Note)
 	}))
 	s.Handle("agent.end", gated(func(_ context.Context, _ *engine.Engine, g *agent.Gate, _ answer) error {
 		g.EndPlan()

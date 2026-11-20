@@ -12,16 +12,16 @@ where it is and what uses what, without asking the agent.
   The plan waits for you. Then the agent works on its own, and keeps to
   what it said: an edit where it said it would not go, or a step grown
   well past the files it named, ends the step.
-- **A checkpoint places the new part, it does not ask you to read it
-  all.** At the end of each step the agent stops, and Mentor shows three
-  things: what was made, in a sentence; where it fits, as boxes of the
-  code that calls it and the code it uses, each with its layer and a click
-  from the code; and the one thing you need to know of it. Mentor runs the
-  tests of what changed itself and says whether they pass. All that
-  changed is one click further. Approve, and the agent goes on; ask for
-  changes, and it makes them within the step. The agent's hooks make the
-  stops hold in any permission mode, and it cannot end its turn with a
-  step that has no checkpoint.
+- **A milestone tells you what was done, and shows the whole.** At the
+  end of each step the agent stops and tells you, in its words, what it
+  made, where it sits in the architecture, and what you need to know to
+  carry on without it. Beside that, the project's shape: every package by
+  layer, the ones it touched lit, what it added, and the dependencies it
+  added or took away, the ones that cut across the layers said so. Mentor
+  runs the tests itself. At the plan and at a milestone you can ask the
+  agent a question, which it answers without changing anything, or tell it
+  what to change; then Continue. The code is one click further, when you
+  want it. The agent's hooks make the stops hold in any permission mode.
 - **What the agent changed.** Below the checkpoints, the Changes tab
   lists the files the agent edited that still differ from HEAD, each with
   the declarations added, changed and removed in it. A file opens beside

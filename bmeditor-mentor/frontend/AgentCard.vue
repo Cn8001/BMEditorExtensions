@@ -1,79 +1,69 @@
 <script setup lang="ts">
-import { computed, markRaw, ref, watch } from 'vue'
-import { agent, api, call, go, icons, name, store, type SearchResult } from './api'
-import FitMap from './FitMap.vue'
+import { computed, ref } from 'vue'
+import { agent, api, store } from './api'
+import ArchView from './ArchView.vue'
 import Section from './Section.vue'
 import UnitCard from './UnitCard.vue'
 
-// The coding agent's plan and checkpoints, at the top of the Changes tab. The
-// agent works on its own; at the end of each step it waits here, and the
-// developer sees what the step did before letting it go on.
+// The agent's plan and milestones, at the top of the Changes tab. It is
+// simple on purpose: the agent proposes its plan, you approve it; it works
+// on its own to the end of a step, a milestone, and tells you what it did
+// and where that sits in the project; you go on. At the plan and at a
+// milestone you can ask it a question, which it answers without changing
+// anything, or tell it what to change. The code is a click away, when you
+// want it.
 const st = computed(() => store.agent)
-const note = ref('')
-const related = ref<SearchResult | null>(null)
+const cp = computed(() => st.value?.checkpoint)
+const text = ref('')
+const busy = ref(false)
+const details = ref(false)
+const output = ref(false)
 
 const level = computed(() => {
   switch (st.value?.level) {
     case 'off':
-      return { label: 'Mentor is off', title: 'Connect the agent is off: the agent works without plans or checkpoints.' }
+      return { label: 'Mentor is off', title: 'Connect the agent is off: the agent works without plans or milestones.' }
     case 'enforced':
-      return { label: 'Checkpoints hold', title: 'The agent waits at each checkpoint: its hooks hold edits until you answer here.' }
+      return { label: 'Connected', title: 'The agent stops at each milestone and waits for you.' }
     case 'cooperative':
-      return { label: 'Checkpoints, not held', title: 'The agent has the tools but not the hooks: it can go on without waiting.' }
+      return { label: 'Connected without its hooks', title: 'The agent has the tools but not the hooks: it can go on without waiting.' }
   }
   return { label: 'Not connected', title: 'Connecting the agent did not work: Mentor shows what changed, and does not pause anything.' }
 })
 
-const details = ref(false)
-const output = ref(false)
-const cp = computed(() => st.value?.checkpoint)
+const step = computed(() => (st.value?.plan && st.value.step ? st.value.plan.steps[st.value.step - 1] : null))
+const talk = computed(() => st.value?.talk ?? [])
+const asking = computed(() => talk.value.length > 0 && !talk.value[talk.value.length - 1].a)
 
-// list writes a step's names as the agent gave them.
 function list(xs: string[] | null | undefined) {
   return (xs ?? []).join(', ')
 }
 
-const step = computed(() => (st.value?.plan && st.value.step ? st.value.plan.steps[st.value.step - 1] : null))
-
-// Preflight: what the code already has for the task, before any change.
-watch(
-  () => (st.value?.waiting === 'plan' ? st.value.plan?.task : ''),
-  async (task) => {
-    related.value = null
-    if (!task) return
-    try {
-      related.value = markRaw(await call<SearchResult>('search', { q: task, limit: 6 }))
-    } catch {
-      related.value = null
-    }
-  },
-  { immediate: true },
-)
-
-// setOn turns Mentor's hold on the agent on or off: the setting Pause the
-// agent at each step, which also connects or takes out its hooks.
+// setOn turns Mentor's hold on the agent on or off: the setting Connect the
+// agent, which also adds or takes out its hooks.
 async function setOn(on: boolean) {
   await api.saveSettings?.({ watchAgent: on ? 'true' : 'false' })
   await agent('state')
 }
 
-async function answerPlan(approve: boolean) {
-  await agent('plan', { approve, note: note.value })
-  note.value = ''
+async function act(fn: () => Promise<void>) {
+  busy.value = true
+  try {
+    await fn()
+    text.value = ''
+  } finally {
+    busy.value = false
+  }
 }
 
-async function answerCheckpoint(answer: 'approve' | 'changes' | 'skip') {
-  await agent('checkpoint', { answer, note: note.value })
-  note.value = ''
-}
-
-function touches(s: { files: string[]; packages: string[] }) {
-  return [...s.files, ...s.packages].join(', ')
-}
+const go = () =>
+  act(() => (st.value?.waiting === 'plan' ? agent('plan', { approve: true, note: '' }) : agent('checkpoint', { answer: 'approve', note: '' })))
+const ask = () => act(() => agent('ask', { note: text.value }))
+const change = () =>
+  act(() => (st.value?.waiting === 'plan' ? agent('plan', { approve: false, note: text.value }) : agent('checkpoint', { answer: 'changes', note: text.value })))
 
 function time(at: string) {
-  const d = new Date(at)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
@@ -83,7 +73,7 @@ function time(at: string) {
       <span class="dot" :class="st?.level || 'observe'" />
       <span>Agent: {{ level.label }}</span>
       <button v-if="st?.level !== 'enforced' && st?.level !== 'off'" class="link" title="Mentor's settings" @click="api.ui.openSettings()">Settings</button>
-      <button v-if="api.saveSettings" class="link" :title="st?.level === 'off' ? 'Connect the agent again: it stops after each step' : 'Let the agent work without Mentor: no plan, no checkpoints'" @click="setOn(st?.level === 'off')">
+      <button v-if="api.saveSettings" class="link" :title="st?.level === 'off' ? 'Connect the agent again' : 'Let the agent work without Mentor'" @click="setOn(st?.level === 'off')">
         {{ st?.level === 'off' ? 'Turn on' : 'Turn off' }}
       </button>
     </div>
@@ -92,100 +82,88 @@ function time(at: string) {
       <code v-for="cmd in st.problem.split('\n').slice(1)" :key="cmd" class="cmd">{{ cmd }}</code>
     </div>
 
-    <!-- The plan waits. -->
-    <div v-if="st?.waiting === 'plan' && st.plan" class="card wait">
-      <div class="head"><i class="codicon codicon-checklist" /> The agent's plan <span class="badge">waits for you</span></div>
-      <div class="task">{{ st.plan.task }}</div>
-      <ol class="steps">
-        <li v-for="s in st.plan.steps" :key="s.n">
-          <div class="stitle">{{ s.title }}</div>
-          <dl class="said5">
-            <template v-if="s.does"><dt>Does</dt><dd>{{ s.does }}</dd></template>
-            <template v-if="s.uses?.length"><dt>Uses</dt><dd>{{ list(s.uses) }}</dd></template>
-            <template v-if="s.creates?.length"><dt>Creates</dt><dd>{{ list(s.creates) }}</dd></template>
-            <template v-if="s.avoid?.length"><dt>Leaves alone</dt><dd>{{ list(s.avoid) }}</dd></template>
-            <template v-if="s.doneWhen"><dt>Done when</dt><dd>{{ s.doneWhen }}</dd></template>
-            <template v-if="touches(s)"><dt>Files</dt><dd>{{ touches(s) }} <span class="dim">· about {{ s.budget }} besides tests</span></dd></template>
-          </dl>
-          <div v-if="s.why" class="dim">{{ s.why }}</div>
-          <div v-if="s.unknown?.length" class="warn"><i class="codicon codicon-warning" /> Uses {{ list(s.unknown) }}, which the code does not have.</div>
-          <div v-if="s.exists?.length" class="warn"><i class="codicon codicon-warning" /> Creates {{ list(s.exists) }}, which the code already has.</div>
-        </li>
-      </ol>
-      <Section v-if="related" title="What the code has for it" :count="related.candidates.length">
-        <div v-for="c in related.candidates" :key="c.key" class="rel" @click="go({ kind: 'card', key: c.key })">
-          <i :class="['codicon', 'codicon-' + (icons[c.kind] || 'symbol-misc')]" />
-          <span>{{ name(c) }}</span>
-          <span class="dim">{{ c.pkgName }} · {{ c.responsibility }}</span>
-        </div>
-      </Section>
-      <textarea v-model="note" rows="2" placeholder="A note for the agent (optional)" />
-      <div class="buttons">
-        <button class="primary" @click="answerPlan(true)"><i class="codicon codicon-check" /> Approve</button>
-        <button @click="answerPlan(false)">Ask for changes</button>
-      </div>
-    </div>
-
-    <!-- A checkpoint waits. -->
-    <div v-else-if="st?.waiting === 'checkpoint' && st.checkpoint" class="card wait">
-      <div class="head">
-        <i class="codicon codicon-debug-pause" /> Step {{ st.checkpoint.step }}<template v-if="step">: {{ step.title }}</template>
-        <span class="badge">waits for you</span>
-      </div>
-      <div class="gate">
-        <div class="q">1. What was made</div>
-        <div class="text">{{ st.checkpoint.made || st.checkpoint.summary }}</div>
-        <div class="q">2. Where it fits</div>
-        <FitMap v-if="st.checkpoint.fit" :fit="st.checkpoint.fit" />
-        <div v-else class="dim">Reading the changes…</div>
-        <template v-if="st.checkpoint.know">
-          <div class="q">3. What you need to know</div>
-          <div class="text know">{{ st.checkpoint.know }}</div>
-        </template>
-        <div v-if="cp?.tests" class="tests" :class="cp.tests.state">
-          <template v-if="cp.tests.state === 'running'"><i class="codicon codicon-loading codicon-modifier-spin" /> Running the tests of {{ cp.tests.packages.join(', ') }}…</template>
-          <template v-else-if="cp.tests.state === 'passed'"><i class="codicon codicon-pass" /> Tests passed · {{ cp.tests.packages.join(', ') }}</template>
-          <template v-else-if="cp.tests.state === 'failed'">
-            <i class="codicon codicon-error" /> Tests failed<template v-if="cp.tests.failed.length">: {{ cp.tests.failed.join(', ') }}</template>
-            <button class="link" @click="output = !output">{{ output ? 'Hide' : 'Show' }} output</button>
-          </template>
-          <template v-else><i class="codicon codicon-circle-slash" /> No Go tests for what changed</template>
-        </div>
-        <pre v-if="output && cp?.tests?.output" class="out">{{ cp.tests.output }}</pre>
-        <div v-if="st.checkpoint.avoided?.length" class="warn">
-          <i class="codicon codicon-warning" /> It changed {{ list(st.checkpoint.avoided) }}, which it said it would leave alone.
-        </div>
-        <div v-if="st.checkpoint.unknown.length" class="warn">
-          <i class="codicon codicon-warning" /> It names {{ st.checkpoint.unknown.join(', ') }}, which the code does not have.
-        </div>
-      </div>
-      <button class="more" @click="details = !details">
-        <i class="codicon" :class="details ? 'codicon-chevron-down' : 'codicon-chevron-right'" /> All it changed<template v-if="st.checkpoint.report"> · {{ st.checkpoint.report.units.reduce((n, u) => n + u.changes.length, 0) }} declarations</template>
-      </button>
-      <template v-if="details">
-        <div v-if="st.checkpoint.summary && st.checkpoint.made" class="text pad">{{ st.checkpoint.summary }}</div>
-        <div v-if="st.checkpoint.why" class="text pad dim">Why: {{ st.checkpoint.why }}</div>
-        <div v-if="!st.checkpoint.report" class="dim pad">Reading the changes…</div>
-        <UnitCard v-for="u in st.checkpoint.report?.units" :key="u.id" :u="u" no-review />
+    <div v-if="st?.waiting && (st.plan || cp)" class="card wait">
+      <!-- The plan. -->
+      <template v-if="st.waiting === 'plan' && st.plan">
+        <div class="head">The agent's plan <span class="badge">waits for you</span></div>
+        <div class="task">{{ st.plan.task }}</div>
+        <ol class="steps">
+          <li v-for="s in st.plan.steps" :key="s.n">
+            <b>{{ s.title }}</b><template v-if="s.does"> — {{ s.does }}</template>
+            <div v-if="s.avoid?.length || s.doneWhen" class="dim">
+              <template v-if="s.avoid?.length">Leaves alone {{ list(s.avoid) }}. </template>
+              <template v-if="s.doneWhen">Done when {{ s.doneWhen }}</template>
+            </div>
+            <div v-if="s.unknown?.length || s.exists?.length" class="warn small">
+              <template v-if="s.unknown?.length">The code has no {{ list(s.unknown) }}. </template>
+              <template v-if="s.exists?.length">The code already has {{ list(s.exists) }}.</template>
+            </div>
+          </li>
+        </ol>
       </template>
-      <textarea v-model="note" rows="2" placeholder="What to change, or a note for the agent" />
-      <div class="buttons">
-        <button class="primary" title="Mark it reviewed and let the agent go on" @click="answerCheckpoint('approve')">
-          <i class="codicon codicon-debug-continue" /> Approve and go on
+
+      <!-- A milestone: what the agent did, and the project's shape now. -->
+      <template v-else-if="cp">
+        <div class="head">
+          Milestone<template v-if="st.plan"> {{ cp.step }}/{{ st.plan.steps.length }}</template><template v-if="step">: {{ step.title }}</template>
+          <span class="badge">waits for you</span>
+        </div>
+        <div class="summary">
+          <p>{{ cp.made || cp.summary }}</p>
+          <p v-if="cp.fits">{{ cp.fits }}</p>
+          <p v-if="cp.know" class="know"><span class="dim">To carry on without the agent:</span> {{ cp.know }}</p>
+        </div>
+        <div class="shape">
+          <div class="dim">The project's shape, with the agent's work so far</div>
+          <ArchView compact />
+        </div>
+        <div v-if="cp.tests" class="tests" :class="cp.tests.state">
+          <template v-if="cp.tests.state === 'running'"><i class="codicon codicon-loading codicon-modifier-spin" /> Running its tests…</template>
+          <template v-else-if="cp.tests.state === 'passed'"><i class="codicon codicon-pass" /> Tests pass</template>
+          <template v-else-if="cp.tests.state === 'failed'">
+            <i class="codicon codicon-error" /> Tests fail<template v-if="cp.tests.failed.length">: {{ cp.tests.failed.join(', ') }}</template>
+            <button class="link" @click="output = !output">{{ output ? 'Hide' : 'Why' }}</button>
+          </template>
+          <template v-else><i class="codicon codicon-circle-slash" /> No tests for what changed</template>
+        </div>
+        <pre v-if="output && cp.tests?.output" class="out">{{ cp.tests.output }}</pre>
+        <div v-if="cp.avoided?.length || cp.unknown.length" class="warn small pad">
+          <template v-if="cp.avoided?.length">It changed {{ list(cp.avoided) }}, which it said it would leave alone. </template>
+          <template v-if="cp.unknown.length">It names {{ cp.unknown.join(', ') }}, which the code does not have.</template>
+        </div>
+        <button class="more" @click="details = !details">
+          <i class="codicon" :class="details ? 'codicon-chevron-down' : 'codicon-chevron-right'" /> The code it changed
         </button>
-        <button title="The agent stays on this step and makes the changes in your note" @click="answerCheckpoint('changes')">Ask for changes</button>
-        <button class="quiet" title="Go on without reviewing it" @click="answerCheckpoint('skip')">Skip</button>
+        <template v-if="details">
+          <UnitCard v-for="u in cp.report?.units" :key="u.id" :u="u" no-review />
+          <div v-if="!cp.report" class="dim pad">Reading the changes…</div>
+        </template>
+      </template>
+
+      <!-- Questions and answers. -->
+      <div v-for="(t, i) in talk" :key="i" class="talk">
+        <div class="q"><i class="codicon codicon-comment" /> {{ t.q }}</div>
+        <div v-if="t.a" class="a">{{ t.a }}</div>
+        <div v-else class="a dim"><i class="codicon codicon-loading codicon-modifier-spin" /> The agent is answering…</div>
+      </div>
+
+      <textarea v-model="text" rows="2" placeholder="Ask about it, or say what to change" @keydown.ctrl.enter="text.trim() && !asking && ask()" />
+      <div class="buttons">
+        <button class="primary" :disabled="busy || asking" @click="go">
+          <i class="codicon" :class="st.waiting === 'plan' ? 'codicon-check' : 'codicon-debug-continue'" /> {{ st.waiting === 'plan' ? 'Approve' : 'Continue' }}
+        </button>
+        <button :disabled="busy || asking || !text.trim()" title="The agent answers, and changes nothing (Ctrl+Enter)" @click="ask">Ask</button>
+        <button :disabled="busy || asking || !text.trim()" title="The agent makes the change, then stops here again" @click="change">Change it</button>
       </div>
     </div>
 
     <!-- A plan under way. -->
     <div v-else-if="st?.plan && st.plan.status === 'approved'" class="card">
-      <div class="head"><i class="codicon codicon-checklist" /> {{ st.plan.task }}</div>
+      <div class="head">{{ st.plan.task }}</div>
       <ol class="steps">
         <li v-for="s in st.plan.steps" :key="s.n" :class="s.status">
           <i :class="['codicon', s.status === 'done' ? 'codicon-pass' : s.status === 'doing' ? 'codicon-play-circle' : 'codicon-circle-large']" />
           {{ s.title }}
-          <span v-if="s.status === 'doing' && st.files.length" class="dim">· {{ st.files.length }} file{{ st.files.length === 1 ? '' : 's' }} so far</span>
         </li>
       </ol>
       <div class="buttons"><button class="quiet" @click="agent('end')">End the plan</button></div>
@@ -228,82 +206,13 @@ function time(at: string) {
 .dot.cooperative {
   background: var(--warning);
 }
-.link + .link {
-  margin-left: 10px;
-}
-.stitle {
-  color: var(--text);
-}
-.said5 {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 1px 8px;
-  margin: 2px 0;
-  font-size: 11px;
-}
-.said5 dt {
-  color: var(--text-faint);
-}
-.said5 dd {
-  margin: 0;
-  color: var(--text-dim);
-}
-.gate {
-  padding: 2px 10px 6px;
-}
-.gate .q {
-  margin: 8px 0 2px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-}
-.gate .text {
-  line-height: 1.45;
-  color: var(--text);
-}
-.gate .know {
-  padding-left: 8px;
-  border-left: 2px solid var(--accent);
-}
-.tests {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-.tests.passed {
-  color: var(--success, #b8d27a);
-}
-.tests.failed {
-  color: var(--error);
-}
-.out {
-  max-height: 180px;
-  overflow: auto;
-  margin: 4px 0;
-  padding: 4px 6px;
-  background: var(--bg);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  white-space: pre-wrap;
-  user-select: text;
-}
-.more {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  margin: 2px 6px;
-  color: var(--text-dim);
-  font-size: 11px;
-}
 .link {
   margin-left: auto;
   color: var(--accent);
   font-size: 12px;
+}
+.link + .link {
+  margin-left: 10px;
 }
 .setup {
   margin: 0 8px 6px;
@@ -357,7 +266,7 @@ function time(at: string) {
   line-height: 1.45;
 }
 .steps li {
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 .steps li.done {
   color: var(--text-faint);
@@ -365,54 +274,92 @@ function time(at: string) {
 .steps li.doing {
   font-weight: 600;
 }
-.said {
-  margin: 0 8px 6px;
-  padding: 5px 7px;
-  border-left: 2px solid var(--border-strong);
+.summary {
+  padding: 0 10px;
+  line-height: 1.5;
+  color: var(--text);
 }
-.who {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
+.summary p {
+  margin: 0 0 6px;
+  white-space: pre-wrap;
 }
-.who.pad,
-.dim.pad {
-  padding: 2px 8px;
+.summary .know {
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
 }
-.text {
-  margin-bottom: 4px;
+.shape {
+  margin: 4px 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.tests {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.tests.passed {
+  color: var(--success, #b8d27a);
+}
+.tests.failed {
+  color: var(--error);
+}
+.out {
+  max-height: 180px;
+  overflow: auto;
+  margin: 4px 8px;
+  padding: 4px 6px;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  user-select: text;
+}
+.more {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin: 2px 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.talk {
+  margin: 6px 8px 0;
   line-height: 1.45;
+}
+.talk .q {
+  color: var(--text);
+}
+.talk .q .codicon {
+  color: var(--accent);
+}
+.talk .a {
+  margin: 2px 0 0 18px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-dim);
   white-space: pre-wrap;
 }
 .warn {
   color: var(--warning);
-  font-size: 12px;
+}
+.small {
+  font-size: 11px;
+}
+.pad {
+  padding: 2px 10px;
 }
 .dim {
   color: var(--text-faint);
   font-size: 11px;
 }
-.rel {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px 2px 14px;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.rel:hover {
-  background: var(--bg-hover);
-}
-.rel .dim {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 textarea {
   display: block;
   width: calc(100% - 16px);
-  margin: 6px 8px 4px;
+  margin: 8px 8px 4px;
   padding: 4px 6px;
   border: 1px solid var(--border-strong);
   border-radius: 4px;
@@ -437,8 +384,11 @@ textarea {
   background: var(--bg);
   font-size: 12px;
 }
-.buttons button:hover {
+.buttons button:hover:not(:disabled) {
   border-color: var(--accent);
+}
+.buttons button:disabled {
+  opacity: 0.5;
 }
 .buttons .primary {
   border-color: var(--accent);
@@ -452,10 +402,11 @@ textarea {
 }
 .event {
   display: flex;
-  gap: 5px;
+  gap: 6px;
   padding: 1px 8px 1px 14px;
   font-size: 11px;
   white-space: nowrap;
+  overflow: hidden;
 }
 .event .t {
   color: var(--text-faint);
@@ -468,7 +419,6 @@ textarea {
   text-overflow: ellipsis;
 }
 .event.held .res {
-  margin-left: auto;
   color: var(--warning);
 }
 </style>

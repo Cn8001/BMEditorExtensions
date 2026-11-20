@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"bmeditor-mentor/bmext/host"
@@ -204,6 +205,29 @@ func TestAgentChanges_OnlyWhatTheAgentChanged(t *testing.T) {
 	if got.Lines[0] != f.Added {
 		t.Errorf("lines = %v", got.Lines)
 	}
+
+	// What it did to the shape: a new part, and a dependency that goes up
+	// the layers.
+	extra := filepath.Join(folder, "internal", "store", "cache.go")
+	g.Hook(agent.HookCall{Event: "PreToolUse", Tool: "Write", Input: map[string]any{"file_path": extra}})
+	if err := os.WriteFile(extra, []byte("package store\n\nimport _ \"example.com/authsvc/internal/api\"\n\n// Cache keeps answers.\ntype Cache struct{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = call[engine.Status](t, c, "reindex", nil)
+	arch := call[changes.ArchChange](t, c, "agent.arch", nil)
+	var parts, edges []string
+	for _, p := range arch.Packages {
+		for _, r := range p.Parts {
+			parts = append(parts, p.Name+"."+r.Name)
+		}
+	}
+	for _, e := range arch.Edges {
+		edges = append(edges, e.FromName+"→"+e.ToName+":"+e.Warn)
+	}
+	if !strings.Contains(strings.Join(parts, " "), "store.Cache") || !strings.Contains(strings.Join(edges, " "), "store→api:Repository now depends on API") {
+		t.Errorf("arch: parts %v, edges %v", parts, edges)
+	}
+	_ = os.Remove(extra)
 
 	// A file the agent removes with a shell command is the agent's too.
 	gone := filepath.Join(folder, "internal", "auth", "session.go")

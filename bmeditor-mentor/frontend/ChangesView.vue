@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { api, diff, go, icons, loadChanges, markReviewed, name, openAt, rel, store, type AgentFile, type Change } from './api'
 import AgentCard from './AgentCard.vue'
+import ArchView from './ArchView.vue'
 
 // What the agent changed that still differs from HEAD, file by file, flat:
 // a file opens beside HEAD, a declaration opens where it is. The check
@@ -47,6 +48,10 @@ function card(c: Change) {
 <template>
   <div class="changes">
     <AgentCard />
+    <div v-if="store.arch?.packages.length && store.agent?.waiting !== 'checkpoint'" class="shape">
+      <div class="head"><span>The project's shape, with the agent's work</span></div>
+      <ArchView />
+    </div>
     <div class="head">
       <span>Agent's changes</span>
       <span v-if="r?.files.length" class="dim">
@@ -85,6 +90,10 @@ function card(c: Change) {
 </template>
 
 <style scoped>
+.shape {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
 .changes {
   padding-bottom: 12px;
 }

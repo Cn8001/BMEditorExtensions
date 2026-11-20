@@ -310,6 +310,38 @@ export interface TaskAnswer {
   note?: string
 }
 
+// ArchChange is what the agent's changes did to the project's shape
+// (internal/changes/arch.go): the packages they touch, the parts they add,
+// and the dependencies between packages that came or went.
+export interface PkgChange {
+  path: string
+  name: string
+  layer?: string
+  new?: boolean
+  added: number
+  modified: number
+  removed: number
+  parts: Ref[]
+}
+
+export interface EdgeChange {
+  from: string
+  to: string
+  fromName: string
+  toName: string
+  fromLayer?: string
+  toLayer?: string
+  added: boolean
+  warn?: string
+  file?: string
+  line?: number
+}
+
+export interface ArchChange {
+  packages: PkgChange[]
+  edges: EdgeChange[]
+}
+
 export interface AgentStep {
   n: number
   title: string
@@ -355,6 +387,7 @@ export interface Checkpoint {
   step: number
   made?: string
   know?: string
+  fits?: string // where it sits in the architecture, as the agent tells it
   fit: { above: FitBox[]; parts: FitBox[]; below: FitBox[] } | null
   tests: TestRun | null
   avoided: string[] | null
@@ -389,6 +422,7 @@ export interface AgentState {
   events: AgentEvent[] | null
   policy: { requirePlan: boolean; maxFiles: number }
   problem?: string // why connecting the agent did not work; then the commands to run by hand, a line each
+  talk?: { q: string; a?: string; at: string }[] // the developer's questions about what waits, and the agent's answers
 }
 
 // Mentor's three tabs: the project's architecture, its features (and what
@@ -409,6 +443,8 @@ export const store = reactive({
   status: null as Status | null,
   tab: 'explore' as Tab,
   report: null as AgentChanges | null,
+  arch: null as ArchChange | null, // what the agent's changes did to the project's shape
+  shape: null as Graph | null, // the project's packages, by layer
   reportError: '',
   reportBusy: false,
   agent: null as AgentState | null,
@@ -599,7 +635,14 @@ export async function loadChanges() {
   if (!api.ide.folder) return
   store.reportBusy = true
   try {
-    store.report = markRaw(await call<AgentChanges>('agent.changes'))
+    const [rep, arch, shape] = await Promise.all([
+      call<AgentChanges>('agent.changes'),
+      call<ArchChange>('agent.arch').catch(() => null),
+      store.shape ? Promise.resolve(store.shape) : call<Graph>('arch', { focus: '' }).catch(() => null),
+    ])
+    store.report = markRaw(rep)
+    store.arch = arch ? markRaw(arch) : null
+    store.shape = shape ? markRaw(shape) : null
     store.reportError = ''
   } catch (err) {
     store.report = null
@@ -639,6 +682,8 @@ export async function diff(path: string) {
 export function clear() {
   store.agent = null
   store.report = null
+  store.arch = null
+  store.shape = null
   store.reportError = ''
   store.status = null
   store.result = null

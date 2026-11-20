@@ -84,11 +84,11 @@ type Checkpoint struct {
 	Step    int    `json:"step"`
 	Made    string `json:"made,omitempty"` // what was made, in a sentence
 	Know    string `json:"know,omitempty"` // what the developer needs to know of it
+	Fits    string `json:"fits,omitempty"` // where it sits in the architecture, as the agent tells it
 	Summary string `json:"summary"`
 	Why     string `json:"why,omitempty"`
 	// Unknown are names the agent used that the code does not have.
 	Unknown []string        `json:"unknown"`
-	Fit     *Fit            `json:"fit"`
 	Tests   *TestRun        `json:"tests"`
 	Avoided []string        `json:"avoided"` // what the step said it would leave alone and changed
 	Report  *changes.Report `json:"report"`
@@ -124,6 +124,9 @@ type State struct {
 	Files      []string    `json:"files"`             // what the step changed so far
 	Events     []Event     `json:"events"`
 	Policy     Policy      `json:"policy"`
+	// Talk is the developer's questions about what waits, the plan or the
+	// checkpoint, and the agent's answers.
+	Talk []Talk `json:"talk"`
 }
 
 // Code is what the gate needs of the index.
@@ -153,6 +156,7 @@ type Gate struct {
 	before   map[string]map[string]string // by tool use: the files that differed from HEAD before a command ran
 	events   []Event
 	reply    string        // the developer's last answer, as the agent reads it
+	talk     []Talk        // questions and answers about what waits now
 	changed  chan struct{} // closed and replaced on every change, for Wait
 
 	// Persist keeps the gate's state, so a plan under way outlives a
@@ -218,7 +222,7 @@ func (g *Gate) State() State {
 
 func (g *Gate) state() State {
 	st := State{Hooks: g.hooks, MCP: g.mcp, Problem: g.problem, LastSeen: g.lastSeen, Plan: g.plan, Step: g.step, Checkpoint: g.cp,
-		Files: []string{}, Events: append([]Event{}, g.events...), Policy: g.policy}
+		Files: []string{}, Events: append([]Event{}, g.events...), Policy: g.policy, Talk: append([]Talk{}, g.talk...)}
 	for f := range g.files {
 		st.Files = append(st.Files, f)
 	}
@@ -566,7 +570,7 @@ func (g *Gate) Propose(task string, steps []PlanStep) string {
 		st.Budget = budgetOf(st)
 		p.Steps = append(p.Steps, st)
 	}
-	g.plan, g.step, g.cp, g.reply = p, 0, nil, ""
+	g.plan, g.step, g.cp, g.reply, g.talk = p, 0, nil, "", nil
 	g.files = map[string]bool{}
 	g.log("mentor_plan", task, "done", "")
 	g.mu.Unlock()
@@ -596,7 +600,7 @@ func clean(list []string) []string {
 
 // OpenCheckpoint ends the step: what the agent says it did and why, beside
 // what the code shows changed since the step began.
-func (g *Gate) OpenCheckpoint(ctx context.Context, made, know, summary, why string) string {
+func (g *Gate) OpenCheckpoint(ctx context.Context, made, know, fits, summary, why string) string {
 	g.mu.Lock()
 	if g.currentStep() == nil {
 		g.mu.Unlock()
@@ -613,9 +617,10 @@ func (g *Gate) OpenCheckpoint(ctx context.Context, made, know, summary, why stri
 		g.mu.Unlock()
 		return "Say what the step made, in a sentence (made), and what the developer needs to know of it (know)."
 	}
-	g.cp = &Checkpoint{ID: g.nextID, Step: g.step, Made: strings.TrimSpace(made), Know: strings.TrimSpace(know), Summary: summary, Why: why,
+	g.cp = &Checkpoint{ID: g.nextID, Step: g.step, Made: strings.TrimSpace(made), Know: strings.TrimSpace(know), Fits: strings.TrimSpace(fits), Summary: summary, Why: why,
 		Status: "waiting", Unknown: []string{}, Avoided: []string{}, Created: time.Now()}
 	g.reply = ""
+	g.talk = nil
 	g.log("mentor_checkpoint", fmt.Sprintf("step %d", g.step), "done", "")
 	id := g.cp.ID
 	g.mu.Unlock()
@@ -635,8 +640,7 @@ func (g *Gate) Refresh(ctx context.Context) {
 	}
 	rep := changes.Build(ix, *base, changes.Diff(ix, *base), nil)
 	rep.Since = fmt.Sprintf("step %d began", cp.Step)
-	unknown := unknownNames(ix, cp.Made+"\n"+cp.Know+"\n"+cp.Summary+"\n"+cp.Why)
-	fit := fitOf(rep)
+	unknown := unknownNames(ix, cp.Made+"\n"+cp.Know+"\n"+cp.Fits+"\n"+cp.Summary+"\n"+cp.Why)
 	g.mu.Lock()
 	var avoid []string
 	if st := g.currentStep(); st != nil {
@@ -644,7 +648,7 @@ func (g *Gate) Refresh(ctx context.Context) {
 	}
 	start := false
 	if g.cp == cp {
-		cp.Report, cp.Unknown, cp.Fit, cp.Avoided = rep, unknown, fit, avoidedNames(avoid, rep)
+		cp.Report, cp.Unknown, cp.Avoided = rep, unknown, avoidedNames(avoid, rep)
 		// The tests of what the step changed run once, Mentor's own way:
 		// the developer does not take the agent's word for it.
 		if cp.Tests == nil {
@@ -685,7 +689,11 @@ func (g *Gate) Wait(ctx context.Context, timeout time.Duration) string {
 		waiting := g.state().Waiting
 		ch, reply := g.changed, g.reply
 		g.lastSeen = time.Now()
+		q := g.question()
 		g.mu.Unlock()
+		if q != "" {
+			return "The developer asks about your " + waiting + ": " + q + "\nAnswer it with mentor_answer, in plain words, from what the code is; change nothing. Then call mentor_wait."
+		}
 		if waiting == "" {
 			if reply == "" {
 				reply = g.Status()
@@ -700,6 +708,67 @@ func (g *Gate) Wait(ctx context.Context, timeout time.Duration) string {
 			return "The developer has not answered yet. Call mentor_wait again."
 		}
 	}
+}
+
+// Talk is one question of the developer's, and the agent's answer.
+type Talk struct {
+	Q  string    `json:"q"`
+	A  string    `json:"a,omitempty"`
+	At time.Time `json:"at"`
+	// Sent says the agent has been given the question.
+	Sent bool `json:"sent,omitempty"`
+}
+
+// question is the developer's question the agent has not been given yet,
+// which it now is. Call it with the lock held.
+func (g *Gate) question() string {
+	if n := len(g.talk); n > 0 && !g.talk[n-1].Sent && g.talk[n-1].A == "" {
+		g.talk[n-1].Sent = true
+		return g.talk[n-1].Q
+	}
+	return ""
+}
+
+// Ask puts the developer's question about what waits, the plan or the
+// checkpoint, to the agent, which answers it without changing anything;
+// what waits keeps waiting.
+func (g *Gate) Ask(q string) error {
+	q = strings.TrimSpace(q)
+	g.mu.Lock()
+	if q == "" || g.state().Waiting == "" {
+		g.mu.Unlock()
+		return fmt.Errorf("nothing waits for an answer to ask about")
+	}
+	if n := len(g.talk); n > 0 && g.talk[n-1].A == "" {
+		g.mu.Unlock()
+		return fmt.Errorf("the agent has not answered the last question yet")
+	}
+	g.talk = append(g.talk, Talk{Q: q, At: time.Now()})
+	g.log("Mentor", "a question", "asked", q)
+	g.mu.Unlock()
+	g.notify()
+	return nil
+}
+
+// Answer is the agent's answer to the developer's question.
+func (g *Gate) Answer(a string) string {
+	a = strings.TrimSpace(a)
+	g.mu.Lock()
+	n := len(g.talk)
+	if n == 0 || g.talk[n-1].A != "" {
+		g.mu.Unlock()
+		return "No question waits for an answer. Call mentor_wait."
+	}
+	if a == "" {
+		g.mu.Unlock()
+		return "The answer is empty: answer the developer's question, then call mentor_wait."
+	}
+	g.talk[n-1].A = a
+	g.talk[n-1].Sent = true
+	g.log("mentor_answer", firstLine(g.talk[n-1].Q, 80), "done", "")
+	g.mu.Unlock()
+	g.notify()
+	return "The developer has your answer. Call mentor_wait, and change nothing until they answer."
 }
 
 // Status says where the plan is, for the agent.
@@ -933,6 +1002,7 @@ type saved struct {
 	NextID  int               `json:"nextId"`
 	Files   map[string]bool   `json:"files"`
 	Touched map[string]bool   `json:"touched"`
+	Talk    []Talk            `json:"talk"`
 	Events  []Event           `json:"events"`
 	Reply   string            `json:"reply"`
 }
@@ -941,7 +1011,7 @@ type saved struct {
 func (g *Gate) Marshal() ([]byte, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return json.Marshal(saved{Plan: g.plan, Step: g.step, Base: g.base, CP: g.cp, NextID: g.nextID, Files: g.files, Touched: g.touched, Events: g.events, Reply: g.reply})
+	return json.Marshal(saved{Plan: g.plan, Step: g.step, Base: g.base, CP: g.cp, NextID: g.nextID, Files: g.files, Touched: g.touched, Talk: g.talk, Events: g.events, Reply: g.reply})
 }
 
 // Unmarshal takes back state Marshal kept.
@@ -959,5 +1029,6 @@ func (g *Gate) Unmarshal(b []byte) error {
 	if s.Touched != nil {
 		g.touched = s.Touched
 	}
+	g.talk = s.Talk
 	return nil
 }

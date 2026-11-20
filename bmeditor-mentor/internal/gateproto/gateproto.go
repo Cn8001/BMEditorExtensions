@@ -90,8 +90,9 @@ type ToolResult struct {
 const Instructions = `Mentor lets the developer follow your work step by step, in the editor, and keep the project in their head. Work on your own, but in steps they can place in their map of the project:
 - Before changing code, call mentor_plan with the task and its steps. A step is one behavior the developer can understand on its own (storing users, issuing tokens), not one function and not a whole feature: usually 2 to 4 files besides tests. For each step say what it does, the existing code it uses, what it creates, what it will not touch, and when it is done. Then call mentor_wait until they answer.
 - Do one step, and keep to what it said: Mentor holds an edit outside it, and ends a step that grows well past the files it named.
-- When it is done, call mentor_checkpoint: what you made, in a sentence, and the one thing the developer needs to know of it (the rule it follows, where to start to change it), naming types and functions in backticks. Then mentor_wait. Mentor shows where it fits in the project and runs its tests; when they approve, mentor_wait tells you to go on.
+- When it is done, call mentor_checkpoint: what you made, in a sentence; where it sits in the architecture, in your words (its layer, what calls it, what it calls, why there); and the one thing the developer needs to know of it (the rule it follows, where to start to change it), naming types and functions in backticks. The developer keeps the shape of the project in mind from this, not from reading every line. Then mentor_wait. Mentor shows where it fits in the project and runs its tests; when they approve, mentor_wait tells you to go on.
 - If mentor_wait says they have not answered yet, call it again. Change nothing while you wait.
+- If mentor_wait gives you the developer's question, answer it with mentor_answer, then mentor_wait again: they are learning the code from you.
 - When Mentor holds an edit, read why and do what it says.`
 
 // Tool is an MCP tool's definition.
@@ -141,15 +142,23 @@ var Tools = []Tool{
 		Description: "End the current step. Say what you made, in a sentence, and the one thing the developer needs to know of it, naming types and functions in backticks. Mentor shows where it fits in the project and runs its tests. Then call mentor_wait.",
 		InputSchema: object(map[string]any{
 			"made":    str("What the step made, in a sentence: a `UserRepository` that stores users and finds them by ID."),
+			"fits":    str("Where it sits in the architecture, in your words: its layer, what calls it, what it calls, and why there rather than elsewhere."),
 			"know":    str("The one thing the developer needs to know of it: the rule it follows, or where to start to change it."),
 			"summary": str("How it works now, if more than that is worth saying."),
 			"why":     str("Why this way; what you chose and what you left out."),
-		}, "made", "know"),
+		}, "made", "fits", "know"),
 	},
 	{
 		Name:        "mentor_wait",
 		Description: "Wait for the developer's answer to your plan or checkpoint, and read what to do next. It returns after a while if they have not answered yet; then call it again.",
 		InputSchema: object(map[string]any{}),
+	},
+	{
+		Name:        "mentor_answer",
+		Description: "Answer the developer's question about your plan or checkpoint, which mentor_wait gave you: in plain words, from what the code is, naming types and functions in backticks. Change nothing. Then call mentor_wait.",
+		InputSchema: object(map[string]any{
+			"answer": str("Your answer to the developer's question."),
+		}, "answer"),
 	},
 	{
 		Name:        "mentor_status",
