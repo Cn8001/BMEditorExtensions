@@ -3,7 +3,6 @@ import { computed, onMounted } from 'vue'
 import { api, diff, go, icons, loadChanges, markReviewed, name, openAt, rel, store, type AgentFile, type Change } from './api'
 import AgentCard from './AgentCard.vue'
 import ArchView from './ArchView.vue'
-import Section from './Section.vue'
 
 // Home: the agent's work. Its plan or milestone, the project's shape with
 // what it did, and, folded, the files it changed that still differ from
@@ -60,7 +59,11 @@ function card(c: Change) {
       {{ off ? 'Mentor is off, so it does not follow the agent.' : 'Nothing the agent changed differs from HEAD.' }}
     </div>
 
-    <Section v-if="r?.files.length" :title="`Files the agent changed · +${r.lines[0]} −${r.lines[1]}`" :count="r.files.length" :open="false">
+    <div v-if="r?.files.length" class="head">
+      <span>Files the agent changed</span>
+      <span class="dim">{{ r.files.length }} · <span class="add">+{{ r.lines[0] }}</span> <span class="del">−{{ r.lines[1] }}</span></span>
+      <button title="Read the changes again" @click="loadChanges"><i class="codicon codicon-refresh" :class="{ 'codicon-modifier-spin': store.reportBusy }" /></button>
+    </div>
     <div v-for="f in r?.files" :key="f.path" class="file" :class="{ done: reviewed(f) }">
       <div class="frow" :class="{ gone: f.status === 'D' }" :title="(f.status === 'A' ? 'New: ' : f.status === 'D' ? 'Deleted: ' : 'Beside HEAD: ') + rel(f.path)" @click="openFile(f)">
         <i class="codicon" :class="f.status === 'A' ? 'codicon-diff-added' : f.status === 'D' ? 'codicon-diff-removed' : 'codicon-diff'" />
@@ -82,7 +85,6 @@ function card(c: Change) {
         <button v-if="c.change !== 'removed'" class="info" title="Its card: who uses it, its tests" @click.stop="card(c)"><i class="codicon codicon-info" /></button>
       </div>
     </div>
-    </Section>
   </div>
 </template>
 

@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { agent, api, store } from './api'
+import { computed, ref, watch } from 'vue'
+import { agent, api, diff, icons, name, openAt, rel, store, type Change } from './api'
 import ArchView from './ArchView.vue'
 import Section from './Section.vue'
-import UnitCard from './UnitCard.vue'
 
 // The agent's plan and milestones, at the top of the Changes tab. It is
 // simple on purpose: the agent proposes its plan, you approve it; it works
@@ -16,8 +15,36 @@ const st = computed(() => store.agent)
 const cp = computed(() => st.value?.checkpoint)
 const text = ref('')
 const busy = ref(false)
-const details = ref(false)
 const output = ref(false)
+// A milestone's two tabs: what the agent says and the files it changed, and
+// what the step did to the project's shape.
+const view = ref<'summary' | 'arch'>('summary')
+watch(
+  () => cp.value?.id,
+  () => (view.value = 'summary'),
+)
+
+// The step's files, each with the declarations it changed in it: the ones
+// the agent's edits touched, Go or not, a click from the code.
+const stepFiles = computed(() => {
+  const changes = (cp.value?.report?.units ?? []).flatMap((u) => u.changes)
+  const folder = (api.ide.folder || '').replace(/[\\/]+$/, '')
+  const out = (st.value?.files ?? [])
+    .slice()
+    .sort()
+    .map((r) => {
+      const file = folder + '/' + r
+      const own = changes.filter((c) => c.file.replace(/\\/g, '/').endsWith('/' + r)).sort((a, b) => a.line - b.line)
+      return { rel: r, file: own[0]?.file ?? file, changes: own }
+    })
+  return out
+})
+const mark: Record<string, string> = { added: '+', modified: '~', removed: '−' }
+
+function openChange(f: { file: string }, c: Change) {
+  if (c.change === 'removed') void diff(f.file)
+  else void openAt(c.file, c.line)
+}
 
 const level = computed(() => {
   switch (st.value?.level) {
@@ -108,37 +135,52 @@ function time(at: string) {
           Milestone<template v-if="st.plan"> {{ cp.step }}/{{ st.plan.steps.length }}</template><template v-if="step">: {{ step.title }}</template>
           <span class="badge">waits for you</span>
         </div>
-        <div class="summary">
-          <p>{{ cp.made || cp.summary }}</p>
-          <p v-if="cp.fits">{{ cp.fits }}</p>
-          <p v-if="cp.know" class="know"><span class="dim">To carry on without the agent:</span> {{ cp.know }}</p>
+        <div class="tabs2">
+          <button :class="{ on: view === 'summary' }" @click="view = 'summary'">Summary</button>
+          <button :class="{ on: view === 'arch' }" title="What this step did to the project's shape" @click="view = 'arch'">Architecture</button>
         </div>
-        <div class="shape">
+        <template v-if="view === 'summary'">
+          <div class="summary">
+            <p>{{ cp.made || cp.summary }}</p>
+            <p v-if="cp.fits">{{ cp.fits }}</p>
+            <p v-if="cp.know" class="know"><span class="dim">To carry on without the agent:</span> {{ cp.know }}</p>
+          </div>
+          <div v-if="cp.tests" class="tests" :class="cp.tests.state">
+            <template v-if="cp.tests.state === 'running'"><i class="codicon codicon-loading codicon-modifier-spin" /> Running its tests…</template>
+            <template v-else-if="cp.tests.state === 'passed'"><i class="codicon codicon-pass" /> Tests pass</template>
+            <template v-else-if="cp.tests.state === 'failed'">
+              <i class="codicon codicon-error" /> Tests fail<template v-if="cp.tests.failed.length">: {{ cp.tests.failed.join(', ') }}</template>
+              <button class="link" @click="output = !output">{{ output ? 'Hide' : 'Why' }}</button>
+            </template>
+            <template v-else><i class="codicon codicon-circle-slash" /> No tests for what changed</template>
+          </div>
+          <pre v-if="output && cp.tests?.output" class="out">{{ cp.tests.output }}</pre>
+          <div v-if="cp.avoided?.length || cp.unknown.length" class="warn small pad">
+            <template v-if="cp.avoided?.length">It changed {{ list(cp.avoided) }}, which it said it would leave alone. </template>
+            <template v-if="cp.unknown.length">It names {{ cp.unknown.join(', ') }}, which the code does not have.</template>
+          </div>
+          <div class="files">
+            <div class="dim pad">Files it changed</div>
+            <div v-for="f in stepFiles" :key="f.rel">
+              <div class="frow" :title="'Beside HEAD: ' + f.rel" @click="diff(f.file)">
+                <i class="codicon codicon-diff" />
+                <span class="fname">{{ f.rel.slice(f.rel.lastIndexOf('/') + 1) }}</span>
+                <span class="fdir">{{ f.rel.includes('/') ? f.rel.slice(0, f.rel.lastIndexOf('/')) : '' }}</span>
+              </div>
+              <div v-for="c in f.changes" :key="c.key + c.change" class="crow" :class="c.change" :title="rel(c.file) + ':' + c.line" @click="openChange(f, c)">
+                <span class="mark">{{ mark[c.change] }}</span>
+                <i :class="['codicon', 'codicon-' + (icons[c.kind] || 'symbol-misc')]" />
+                <span>{{ name(c) }}</span>
+              </div>
+            </div>
+            <div v-if="!stepFiles.length" class="dim pad">No file yet.</div>
+          </div>
+        </template>
+        <div v-else class="shape">
           <div class="dim">What this milestone changed in the project's shape</div>
           <ArchView v-if="cp.arch?.packages.length" compact :change="cp.arch" />
           <div v-else class="dim">{{ cp.arch ? 'It changed no Go package.' : 'Reading what it changed…' }}</div>
         </div>
-        <div v-if="cp.tests" class="tests" :class="cp.tests.state">
-          <template v-if="cp.tests.state === 'running'"><i class="codicon codicon-loading codicon-modifier-spin" /> Running its tests…</template>
-          <template v-else-if="cp.tests.state === 'passed'"><i class="codicon codicon-pass" /> Tests pass</template>
-          <template v-else-if="cp.tests.state === 'failed'">
-            <i class="codicon codicon-error" /> Tests fail<template v-if="cp.tests.failed.length">: {{ cp.tests.failed.join(', ') }}</template>
-            <button class="link" @click="output = !output">{{ output ? 'Hide' : 'Why' }}</button>
-          </template>
-          <template v-else><i class="codicon codicon-circle-slash" /> No tests for what changed</template>
-        </div>
-        <pre v-if="output && cp.tests?.output" class="out">{{ cp.tests.output }}</pre>
-        <div v-if="cp.avoided?.length || cp.unknown.length" class="warn small pad">
-          <template v-if="cp.avoided?.length">It changed {{ list(cp.avoided) }}, which it said it would leave alone. </template>
-          <template v-if="cp.unknown.length">It names {{ cp.unknown.join(', ') }}, which the code does not have.</template>
-        </div>
-        <button class="more" @click="details = !details">
-          <i class="codicon" :class="details ? 'codicon-chevron-down' : 'codicon-chevron-right'" /> The code it changed
-        </button>
-        <template v-if="details">
-          <UnitCard v-for="u in cp.report?.units" :key="u.id" :u="u" no-review />
-          <div v-if="!cp.report" class="dim pad">Reading the changes…</div>
-        </template>
       </template>
 
       <!-- Questions and answers. -->
@@ -322,6 +364,68 @@ function time(at: string) {
   font-size: 13px;
   white-space: pre-wrap;
   user-select: text;
+}
+.tabs2 {
+  display: flex;
+  gap: 2px;
+  margin: 0 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.tabs2 button {
+  padding: 3px 10px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.tabs2 button.on {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.files {
+  margin-top: 4px;
+}
+.frow,
+.crow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.frow {
+  padding: 3px 10px;
+  font-size: 14px;
+}
+.crow {
+  padding: 1px 10px 1px 28px;
+  font-size: 13px;
+}
+.frow:hover,
+.crow:hover {
+  background: var(--bg-hover);
+}
+.fname {
+  color: var(--text);
+}
+.fdir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.mark {
+  width: 10px;
+  text-align: center;
+}
+.crow.added .mark {
+  color: var(--success, #b8d27a);
+}
+.crow.modified .mark {
+  color: var(--warning);
+}
+.crow.removed {
+  color: var(--error);
 }
 .more {
   display: flex;

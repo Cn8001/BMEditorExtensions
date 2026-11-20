@@ -64,8 +64,8 @@ export default function activate(a: ExtensionAPI) {
     const st = store.agent
     if (!st) return
     const now = `${st.events?.length ?? 0}|${st.waiting ?? ''}|${st.checkpoint?.id ?? ''}|${st.files.length}`
-    if (now !== seen) {
-      if (seen) void loadChanges()
+    if (now !== seen || !store.report) {
+      if (seen || !store.report) void loadChanges()
       seen = now
     }
     if (st.waiting && st.waiting !== before) home()
@@ -157,7 +157,17 @@ export default function activate(a: ExtensionAPI) {
       },
       { id: 'mentor-reindex', label: 'Mentor: Read the Code Again', icon: 'refresh', run: () => call<Status>('reindex').then((s) => (store.status = s)), when: () => !!api.ide.folder },
     ],
-    reset: clear,
+    // The editor resets extensions when it takes the project as changed, a
+    // new file the agent adds among them: what Mentor shows is read again
+    // at once, or its view stays empty.
+    reset: () => {
+      clear()
+      lastState = ''
+      if (!api.ide.folder) return
+      void refreshStatus()
+      void agent('state')
+      void loadChanges()
+    },
   })
 
   // At start Mentor waits to be opened; a change of place opens its window.
