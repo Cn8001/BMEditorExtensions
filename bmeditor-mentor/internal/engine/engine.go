@@ -294,9 +294,11 @@ func (e *Engine) build(ctx context.Context, full bool, dirs []string) {
 	if err := e.DB.ReplaceDocs(ctx, search.Docs(ix)); err != nil && ctx.Err() == nil {
 		errs = append(errs, "search: "+err.Error())
 	}
-	e.ix.Store(ix)
 	head := gitx.HeadOf(ctx, e.Root)
 	e.mu.Lock()
+	// The index and its status change together: a reader never sees one
+	// without the other.
+	e.ix.Store(ix)
 	st := &e.status
 	st.State, st.Detail = "ready", ""
 	st.Packages, st.Symbols, st.Files = len(ix.Packages), len(ix.Symbols), len(ix.ByFile)
