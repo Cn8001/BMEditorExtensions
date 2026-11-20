@@ -16,8 +16,12 @@ when it has a section here.
   auto mode included. One button, Connect the agent, turns it all on or
   off: on, Mentor adds its MCP server and hooks for the folder and its dot
   turns green; off, it takes them out.
+- Three tabs: Architecture, Features and Changes. Name a part of the
+  project in Features, such as authentication, and it is followed end to
+  end: where it starts, what runs in order, where its data lives, how it
+  fails, how to extend it, its tests and where to stop.
 - Say what you want to do, such as "add a new authentication provider",
-  and the Explore tab answers from the code: the interface to implement,
+  and the Features tab answers from the code: the interface to implement,
   the types that already do and how they differ, how it is wired in, what
   to change and where, the tests, and where to stop when it breaks.
 - How it is used, in the code: a click on the line above a type or a

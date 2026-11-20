@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { agent, api, ask, back, call, go, loadChanges, page, plural, store, type Status } from './api'
+import { agent, api, ask, back, call, loadChanges, openArchitecture, page, pages, plural, store, type Status, type Tab } from './api'
 import CardPage from './CardPage.vue'
 import ChangesView from './ChangesView.vue'
 import FlowPage from './FlowPage.vue'
 import MapPage from './MapPage.vue'
 import Results from './Results.vue'
 
-// Mentor's view in the sidebar: one box for a question, and below it the
-// answer, a card, a flow or the map. Back goes to the page before.
+// Mentor's view, in three tabs. Architecture: the packages, their layers
+// and the ways in. Features: a question about a part of the project, or
+// something to do to it, answered from the code. Changes: what the agent
+// changed, and its plan and checkpoints. A card, a flow or a map opens in
+// the tab, and Back goes to the page before.
 const input = ref<HTMLInputElement>()
 const status = computed(() => store.status)
 const p = computed(() => page())
@@ -31,13 +34,16 @@ function line(st: Status | null): string {
   return s
 }
 
-function tab(t: 'explore' | 'changes') {
+function tab(t: Tab) {
+  if (t === 'architecture') return void openArchitecture()
   store.tab = t
   if (t === 'changes') {
     void loadChanges()
     void agent('state')
   }
 }
+
+const browsing = computed(() => store.tab === 'architecture' || store.tab === 'explore')
 
 const changed = computed(() => {
   return store.report?.files.length ?? 0
@@ -53,31 +59,31 @@ defineExpose({ focus: () => input.value?.focus() })
 <template>
   <div class="mentor">
     <div class="tabs">
-      <button :class="{ on: store.tab === 'changes' }" @click="tab('changes')">
+      <button :class="{ on: store.tab === 'architecture' }" title="The packages, their layers and the ways in" @click="tab('architecture')">Architecture</button>
+      <button :class="{ on: store.tab === 'explore' }" title="A part of the project end to end, or what to do to it" @click="tab('explore')">Features</button>
+      <button :class="{ on: store.tab === 'changes' }" title="What the agent changed, its plan and checkpoints" @click="tab('changes')">
         Changes<span v-if="store.agent?.waiting" class="badge wait" title="The agent waits for you">!</span><span v-else-if="changed" class="badge">{{ changed }}</span>
       </button>
-      <button :class="{ on: store.tab === 'explore' }" @click="tab('explore')">Explore</button>
     </div>
-    <div v-show="store.tab === 'explore'" class="top">
-      <form @submit.prevent="ask(store.query)">
+    <div v-show="browsing" class="top">
+      <form v-show="store.tab === 'explore'" @submit.prevent="ask(store.query)">
         <i class="codicon codicon-search" />
-        <input ref="input" v-model="store.query" class="q" placeholder="What do you need? Which struct, where is…" spellcheck="false" />
+        <input ref="input" v-model="store.query" class="q" placeholder="authentication · add a new provider · which struct…" spellcheck="false" />
       </form>
       <div class="status" :class="status?.state" :title="status?.errors.join('\n')">
         <i v-if="status?.state === 'indexing' || status?.state === 'stale'" class="codicon codicon-loading codicon-modifier-spin" />
         <i v-else-if="status?.state === 'error' || status?.errors.length" class="codicon codicon-warning" />
         <span>{{ line(status) }}</span>
-        <button title="Map of the packages" @click="go({ kind: 'map', focus: '' })"><i class="codicon codicon-type-hierarchy" /></button>
         <button title="Read the code again" @click="reindex"><i class="codicon codicon-refresh" /></button>
       </div>
     </div>
     <div v-if="store.tab === 'changes'" class="body">
       <ChangesView />
     </div>
-    <div v-if="store.tab === 'explore' && store.pages.length > 1" class="nav">
+    <div v-if="browsing && pages() > 1" class="nav">
       <button @click="back"><i class="codicon codicon-arrow-left" /> Back</button>
     </div>
-    <div v-if="store.tab === 'explore'" class="body">
+    <div v-if="browsing" class="body">
       <div v-if="store.error" class="error">{{ store.error }}</div>
       <div v-else-if="store.loading" class="hint">Loading…</div>
       <Results v-else-if="p.kind === 'search'" />
@@ -177,6 +183,10 @@ form .codicon {
 }
 .status button:first-of-type {
   margin-left: auto;
+}
+.tabs button {
+  flex: 1;
+  justify-content: center;
 }
 .status button:hover {
   color: var(--accent);

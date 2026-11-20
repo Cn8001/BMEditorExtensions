@@ -270,8 +270,39 @@ export interface TaskPoint {
   breakpoints: Ref[]
 }
 
+// FeatureStep is one function on a feature's path, in the order of the code.
+export interface FeatureStep extends Ref {
+  depth: number
+  layer?: string
+  errReturns?: number
+  branches?: number
+  dynamic?: boolean
+  seed?: boolean
+}
+
+export interface FeatureEntry {
+  kind: 'route' | 'main'
+  label: string
+  ref: Ref
+  file: string
+  line: number
+}
+
+// Feature is a part of the project followed end to end (internal/intel).
+export interface Feature {
+  entry?: FeatureEntry
+  others: FeatureEntry[]
+  flow: FeatureStep[]
+  data: FeatureStep[]
+  errors: FeatureStep[]
+  tests: Ref[]
+  breakpoints: Ref[]
+  note?: string
+}
+
 export interface TaskAnswer {
   query: string
+  feature?: Feature
   point?: TaskPoint
   related: Ref[]
   note?: string
@@ -358,8 +389,13 @@ export interface AgentState {
   problem?: string // why connecting the agent did not work; then the commands to run by hand, a line each
 }
 
-// A page of the Explore tab: the answer to a question, a symbol's card,
-// a flow or a map. Back goes to the one before.
+// Mentor's three tabs: the project's architecture, its features (and what
+// to do to them), and what the agent changed.
+export type Tab = 'architecture' | 'explore' | 'changes'
+
+// A page of the Architecture or the Features tab: the answer to a question,
+// a symbol's card, a flow or a map. Each tab keeps its own trail, and Back
+// goes to the page before in it.
 export type Page = (
   | { kind: 'search' }
   | { kind: 'card'; key: string; card?: Card }
@@ -369,7 +405,7 @@ export type Page = (
 
 export const store = reactive({
   status: null as Status | null,
-  tab: 'explore' as 'explore' | 'changes',
+  tab: 'explore' as Tab,
   report: null as AgentChanges | null,
   reportError: '',
   reportBusy: false,
@@ -379,6 +415,7 @@ export const store = reactive({
   task: null as TaskAnswer | null,
   searching: false,
   pages: [{ kind: 'search' }] as Page[],
+  archPages: [] as Page[], // the Architecture tab's trail, from the map of the packages
   loading: false,
   error: '',
   lens: true,
@@ -386,8 +423,26 @@ export const store = reactive({
   windowOpen: false,
 })
 
+// stack is the trail of the tab shown: the Architecture tab's, or the
+// Features tab's, which the Changes tab opens pages on too.
+function stack(): Page[] {
+  return store.tab === 'architecture' ? store.archPages : store.pages
+}
+
 export function page(): Page {
-  return store.pages[store.pages.length - 1]
+  const s = stack()
+  return s[s.length - 1] ?? { kind: 'search' }
+}
+
+export function pages(): number {
+  return stack().length
+}
+
+// openArchitecture shows the Architecture tab, on the map of the packages
+// the first time.
+export async function openArchitecture() {
+  store.tab = 'architecture'
+  if (!store.archPages.length) await go({ kind: 'map', focus: '' })
 }
 
 export function call<T>(method: string, params?: unknown): Promise<T> {
@@ -441,7 +496,7 @@ export function show() {
   }
 }
 
-export type Go = { tab?: 'explore' | 'changes'; page?: Page }
+export type Go = { tab?: Tab; page?: Page }
 
 // reveal shows Mentor on a tab or a page. A popup has its own state, so it
 // is asked through the backend, which every window hears (mentor/go).
@@ -457,7 +512,8 @@ export async function reveal(g: Go) {
 
 // apply shows what reveal asked for, in this window.
 export async function apply(g: Go) {
-  if (g.tab) {
+  if (g.tab === 'architecture') await openArchitecture()
+  else if (g.tab) {
     store.tab = g.tab
     if (g.tab === 'changes') void loadChanges()
   }
@@ -499,7 +555,7 @@ export async function ask(q: string) {
     // A task's answer, when the code has one, comes beside the matches.
     const [res, task] = await Promise.all([call<SearchResult>('search', { q }), call<TaskAnswer>('task', { q }).catch(() => null)])
     store.result = markRaw(res)
-    store.task = task?.point ? markRaw(task) : null
+    store.task = task?.point || task?.feature ? markRaw(task) : null
   } catch (err) {
     store.result = null
     store.error = message(err)
@@ -515,9 +571,9 @@ export async function go(p: Page) {
     p.from = 'changes'
     store.pages = [{ kind: 'search' }]
   }
-  store.tab = 'explore'
+  if (store.tab !== 'architecture') store.tab = 'explore'
   store.error = ''
-  store.pages.push(p)
+  stack().push(p)
   store.loading = true
   try {
     if (p.kind === 'card') p.card = markRaw(await call<Card>('card', { key: p.key }))
@@ -531,8 +587,9 @@ export async function go(p: Page) {
 }
 
 export function back() {
-  const top = store.pages.length > 1 ? store.pages.pop() : undefined
-  if (top?.from === 'changes' && store.pages.length === 1) store.tab = 'changes'
+  const s = stack()
+  const top = s.length > 1 ? s.pop() : undefined
+  if (top?.from === 'changes' && s.length === 1) store.tab = 'changes'
   store.error = ''
 }
 
@@ -586,6 +643,7 @@ export function clear() {
   store.task = null
   store.query = ''
   store.pages = [{ kind: 'search' }]
+  store.archPages = []
   store.error = ''
 }
 

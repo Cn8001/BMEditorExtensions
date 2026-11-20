@@ -38,8 +38,16 @@ where it is and what uses what, without asking the agent.
   to the agent's next change, file after file, **Shift+F7** to the one
   before, and **Alt+R** marks the file reviewed and goes to the next one,
   so a step is read without leaving the editor.
+- **Three tabs.** Architecture: the packages by layer, what imports what,
+  and the ways in. Features: a part of the project, or something to do to
+  it. Changes: what the agent changed, its plan and checkpoints.
+- **Understand a feature.** Name it, "authentication", and the Features
+  tab follows it end to end through the code: where it starts (the route
+  or main), what runs in order (through interfaces too, marked), where its
+  data lives, how it fails, how to extend it, its tests and where to stop
+  in the debugger. Every line is a place in the code, a click away.
 - **Say what you want to do.** "Add a new authentication provider": the
-  Explore tab answers from what the code says for certain. The interface
+  Features tab answers from what the code says for certain. The interface
   to implement and what it must have; the types that already do, how
   they differ, and the one to start from; how it is wired in, from the
   route down to the store; what to change and where, in order; the tests

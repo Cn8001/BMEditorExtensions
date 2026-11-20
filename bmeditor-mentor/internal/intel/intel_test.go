@@ -102,7 +102,49 @@ func TestTask_AddAnAuthenticationProvider(t *testing.T) {
 func TestTask_WithoutAnInterface(t *testing.T) {
 	ix := load(t)
 	a := Task(ix, "session", []string{auth + "Session"})
-	if a.Point != nil || len(a.Related) != 1 || a.Note == "" {
+	if a.Point != nil || len(a.Related) != 1 || a.Feature == nil {
 		t.Errorf("answer = %+v", a)
+	}
+	if a := Task(ix, "nothing", []string{"nope"}); a.Point != nil || a.Feature != nil || a.Note == "" {
+		t.Errorf("nothing = %+v", a)
+	}
+}
+
+// TestFeature_Authentication follows sign-in end to end: the route it comes
+// in through, what runs in order, where it keeps its data, how it fails,
+// its tests and where to stop.
+func TestFeature_Authentication(t *testing.T) {
+	ix := load(t)
+	f := FeatureOf(ix, []string{auth + "Service.Login", auth + "UserIdentity"})
+	if f == nil || f.Entry == nil || f.Entry.Label != "POST /login" {
+		t.Fatalf("feature = %+v", f)
+	}
+	var flow, data, errs []string
+	for _, s := range f.Flow {
+		mark := ""
+		if s.Dynamic {
+			mark = "~"
+		}
+		flow = append(flow, strings.Repeat(" ", s.Depth)+s.Name+mark+"["+s.Layer+"]")
+	}
+	for _, s := range f.Data {
+		data = append(data, s.Recv+"."+s.Name)
+	}
+	for _, s := range f.Errors {
+		errs = append(errs, s.Name)
+	}
+	t.Logf("flow:\n%s", strings.Join(flow, "\n"))
+	t.Logf("data=%v errors=%v tests=%d breakpoints=%d", data, errs, len(f.Tests), len(f.Breakpoints))
+	all := strings.Join(flow, " ")
+	for _, want := range []string{"ServeLogin", "Login", "Exchange~", "FindIdentity"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("the flow lacks %s", want)
+		}
+	}
+	if !strings.Contains(strings.Join(data, " "), "FindIdentity") || !strings.Contains(strings.Join(errs, " "), "Login") {
+		t.Errorf("data = %v, errors = %v", data, errs)
+	}
+	if len(f.Tests) == 0 || len(f.Breakpoints) < 2 {
+		t.Errorf("tests = %d, breakpoints = %d", len(f.Tests), len(f.Breakpoints))
 	}
 }

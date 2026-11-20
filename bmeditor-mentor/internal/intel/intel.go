@@ -23,7 +23,10 @@ type Answer struct {
 	Query string `json:"query"`
 	// Point is the extension point the task goes through; nil when the
 	// candidates have no interface with implementations.
-	Point   *Point        `json:"point,omitempty"`
+	Point *Point `json:"point,omitempty"`
+	// Feature follows the part of the project the task is about, end to
+	// end; nil when no way in reaches it.
+	Feature *Feature      `json:"feature,omitempty"`
 	Related []explain.Ref `json:"related"` // the best of the search's candidates
 	Note    string        `json:"note,omitempty"`
 }
@@ -79,9 +82,12 @@ func Task(ix *index.Index, q string, candidates []string) *Answer {
 			a.Related = append(a.Related, explain.RefOf(s))
 		}
 	}
+	a.Feature = FeatureOf(ix, candidates)
 	iface, why := pick(ix, candidates)
 	if iface == nil {
-		a.Note = "No interface with implementations fits this; the code below matches it best."
+		if a.Feature == nil {
+			a.Note = "Nothing reaches this from a way in, and no interface fits it; the code below matches it best."
+		}
 		return a
 	}
 	a.Point = point(ix, iface, why)
