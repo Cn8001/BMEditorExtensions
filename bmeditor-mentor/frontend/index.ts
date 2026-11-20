@@ -2,6 +2,8 @@ import { createApp, watch } from 'vue'
 import type { ExtensionAPI } from '../bmext/bmeditor'
 import { agent, api, call, clear, cursor, fail, go, loadChanges, refreshStatus, setApi, show, store, view, type AgentState, type Place, type Ref, type Status } from './api'
 import { lens, refreshAll } from './lens'
+import { keydown, reviewAndNext, step } from './review'
+import { refreshStrips, strip } from './strip'
 import Sidebar from './Sidebar.vue'
 import TopButton from './TopButton.vue'
 import Window from './Window.vue'
@@ -19,8 +21,9 @@ export default function activate(a: ExtensionAPI) {
     // The numbers above the code follow each read of the files.
     if (st.state === 'ready' && lastState !== 'ready') {
       refreshAll()
-      // What changed follows the files too, while it is shown.
-      if (store.tab === 'changes' || store.report) void loadChanges()
+      // What the agent changed follows the files too: the Changes tab and
+      // the strips above its files show it.
+      if (api.ide.folder) void loadChanges()
     }
     lastState = st.state
   })
@@ -79,9 +82,17 @@ export default function activate(a: ExtensionAPI) {
   createApp(Window).mount(document.body.appendChild(document.createElement('div')))
 
   api.register({
-    editor: lens,
+    editor: (tab) => [lens(tab), strip(tab)],
     toolbar: TopButton,
+    keydown: (e) => keydown(e, explainThis),
+    shortcuts: [
+      ['Next change by the agent', 'F7'],
+      ['Mark the file reviewed, go on', 'Alt+R'],
+    ],
     commands: [
+      { id: 'mentor-next', label: "Mentor: Next Change by the Agent", icon: 'arrow-down', kbd: 'F7', run: () => step(1), when: () => !!api.ide.folder },
+      { id: 'mentor-prev', label: "Mentor: Change Before by the Agent", icon: 'arrow-up', kbd: 'Shift+F7', run: () => step(-1), when: () => !!api.ide.folder },
+      { id: 'mentor-reviewed', label: 'Mentor: Mark the File Reviewed and Go On', icon: 'check', kbd: 'Alt+R', run: reviewAndNext, when: () => !!api.ide.folder },
       { id: 'mentor-open', label: 'Mentor: Open', icon: 'mortar-board', run: show },
       { id: 'mentor-explain', label: 'Mentor: Explain This', icon: 'mortar-board', kbd: 'Ctrl+Alt+U', run: explainThis, when: () => !!api.ui.activeTab()?.path.endsWith('.go') },
       { id: 'mentor-ask', label: 'Mentor: Ask About the Code', icon: 'search', run: askFocus, when: () => !!api.ide.folder },
@@ -139,6 +150,11 @@ export default function activate(a: ExtensionAPI) {
     },
   )
   void readSettings()
+
+  // The strips above the agent's files follow its changes, and go when
+  // Mentor is off.
+  watch(() => [store.report, store.agent?.level], refreshStrips)
+  watch(() => api.ide.tabs.length, refreshStrips)
 
   // The agent's state comes as a notification with each change. While the
   // agent is connected it is also asked for every few seconds, and when the

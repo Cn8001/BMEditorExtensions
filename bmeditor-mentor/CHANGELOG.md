@@ -14,6 +14,10 @@ when it has a section here.
   auto mode included. Mentor connects the agent while the setting Connect
   the agent is on, adding its MCP server and hooks, and takes them out
   when it is off.
+- Review in the code: a strip above each file the agent changed, with
+  what it changed there, Diff, Reviewed and the checkpoint's Approve; F7
+  and Shift+F7 go from one of its changes to the next, Alt+R marks a file
+  reviewed and goes on. Ctrl+Alt+U (Explain This) now works.
 - The Changes tab lists what the agent changed that still differs from
   HEAD: the files it edited, added or removed, by its tools or its
   commands, each with the declarations added, changed and removed in it. The check marks a file reviewed; a later change to it

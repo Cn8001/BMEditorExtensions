@@ -28,6 +28,12 @@ where it is and what uses what, without asking the agent.
   commands change (rm, mv, gofmt -w): what differs from HEAD after a
   command and did not before. Your own edits are not listed, unless you
   make them while one of the agent's commands runs.
+- **Review in the code.** Above each file the agent changed, a strip
+  says what it changed there, its declarations a click away, with Diff,
+  Reviewed and, while the agent waits at a checkpoint, Approve. **F7** goes
+  to the agent's next change, file after file, **Shift+F7** to the one
+  before, and **Alt+R** marks the file reviewed and goes to the next one,
+  so a step is read without leaving the editor.
 - **Ask in plain words.** "Which struct holds a user's login?", "where is
   the session made?": the Explore tab answers with the types and functions
   that fit, best first, each with what it is for, how much it is used and
