@@ -106,3 +106,36 @@ func TestHooks_AnOlderSetupWithoutPostToolUseIsNotInstalled(t *testing.T) {
 		t.Errorf("settings = %s", b)
 	}
 }
+
+// TestServer_ClaimWithSeveralEditors: a backend claims a folder no running
+// backend has, leaves one another editor's backend has, and takes it over
+// when that one has gone.
+func TestServer_ClaimWithSeveralEditors(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Listen(dir, func(string) *Gate { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	root := t.TempDir()
+	read := func() gateproto.Registry {
+		b, _ := os.ReadFile(gateproto.RegistryPath(dir, root))
+		var r gateproto.Registry
+		_ = json.Unmarshal(b, &r)
+		return r
+	}
+
+	// Another editor's backend, which runs (this test's parent), has it.
+	_ = gateproto.Write(dir, gateproto.Registry{Port: 1, Root: root, PID: os.Getppid()})
+	_ = s.Claim(root)
+	if r := read(); r.PID != os.Getppid() {
+		t.Fatalf("a running backend's folder was taken: %+v", r)
+	}
+
+	// It has gone: this one takes the folder over.
+	_ = gateproto.Write(dir, gateproto.Registry{Port: 1, Root: root, PID: 1 << 30})
+	_ = s.Claim(root)
+	if r := read(); r.PID != os.Getpid() {
+		t.Fatalf("a gone backend's folder was not taken over: %+v", r)
+	}
+}

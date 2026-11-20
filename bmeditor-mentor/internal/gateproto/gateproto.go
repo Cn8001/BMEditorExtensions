@@ -55,7 +55,9 @@ func Find(regDir, dir string) (Registry, error) {
 		b, err := os.ReadFile(RegistryPath(regDir, dir))
 		if err == nil {
 			var r Registry
-			if json.Unmarshal(b, &r) == nil && r.Port > 0 {
+			// A registry whose backend has gone is passed over: another
+			// editor's may take the folder over, or none answers.
+			if json.Unmarshal(b, &r) == nil && r.Port > 0 && (r.PID == 0 || Alive(r.PID)) {
 				return r, nil
 			}
 		}

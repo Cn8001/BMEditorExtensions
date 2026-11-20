@@ -119,6 +119,11 @@ func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 		st.eng.Apply(set)
 		st.gate.SetPolicy(policy)
 		st.link(s, st.eng)
+		// Another editor that had the folder may have gone: the agent's
+		// gate finds this one then. The view asks every few seconds.
+		if st.server != nil {
+			_ = st.server.Claim(r)
+		}
 		return st.eng, nil
 	}
 	st.closeFolder()
@@ -146,7 +151,7 @@ func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 		}
 	}
 	if st.server != nil {
-		_ = st.server.Register(r)
+		_ = st.server.Claim(r)
 	}
 	st.eng, st.gate, st.linked = e, g, ""
 	st.link(s, e)

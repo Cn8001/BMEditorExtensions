@@ -51,6 +51,24 @@ func (s *Server) Register(root string) error {
 	return gateproto.Write(s.Dir, gateproto.Registry{Port: s.port, Token: s.token, Root: filepath.Clean(root), PID: os.Getpid()})
 }
 
+// Claim registers root for this backend unless another one that runs has
+// it: with several editors open on a folder, the agent stays with one of
+// them, and when that one goes, the next to ask takes the folder over.
+func (s *Server) Claim(root string) error {
+	if b, err := os.ReadFile(gateproto.RegistryPath(s.Dir, root)); err == nil {
+		var r gateproto.Registry
+		if json.Unmarshal(b, &r) == nil {
+			if r.Port == s.port && r.PID == os.Getpid() {
+				return nil // ours already
+			}
+			if r.PID > 0 && r.PID != os.Getpid() && gateproto.Alive(r.PID) {
+				return nil // another editor's, which runs
+			}
+		}
+	}
+	return s.Register(root)
+}
+
 // Unregister removes root's registry, when it is this backend's.
 func (s *Server) Unregister(root string) {
 	path := gateproto.RegistryPath(s.Dir, root)
