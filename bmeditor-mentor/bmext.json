@@ -16,6 +16,13 @@
       "default": "true"
     },
     {
+      "key": "autoConnect",
+      "label": "Agent: connect by itself",
+      "description": "When a folder opens, add Mentor's MCP server and hooks to the agent for it, so its plan and checkpoints come here. Off: connect with Mentor: Connect the Agent.",
+      "type": "boolean",
+      "default": "true"
+    },
+    {
       "key": "requirePlan",
       "label": "Agent: plan first",
       "description": "The agent proposes its plan in steps, and you approve it in Mentor, before it changes code.",

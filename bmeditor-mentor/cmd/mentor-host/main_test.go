@@ -32,7 +32,7 @@ func connect(t *testing.T, folder string) *host.Client {
 		st.close()
 	})
 	c := host.NewClient(toClient, fromClient, nil)
-	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder}); err != nil {
+	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"autoConnect": "false"}}); err != nil {
 		t.Fatal(err)
 	}
 	return c
@@ -107,7 +107,7 @@ func TestAgentMethods(t *testing.T) {
 	go func() { _ = s.Serve(t.Context(), toServer, fromServer); fromServer.Close() }()
 	t.Cleanup(func() { fromClient.Close(); st.close() })
 	c := host.NewClient(toClient, fromClient, nil)
-	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"maxFiles": "3"}}); err != nil {
+	if _, err := c.Call(t.Context(), "initialize", host.Context{Folder: folder, Settings: map[string]string{"maxFiles": "3", "autoConnect": "false"}}); err != nil {
 		t.Fatal(err)
 	}
 	as := call[agent.State](t, c, "agent.state", nil)

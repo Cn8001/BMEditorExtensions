@@ -11,8 +11,8 @@ when it has a section here.
   changed beside what the agent says it did and why, and the agent goes on
   when you approve, or makes the changes you ask for. Its plan waits for
   you first. The agent's hooks make the stops hold in any permission mode,
-  auto mode included; Mentor: Connect the Agent sets them up for the
-  folder.
+  auto mode included. Mentor connects the agent by itself when a folder
+  opens, adding its MCP server and hooks; Disconnect keeps them out.
 - The Changes tab: what differs from HEAD, declaration by declaration, in
   units that change together, each with where it is wired in, what it
   relies on, the routes and tests that reach it, how far it reaches and

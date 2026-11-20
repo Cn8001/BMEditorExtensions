@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -137,6 +138,12 @@ func (st *state) engineFor(s *host.Server, r string) (*engine.Engine, error) {
 		_ = st.server.Register(r)
 	}
 	st.eng, st.gate = e, g
+	// The agent is connected by itself when the folder opens, unless the
+	// developer turned that off, or disconnected it here.
+	if s.Context().Setting("autoConnect") != "false" && e.DB.Meta(context.Background(), "disconnected") != "1" &&
+		(!agent.HooksInstalled(r) || e.DB.Meta(context.Background(), "mcp") != "1") {
+		go func() { _, _ = st.connect(context.Background(), e) }()
+	}
 	return e, nil
 }
 
@@ -416,28 +423,39 @@ func registerAgent(s *host.Server, st *state) {
 		return nil
 	}))
 	s.Handle("agent.connect", handler(s, st, func(ctx context.Context, e *engine.Engine, _ none) (any, error) {
-		g := st.gateOf(e)
-		gate, err := agent.InstallGate(st.gateDir())
-		if err != nil || g == nil {
-			msg := "The folder changed; try again."
-			if err != nil {
-				msg = err.Error()
-			}
-			return nil, &host.Error{Code: "AGENT", Message: msg}
+		res, err := st.connect(ctx, e)
+		if err != nil {
+			return nil, &host.Error{Code: "AGENT", Message: err.Error()}
 		}
-		res := agent.Connect(ctx, e.Root, gate)
-		if res.MCP {
-			_ = e.DB.SetMeta(ctx, "mcp", "1")
-		}
-		g.SetConnection(res.Hooks, res.MCP || e.DB.Meta(ctx, "mcp") == "1")
 		return res, nil
 	}))
 	s.Handle("agent.disconnect", gated(func(ctx context.Context, e *engine.Engine, g *agent.Gate, _ answer) error {
 		err := agent.Disconnect(ctx, e.Root)
 		_ = e.DB.SetMeta(ctx, "mcp", "")
+		_ = e.DB.SetMeta(ctx, "disconnected", "1") // not again by itself
 		g.SetConnection(false, false)
 		return err
 	}))
+}
+
+// connect sets the agent up for the folder: Mentor's MCP server and the
+// hooks that make a checkpoint hold.
+func (st *state) connect(ctx context.Context, e *engine.Engine) (agent.Setup, error) {
+	g := st.gateOf(e)
+	if g == nil {
+		return agent.Setup{}, errors.New("the folder changed; try again")
+	}
+	gate, err := agent.InstallGate(st.gateDir())
+	if err != nil {
+		return agent.Setup{}, err
+	}
+	_ = e.DB.SetMeta(ctx, "disconnected", "")
+	res := agent.Connect(ctx, e.Root, gate)
+	if res.MCP {
+		_ = e.DB.SetMeta(ctx, "mcp", "1")
+	}
+	g.SetConnection(res.Hooks, res.MCP || e.DB.Meta(ctx, "mcp") == "1")
+	return res, nil
 }
 
 // answer is the developer's answer from the checkpoint card.
