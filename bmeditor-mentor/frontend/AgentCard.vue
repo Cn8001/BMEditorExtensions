@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, markRaw, ref, watch } from 'vue'
 import { agent, api, call, go, icons, name, store, type SearchResult } from './api'
+import FitMap from './FitMap.vue'
 import Section from './Section.vue'
 import UnitCard from './UnitCard.vue'
 
@@ -22,6 +23,15 @@ const level = computed(() => {
   }
   return { label: 'Not connected', title: 'Connecting the agent did not work: Mentor shows what changed, and does not pause anything.' }
 })
+
+const details = ref(false)
+const output = ref(false)
+const cp = computed(() => st.value?.checkpoint)
+
+// list writes a step's names as the agent gave them.
+function list(xs: string[] | null | undefined) {
+  return (xs ?? []).join(', ')
+}
 
 const step = computed(() => (st.value?.plan && st.value.step ? st.value.plan.steps[st.value.step - 1] : null))
 
@@ -88,9 +98,18 @@ function time(at: string) {
       <div class="task">{{ st.plan.task }}</div>
       <ol class="steps">
         <li v-for="s in st.plan.steps" :key="s.n">
-          <div>{{ s.title }}</div>
+          <div class="stitle">{{ s.title }}</div>
+          <dl class="said5">
+            <template v-if="s.does"><dt>Does</dt><dd>{{ s.does }}</dd></template>
+            <template v-if="s.uses?.length"><dt>Uses</dt><dd>{{ list(s.uses) }}</dd></template>
+            <template v-if="s.creates?.length"><dt>Creates</dt><dd>{{ list(s.creates) }}</dd></template>
+            <template v-if="s.avoid?.length"><dt>Leaves alone</dt><dd>{{ list(s.avoid) }}</dd></template>
+            <template v-if="s.doneWhen"><dt>Done when</dt><dd>{{ s.doneWhen }}</dd></template>
+            <template v-if="touches(s)"><dt>Files</dt><dd>{{ touches(s) }} <span class="dim">· about {{ s.budget }} besides tests</span></dd></template>
+          </dl>
           <div v-if="s.why" class="dim">{{ s.why }}</div>
-          <div v-if="touches(s)" class="dim"><i class="codicon codicon-file-code" /> {{ touches(s) }}</div>
+          <div v-if="s.unknown?.length" class="warn"><i class="codicon codicon-warning" /> Uses {{ list(s.unknown) }}, which the code does not have.</div>
+          <div v-if="s.exists?.length" class="warn"><i class="codicon codicon-warning" /> Creates {{ list(s.exists) }}, which the code already has.</div>
         </li>
       </ol>
       <Section v-if="related" title="What the code has for it" :count="related.candidates.length">
@@ -113,21 +132,42 @@ function time(at: string) {
         <i class="codicon codicon-debug-pause" /> Step {{ st.checkpoint.step }}<template v-if="step">: {{ step.title }}</template>
         <span class="badge">waits for you</span>
       </div>
-      <div class="said">
-        <div class="who">The agent says it</div>
-        <div class="text">{{ st.checkpoint.summary }}</div>
-        <template v-if="st.checkpoint.why">
-          <div class="who">and why</div>
-          <div class="text">{{ st.checkpoint.why }}</div>
+      <div class="gate">
+        <div class="q">1. What was made</div>
+        <div class="text">{{ st.checkpoint.made || st.checkpoint.summary }}</div>
+        <div class="q">2. Where it fits</div>
+        <FitMap v-if="st.checkpoint.fit" :fit="st.checkpoint.fit" />
+        <div v-else class="dim">Reading the changes…</div>
+        <template v-if="st.checkpoint.know">
+          <div class="q">3. What you need to know</div>
+          <div class="text know">{{ st.checkpoint.know }}</div>
         </template>
+        <div v-if="cp?.tests" class="tests" :class="cp.tests.state">
+          <template v-if="cp.tests.state === 'running'"><i class="codicon codicon-loading codicon-modifier-spin" /> Running the tests of {{ cp.tests.packages.join(', ') }}…</template>
+          <template v-else-if="cp.tests.state === 'passed'"><i class="codicon codicon-pass" /> Tests passed · {{ cp.tests.packages.join(', ') }}</template>
+          <template v-else-if="cp.tests.state === 'failed'">
+            <i class="codicon codicon-error" /> Tests failed<template v-if="cp.tests.failed.length">: {{ cp.tests.failed.join(', ') }}</template>
+            <button class="link" @click="output = !output">{{ output ? 'Hide' : 'Show' }} output</button>
+          </template>
+          <template v-else><i class="codicon codicon-circle-slash" /> No Go tests for what changed</template>
+        </div>
+        <pre v-if="output && cp?.tests?.output" class="out">{{ cp.tests.output }}</pre>
+        <div v-if="st.checkpoint.avoided?.length" class="warn">
+          <i class="codicon codicon-warning" /> It changed {{ list(st.checkpoint.avoided) }}, which it said it would leave alone.
+        </div>
         <div v-if="st.checkpoint.unknown.length" class="warn">
           <i class="codicon codicon-warning" /> It names {{ st.checkpoint.unknown.join(', ') }}, which the code does not have.
         </div>
       </div>
-      <div class="who pad">What the code shows changed</div>
-      <div v-if="!st.checkpoint.report" class="dim pad">Reading the changes…</div>
-      <div v-else-if="!st.checkpoint.report.units.length" class="dim pad">No Go declaration changed in this step.</div>
-      <UnitCard v-for="u in st.checkpoint.report?.units" :key="u.id" :u="u" no-review />
+      <button class="more" @click="details = !details">
+        <i class="codicon" :class="details ? 'codicon-chevron-down' : 'codicon-chevron-right'" /> All it changed<template v-if="st.checkpoint.report"> · {{ st.checkpoint.report.units.reduce((n, u) => n + u.changes.length, 0) }} declarations</template>
+      </button>
+      <template v-if="details">
+        <div v-if="st.checkpoint.summary && st.checkpoint.made" class="text pad">{{ st.checkpoint.summary }}</div>
+        <div v-if="st.checkpoint.why" class="text pad dim">Why: {{ st.checkpoint.why }}</div>
+        <div v-if="!st.checkpoint.report" class="dim pad">Reading the changes…</div>
+        <UnitCard v-for="u in st.checkpoint.report?.units" :key="u.id" :u="u" no-review />
+      </template>
       <textarea v-model="note" rows="2" placeholder="What to change, or a note for the agent" />
       <div class="buttons">
         <button class="primary" title="Mark it reviewed and let the agent go on" @click="answerCheckpoint('approve')">
@@ -190,6 +230,75 @@ function time(at: string) {
 }
 .link + .link {
   margin-left: 10px;
+}
+.stitle {
+  color: var(--text);
+}
+.said5 {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 8px;
+  margin: 2px 0;
+  font-size: 11px;
+}
+.said5 dt {
+  color: var(--text-faint);
+}
+.said5 dd {
+  margin: 0;
+  color: var(--text-dim);
+}
+.gate {
+  padding: 2px 10px 6px;
+}
+.gate .q {
+  margin: 8px 0 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.gate .text {
+  line-height: 1.45;
+  color: var(--text);
+}
+.gate .know {
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
+}
+.tests {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.tests.passed {
+  color: var(--success, #b8d27a);
+}
+.tests.failed {
+  color: var(--error);
+}
+.out {
+  max-height: 180px;
+  overflow: auto;
+  margin: 4px 0;
+  padding: 4px 6px;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  user-select: text;
+}
+.more {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin: 2px 6px;
+  color: var(--text-dim);
+  font-size: 11px;
 }
 .link {
   margin-left: auto;

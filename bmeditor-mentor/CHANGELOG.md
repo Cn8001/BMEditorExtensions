@@ -6,11 +6,13 @@ when it has a section here.
 
 ## 0.0.1
 
-- First version. The coding agent the editor runs works on its own and
-  stops at the end of each step of its plan: Mentor shows what the step
-  changed beside what the agent says it did and why, and the agent goes on
-  when you approve, or makes the changes you ask for. Its plan waits for
-  you first. The agent's hooks make the stops hold in any permission mode,
+- First version. The coding agent the editor runs works on its own, in
+  steps of one behavior each, saying before each what it does, uses,
+  creates and leaves alone and when it is done; a step that strays or
+  grows ends. At the end of each it stops: Mentor shows what was made,
+  where it fits in the project and what to know of it, runs its tests, and
+  the agent goes on when you approve, or makes the changes you ask for.
+  Its plan waits for you first. The agent's hooks make the stops hold in any permission mode,
   auto mode included. One button, Connect the agent, turns it all on or
   off: on, Mentor adds its MCP server and hooks for the folder and its dot
   turns green; off, it takes them out.

@@ -284,6 +284,30 @@ export interface AgentStep {
   files: string[]
   packages: string[]
   status: 'todo' | 'doing' | 'done'
+  // What the agent said before the step: what it does, the code it uses,
+  // what it creates, what it leaves alone and when it is done.
+  does?: string
+  uses: string[] | null
+  creates: string[] | null
+  avoid: string[] | null
+  doneWhen?: string
+  unknown: string[] | null // uses the code does not have
+  exists: string[] | null // creates the code already has
+  budget: number
+}
+
+// FitBox is a declaration where a step's new part sits.
+export interface FitBox extends Ref {
+  layer?: string
+  change?: string
+}
+
+export interface TestRun {
+  state: 'running' | 'passed' | 'failed' | 'none'
+  packages: string[]
+  failed: string[]
+  output?: string
+  tookMs: number
 }
 
 export interface AgentPlan {
@@ -296,6 +320,11 @@ export interface AgentPlan {
 export interface Checkpoint {
   id: number
   step: number
+  made?: string
+  know?: string
+  fit: { above: FitBox[]; parts: FitBox[]; below: FitBox[] } | null
+  tests: TestRun | null
+  avoided: string[] | null
   summary: string
   why?: string
   unknown: string[]

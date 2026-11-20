@@ -5,19 +5,23 @@ keeping your hold on a project while a coding agent writes much of it: see
 each step of its work before the next begins, and know what is there,
 where it is and what uses what, without asking the agent.
 
-- **Step by step, in auto mode too.** The agent proposes its plan in
-  steps, and waits for you to approve it in Mentor. It then works on its
-  own; at the end of each step it stops at a checkpoint. Mentor shows what
-  the agent says it did and why, beside what the code shows changed: the
-  declarations added, changed and removed, where they are wired in, the
-  routes and tests that reach them, and what to look at first. Names it
-  uses that the code does not have are flagged. Approve, and the agent
-  goes on by itself; ask for changes, and it makes them within the step;
-  or skip. The agent's hooks make the stops hold in any permission mode:
-  while you have not answered, it changes nothing, and it cannot end its
-  turn with a step that has no checkpoint. A step that grows past the
-  files a step may change ends early. What the agent did, edit by edit, is
-  listed as it happens.
+- **Step by step, in auto mode too.** The agent plans in steps, each one
+  behavior you can understand on its own, and says of each before it
+  starts what it does, the code it uses, what it creates, what it leaves
+  alone and when it is done; names the code does not have are flagged.
+  The plan waits for you. Then the agent works on its own, and keeps to
+  what it said: an edit where it said it would not go, or a step grown
+  well past the files it named, ends the step.
+- **A checkpoint places the new part, it does not ask you to read it
+  all.** At the end of each step the agent stops, and Mentor shows three
+  things: what was made, in a sentence; where it fits, as boxes of the
+  code that calls it and the code it uses, each with its layer and a click
+  from the code; and the one thing you need to know of it. Mentor runs the
+  tests of what changed itself and says whether they pass. All that
+  changed is one click further. Approve, and the agent goes on; ask for
+  changes, and it makes them within the step. The agent's hooks make the
+  stops hold in any permission mode, and it cannot end its turn with a
+  step that has no checkpoint.
 - **What the agent changed.** Below the checkpoints, the Changes tab
   lists the files the agent edited that still differ from HEAD, each with
   the declarations added, changed and removed in it. A file opens beside
